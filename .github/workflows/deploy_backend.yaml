@@ -5,7 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**' # Only trigger when backend files change
+      - 'backend/**'
+      
+  workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
