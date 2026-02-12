@@ -38,17 +38,28 @@
 
         <div class="section-title">Personal Details</div>
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label class="form-label">First Name <span class="text-danger">*</span></label>
             <input type="text" x-model="form.firstName" class="form-control" required>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Middle Name</label>
-            <input type="text" x-model="form.middleName" class="form-control">
+          <div class="col-md-3">
+            <label class="form-label">Middle Name <span class="text-danger">*</span></label>
+            <input type="text" x-model="form.middleName" class="form-control" required>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label class="form-label">Last Name <span class="text-danger">*</span></label>
             <input type="text" x-model="form.lastName" class="form-control" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Suffix</label>
+            <select x-model="form.suffix" class="form-select">
+              <option value="">None</option>
+              <option value="Sr.">Sr.</option>
+              <option value="Jr.">Jr.</option>
+              <option value="III">III</option>
+              <option value="IV">IV</option>
+              <option value="V">V</option>
+            </select>
           </div>
 
           <div class="col-md-6">
@@ -60,8 +71,8 @@
           </div>
 
           <div class="col-md-6">
-            <label class="form-label">Facebook Name <span class="text-danger">*</span></label>
-            <input type="text" x-model="form.fbName" class="form-control" required>
+            <label class="form-label">Facebook Name</label>
+            <input type="text" x-model="form.fbName" class="form-control">
           </div>
 
           <div class="col-md-6">
@@ -302,8 +313,17 @@
 
           <div class="col-12" x-show="form.isMemberToggle" x-transition>
             <div class="conditional-section">
-              <label class="form-label">Leader's Name <span class="text-danger">*</span></label>
-              <input type="text" x-model="form.leaderName" class="form-control" :required="form.isMemberToggle">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label">Leader's First Name <span class="text-danger">*</span></label>
+                  <input type="text" x-model="form.leaderFirstName" class="form-control"
+                    :required="form.isMemberToggle">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Leader's Last Name <span class="text-danger">*</span></label>
+                  <input type="text" x-model="form.leaderLastName" class="form-control" :required="form.isMemberToggle">
+                </div>
+              </div>
             </div>
           </div>
 
@@ -332,8 +352,8 @@
           <div class="col-12" x-show="form.isLeaderToggle" x-transition>
             <div class="conditional-section">
               <label class="form-label">How many groups are you leading? <span class="text-danger">*</span></label>
-              <input type="number" x-model="form.groupCount" @input="updateGroups()" class="form-control" min="1"
-                max="20" placeholder="Enter number..." :required="form.isLeaderToggle">
+              <input type="tel" x-model="form.groupCount" @input="formatNumber($event.target); updateGroups()"
+                class="form-control" placeholder="Enter number..." :required="form.isLeaderToggle">
 
               <div class="mt-3">
                 <template x-for="(group, index) in form.groups" :key="index">
@@ -349,8 +369,8 @@
                       </select>
                     </div>
                     <div class="col-5">
-                      <input type="number" x-model="group.count" class="form-control form-select-sm"
-                        placeholder="How many Members" required>
+                      <input type="tel" x-model="group.count" @input="formatNumber($event.target)"
+                        class="form-control form-select-sm" placeholder="How many Members" required>
                     </div>
                   </div>
                 </template>
@@ -369,11 +389,19 @@
               <div class="mt-3" x-show="form.hasInternToggle" x-transition>
                 <label class="form-label">Intern Names</label>
                 <template x-for="(intern, index) in form.interns" :key="index">
-                  <div class="d-flex mb-2">
-                    <input type="text" x-model="intern.name" class="form-control me-2" placeholder="Enter intern name"
-                      :required="form.hasInternToggle">
+                  <div class="d-flex mb-2 align-items-center">
+                    <div class="row g-2 flex-grow-1 me-2">
+                      <div class="col-6">
+                        <input type="text" x-model="intern.firstName" class="form-control" placeholder="First Name"
+                          :required="form.hasInternToggle">
+                      </div>
+                      <div class="col-6">
+                        <input type="text" x-model="intern.lastName" class="form-control" placeholder="Last Name"
+                          :required="form.hasInternToggle">
+                      </div>
+                    </div>
                     <button type="button" class="btn btn-outline-danger btn-sm" @click="removeIntern(index)"
-                      x-show="form.interns.length > 1">Remove</button>
+                      x-show="form.interns.length > 1" style="height: fit-content;">Remove</button>
                   </div>
                 </template>
                 <button type="button" class="btn btn-sm btn-outline-primary mt-1" @click="addIntern()">+ Add another
@@ -452,17 +480,17 @@
         isDarkMode: false,
 
         form: {
-          firstName: '', middleName: '', lastName: '', email: '', fbName: '',
+          firstName: '', middleName: '', lastName: '', suffix: '', email: '', fbName: '',
           primaryMobile: '', secondaryMobile: '', gender: '', birthday: '',
           maritalStatus: '', anniversary: '',
           occupationType: '', educationLevel: '', school: '', yearLevel: '', course: '',
           jobTitle: '', company: '', employerIndustry: '', employerIndustryOther: '',
           businessName: '', businessNature: '', businessNatureOther: '', businessAddress: '',
-          discipleshipList: [], leaderName: '', wantVg: '',
+          discipleshipList: [], leaderFirstName: '', leaderLastName: '', wantVg: '',
           groupCount: '', groups: [],
           ministryList: [], wantMinistryList: [],
           isMemberToggle: false, wantVgToggle: false, isLeaderToggle: false, isMinistryMemberToggle: false,
-          hasInternToggle: false, interns: [{ name: '' }]
+          hasInternToggle: false, interns: [{ firstName: '', lastName: '' }]
         },
 
         touched: { email: false, birthday: false, anniversary: false, primaryMobile: false, secondaryMobile: false },
@@ -497,7 +525,7 @@
         },
 
         addIntern() {
-          this.form.interns.push({ name: '' });
+          this.form.interns.push({ firstName: '', lastName: '' });
         },
 
         removeIntern(index) {
@@ -529,6 +557,14 @@
           } else if (selectedVal !== NONE_OPTION && list.includes(NONE_OPTION)) {
             this.form[listName] = list.filter(item => item !== NONE_OPTION);
           }
+        },
+
+        formatNumber(input) {
+          input.value = input.value.replace(/\D/g, '');
+          // Trigger Alpine update manually if needed, though x-model handles input events generally.
+          // However, for direct value manipulation on the element, we should dispatch an input event or ensure x-model picks it up.
+          // But since we are modifying the value prop directly and x-model listens to input, the regex replace happens on input.
+          // Let's also enforce it on the data model if possible, but simplest is modifying the event target value.
         },
 
         formatPhone(field, isRequired) {
@@ -642,6 +678,9 @@
           payload.primaryMobile = "09" + payload.primaryMobile;
           payload.secondaryMobile = payload.secondaryMobile ? "09" + payload.secondaryMobile : "";
 
+          // Concatenate names for submission
+          payload.leaderName = payload.isMemberToggle ? `${payload.leaderFirstName} ${payload.leaderLastName}`.trim() : "";
+
           payload.isMember = payload.isMemberToggle ? "Yes" : "No";
           payload.wantVg = !this.form.isMemberToggle ? (this.form.wantVgToggle ? "Yes" : "No") : "";
           payload.isLeader = payload.isLeaderToggle ? "Yes" : "No";
@@ -657,7 +696,7 @@
           if (payload.isLeaderToggle) {
             payload.vgDetails = payload.groups.map(g => `${g.type} (${g.count})`).join(", ");
             payload.hasIntern = payload.hasInternToggle ? "Yes" : "No";
-            payload.internNames = payload.hasInternToggle ? payload.interns.map(i => i.name.trim()).filter(n => n).join(", ") : "";
+            payload.internNames = payload.hasInternToggle ? payload.interns.map(i => `${i.firstName} ${i.lastName}`.trim()).filter(n => n).join(", ") : "";
           } else {
             payload.vgDetails = "";
             payload.hasIntern = "No";
@@ -690,17 +729,17 @@
 
         resetForm() {
           this.form = {
-            firstName: '', middleName: '', lastName: '', email: '', fbName: '',
+            firstName: '', middleName: '', lastName: '', suffix: '', email: '', fbName: '',
             primaryMobile: '', secondaryMobile: '', gender: '', birthday: '',
             maritalStatus: '', anniversary: '',
             occupationType: '', educationLevel: '', school: '', yearLevel: '', course: '',
             jobTitle: '', company: '', employerIndustry: '', employerIndustryOther: '',
             businessName: '', businessNature: '', businessNatureOther: '', businessAddress: '',
-            discipleshipList: [], leaderName: '', wantVg: '',
+            discipleshipList: [], leaderFirstName: '', leaderLastName: '', wantVg: '',
             groupCount: '', groups: [],
             ministryList: [], wantMinistryList: [],
             isMemberToggle: false, wantVgToggle: false, isLeaderToggle: false, isMinistryMemberToggle: false,
-            hasInternToggle: false, interns: [{ name: '' }]
+            hasInternToggle: false, interns: [{ firstName: '', lastName: '' }]
           };
           this.touched = { email: false, birthday: false, anniversary: false, primaryMobile: false, secondaryMobile: false };
           this.errors = { email: false, birthday: false, anniversary: false, primaryMobile: false, secondaryMobile: false };
