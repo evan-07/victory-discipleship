@@ -2,13 +2,16 @@ import os
 import json
 import datetime
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS  # <--- CRITICAL IMPORT
 from google.cloud import bigquery
 
 app = Flask(__name__)
 
-# Enable CORS: Allows your Cloudflare site to talk to this Cloud Run URL
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# --- FIX START ---
+# Allow ALL origins (*) for now to get it working.
+# Once stable, change "*" to "https://your-project.pages.dev"
+CORS(app, resources={r"/api/*": {"origins": "*"}}) 
+# --- FIX END ---
 
 # Initialize BigQuery Client
 client = bigquery.Client()
@@ -20,24 +23,24 @@ TABLE_ID = "raw_members"
 @app.route('/api/submit', methods=['POST'])
 def submit_form():
     try:
+        # Check if request is JSON
+        if not request.is_json:
+            return jsonify({"result": "error", "message": "Request must be JSON"}), 400
+
         data = request.json
         
-        # --- 1. HONEY POT SPAM CHECK ---
-        # If the hidden 'website_url' field has ANY text, it is a bot.
+        # --- HONEY POT SPAM CHECK ---
         if data.get('website_url'):
             print(f"Spam bot detected from IP: {request.remote_addr}")
-            # Return "Success" so the bot thinks it won, but DO NOT save data.
             return jsonify({"result": "success", "message": "Saved"}), 200
 
-        # --- 2. VALIDATION (Basic) ---
+        # --- VALIDATION ---
         if not data.get('email') or not data.get('lastName'):
             return jsonify({"result": "error", "message": "Missing required fields"}), 400
 
-        # --- 3. PREPARE ROW FOR BIGQUERY ---
-        # We assume the table is: project.dataset.table
+        # --- PREPARE ROW ---
         table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
         
-        # Clean up data before inserting (remove the honey pot field from storage)
         clean_payload = data.copy()
         clean_payload.pop('website_url', None)
 
@@ -49,10 +52,10 @@ def submit_form():
             "mobile_number": data.get('primaryMobile'),
             "ip_address": request.headers.get('X-Forwarded-For', request.remote_addr),
             "user_agent": request.headers.get('User-Agent'),
-            "payload_json": json.dumps(clean_payload) # Dump everything else here
+            "payload_json": json.dumps(clean_payload)
         }]
 
-        # --- 4. INSERT INTO BIGQUERY ---
+        # --- INSERT ---
         errors = client.insert_rows_json(table_ref, row_to_insert)
 
         if errors:
