@@ -9,7 +9,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  RUN_REGION: us-central1 # Change if you prefer a different region
+  RUN_REGION: asia-southeast1
   SERVICE_NAME: member-api
 
 jobs:
