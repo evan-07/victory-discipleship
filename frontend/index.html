@@ -78,7 +78,7 @@
           <div class="col-md-6">
             <label class="form-label">Primary Mobile No. <span class="text-danger">*</span></label>
             <div class="input-group">
-              <span class="input-group-text bg-light text-secondary">09</span>
+              <span class="input-group-text">09</span>
               <input type="tel" x-model="form.primaryMobile" class="form-control"
                 :class="{'is-invalid': touched.primaryMobile && errors.primaryMobile}"
                 @input="formatPhone('primaryMobile', true)"
@@ -96,7 +96,7 @@
           <div class="col-md-6" x-show="showSecMobile" x-transition>
             <label class="form-label">Secondary Mobile No.</label>
             <div class="input-group">
-              <span class="input-group-text bg-light text-secondary">09</span>
+              <span class="input-group-text">09</span>
               <input type="tel" x-model="form.secondaryMobile" class="form-control"
                 :class="{'is-invalid': touched.secondaryMobile && errors.secondaryMobile}"
                 @input="formatPhone('secondaryMobile', false)"

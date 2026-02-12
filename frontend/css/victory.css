@@ -3,19 +3,20 @@
   --victory-blue-dark: #02458D;
   --victory-blue-bright: #227EEE;
   --victory-orange: #F0994E;
-  
+
   /* Neutral Colors */
   --bg-color: #FFFFFF;
   --bg-secondary: #F8F9FA;
   --text-main: #212529;
   --text-muted: #6A6A6A;
   --border-color: #E0E0E0;
-  
+
   /* Form Elements */
   --input-bg: #F0F0F0;
   --input-border: transparent;
-  --input-radius: 8px; /* Slightly more rounded but not full capsule for text inputs for better UX */
-  
+  --input-radius: 8px;
+  /* Slightly more rounded but not full capsule for text inputs for better UX */
+
   /* Component Specific */
   --card-bg: #FFFFFF;
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
@@ -24,21 +25,41 @@
 
 [data-bs-theme="dark"] {
   /* Dark Mode Branding - Deep Navy Theme */
-  --victory-blue-dark: #6ea8fe; /* Lighter blue for dark mode visibility */
+  --victory-blue-dark: #6ea8fe;
+  /* Lighter blue for dark mode visibility */
   --victory-blue-bright: #227EEE;
   --victory-orange: #F0994E;
 
-  --bg-color: #0f172a; /* Slate 900 - Deep Navy */
-  --bg-secondary: #1e293b; /* Slate 800 */
+  --bg-color: #0f172a;
+  /* Slate 900 - Deep Navy */
+  --bg-secondary: #1e293b;
+  /* Slate 800 */
   --text-main: #f8fafc;
   --text-muted: #cbd5e1;
   --border-color: #334155;
 
-  --input-bg: #1e293b;
+  --input-bg: #0f172a;
+  /* Darker than card for recessed look */
   --input-radius: 8px;
-  
+
   --card-bg: #1e293b;
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Input Group Addons (Prefixes) */
+.input-group-text {
+  background-color: var(--input-bg);
+  border-color: transparent;
+  color: var(--text-muted);
+  border-radius: var(--input-radius) 0 0 var(--input-radius);
+  /* Match input radius */
+  border: 1px solid transparent;
+}
+
+[data-bs-theme="dark"] .input-group-text {
+  color: var(--text-main);
+  border-color: var(--border-color);
+  /* Optional: add slight border if needed, or keep transparent */
 }
 
 body {
@@ -50,9 +71,16 @@ body {
 }
 
 /* Headings */
-h1, h2, h3, h4, h5, h6, .main-title {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.main-title {
   color: var(--victory-blue-dark);
-  font-weight: 800; /* Extra Bold from brand */
+  font-weight: 800;
+  /* Extra Bold from brand */
 }
 
 /* Card / Container */
@@ -68,8 +96,10 @@ h1, h2, h3, h4, h5, h6, .main-title {
 
 @media (max-width: 768px) {
   body {
-    background-color: var(--card-bg); /* Seamless mobile look */
+    background-color: var(--card-bg);
+    /* Seamless mobile look */
   }
+
   .form-container {
     box-shadow: none;
     border-radius: 0;
@@ -83,7 +113,8 @@ h1, h2, h3, h4, h5, h6, .main-title {
   background-color: var(--victory-orange);
   border-color: var(--victory-orange);
   color: #fff;
-  border-radius: 30px; /* Brand rounded style */
+  border-radius: 30px;
+  /* Brand rounded style */
   padding: 10px 24px;
   font-weight: 700;
   font-size: 1.1rem;
@@ -91,8 +122,11 @@ h1, h2, h3, h4, h5, h6, .main-title {
   box-shadow: 0 4px 6px rgba(240, 153, 78, 0.2);
 }
 
-.btn-brand:hover, .btn-brand:focus, .btn-brand:active {
-  background-color: #e08e45 !important; /* Slightly darker orange */
+.btn-brand:hover,
+.btn-brand:focus,
+.btn-brand:active {
+  background-color: #e08e45 !important;
+  /* Slightly darker orange */
   border-color: #e08e45 !important;
   color: #fff !important;
   transform: translateY(-1px);
@@ -118,9 +152,11 @@ h1, h2, h3, h4, h5, h6, .main-title {
   font-size: 0.95rem;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
   background-color: var(--input-bg);
-  border: 1px solid transparent; /* No border initially */
+  border: 1px solid transparent;
+  /* No border initially */
   border-radius: var(--input-radius);
   padding: 12px 16px;
   color: var(--text-main);
@@ -128,10 +164,13 @@ h1, h2, h3, h4, h5, h6, .main-title {
   transition: all 0.2s ease;
 }
 
-.form-control:focus, .form-select:focus {
-  background-color: var(--bg-color); /* White/Dark bg on focus */
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--bg-color);
+  /* White/Dark bg on focus */
   border-color: var(--victory-blue-bright);
-  box-shadow: 0 0 0 4px rgba(34, 126, 238, 0.1); /* Subtle blue glow */
+  box-shadow: 0 0 0 4px rgba(34, 126, 238, 0.1);
+  /* Subtle blue glow */
   color: var(--text-main);
 }
 
@@ -153,7 +192,8 @@ h1, h2, h3, h4, h5, h6, .main-title {
 }
 
 /* Conditional Sections */
-.conditional-section, .group-item {
+.conditional-section,
+.group-item {
   background-color: var(--bg-secondary);
   border-radius: 12px;
   padding: 1.5rem;
@@ -187,6 +227,7 @@ h1, h2, h3, h4, h5, h6, .main-title {
   margin-top: 0.2em;
   border-color: #ccc;
 }
+
 .form-check-input:checked {
   background-color: var(--victory-blue-dark);
   border-color: var(--victory-blue-dark);
@@ -200,8 +241,15 @@ h1, h2, h3, h4, h5, h6, .main-title {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .form-container {
