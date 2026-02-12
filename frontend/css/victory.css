@@ -5,9 +5,11 @@
   --victory-orange: #F0994E;
 
   /* Neutral Colors */
-  --bg-color: #FFFFFF;
+  --bg-color: #f0f4f8;
+  /* Darker, blue-tinted gray for better contrast against white paper */
   --bg-secondary: #F8F9FA;
-  --text-main: #212529;
+  --text-main: #202124;
+  /* Google's almost-black */
   --text-muted: #6A6A6A;
   --border-color: #E0E0E0;
 
@@ -34,7 +36,7 @@
   /* Slate 900 - Deep Navy */
   --bg-secondary: #1e293b;
   /* Slate 800 */
-  --text-main: #f8fafc;
+  --text-main: #e2e8f0;
   --text-muted: #cbd5e1;
   --border-color: #334155;
 
@@ -86,18 +88,24 @@ h6,
 /* Card / Container */
 .form-container {
   background-color: var(--card-bg);
-  border-radius: 20px;
-  box-shadow: var(--card-shadow);
+  border-radius: 12px;
+  /* Material Design radius */
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  /* Deeper shadow for "lifted" effect */
   padding: 3rem;
-  margin: 2rem auto;
-  max-width: 800px;
+  margin: 3rem auto;
+  /* More spacing from top */
+  max-width: 770px;
+  /* Standard Google Form width approx */
+  border-top: 12px solid var(--victory-blue-dark);
+  /* Google Form Color Strip */
   transition: background-color 0.3s ease;
 }
 
 @media (max-width: 768px) {
   body {
-    background-color: var(--card-bg);
-    /* Seamless mobile look */
+    background-color: var(--bg-color);
+    /* Maintain background color on mobile for consistent "paper on desk" feel, or switch to full white */
   }
 
   .form-container {
@@ -105,6 +113,7 @@ h6,
     border-radius: 0;
     padding: 1.5rem;
     margin: 0;
+    border-top: 8px solid var(--victory-blue-dark);
   }
 }
 
