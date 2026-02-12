@@ -1,5 +1,5 @@
 # Use official Python image
-FROM python:3.9-slim
+FROM python:3.9-slim 
 
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
