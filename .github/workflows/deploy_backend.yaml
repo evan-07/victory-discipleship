@@ -29,12 +29,19 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      # Deploy to Cloud Run
+      # Step 1: Build and Push the Container Image
+      # We use 'gcloud builds submit' which is more robust than 'run deploy --source'
+      - name: 'Build Container'
+        run: |-
+          gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} ./backend
+
+      # Step 2: Deploy the Image
+      # We deploy the *specific image* we just built
       - name: 'Deploy to Cloud Run'
         uses: 'google-github-actions/deploy-cloudrun@v1'
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.RUN_REGION }}
-          source: ./backend
+          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} # <--- Point to the image, not source
           env_vars: |
             GCP_PROJECT=${{ env.PROJECT_ID }}
