@@ -1,0 +1,40 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**' # Only trigger when backend files change
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  RUN_REGION: us-central1 # Change if you prefer a different region
+  SERVICE_NAME: member-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Authenticate via Credentials JSON
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      # Deploy to Cloud Run
+      - name: 'Deploy to Cloud Run'
+        uses: 'google-github-actions/deploy-cloudrun@v1'
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.RUN_REGION }}
+          source: ./backend
+          env_vars: |
+            GCP_PROJECT=${{ env.PROJECT_ID }}
