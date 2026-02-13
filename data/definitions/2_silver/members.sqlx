@@ -2,7 +2,6 @@ config {
   type: "table",
   schema: "victory_data",
   description: "Cleaned member data with standardized phone numbers and deduplication.",
-  uniqueKey: ["email"],
   assertions: {
     uniqueKey: ["email"],
     nonNull: ["email", "first_name", "last_name"]
