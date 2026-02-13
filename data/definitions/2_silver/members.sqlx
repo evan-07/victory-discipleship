@@ -56,9 +56,7 @@ WITH raw_data AS (
     CAST(JSON_EXTRACT_SCALAR(payload, '$.groupCount') AS INT64) AS vg_count,
     JSON_EXTRACT_SCALAR(payload, '$.vgDetails') AS vg_details,
     JSON_EXTRACT_SCALAR(payload, '$.hasIntern') = 'Yes' AS has_intern,
-    JSON_EXTRACT_SCALAR(payload, '$.internNames') AS intern_names,
-
-    payload -- Keep full payload for reference/debugging
+    JSON_EXTRACT_SCALAR(payload, '$.internNames') AS intern_names
   FROM
     ${ref("raw_members")}
 ),
