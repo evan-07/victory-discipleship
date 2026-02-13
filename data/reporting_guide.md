@@ -6,7 +6,7 @@ This guide outlines how to visualize the data from the **Gold Layer** tables in 
 
 ## 1. Executive Overview (Source: `rept_executive_kpis` or `rept_daily_trends`)
 
-**Goal:** High-level snapshot of church health.
+**Goal:** High-level snapshot of church health. 
 
 | Chart Type | Dimension | Metric | Insight |
 | :--- | :--- | :--- | :--- |
