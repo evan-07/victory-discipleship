@@ -1,0 +1,8 @@
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  description: "View stats of members (Gold Layer)",
+  tags: ["gold"]
+}
+
+SELECT 1 as test
