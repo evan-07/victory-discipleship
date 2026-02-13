@@ -1,0 +1,60 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  description: "Unified Member Profile: One Big Table joining all silver views for comprehensive cross-dimensional reporting in Looker.",
+  tags: ["reporting", "gold"],
+  dependencies: ["create_infrastructure"]
+}
+
+SELECT
+  m.email,
+  m.first_name,
+  m.last_name,
+  m.mobile_number,
+  
+  -- Demographics
+  d.age,
+  d.age_group,
+  d.gender,
+  d.marital_status,
+  
+  -- Spiritual Journey
+  dj.finished_one2one,
+  dj.finished_victory_weekend,
+  dj.finished_spiritual_foundations,
+  dj.finished_discipleship_class,
+  dj.finished_leadership_113,
+  
+  -- Ministry
+  mi.ministry_status,
+  mi.ministry_teams,
+  mi.want_ministry,
+  
+  -- Victory Group
+  vgi.vg_status,
+  vgi.vg_leader_name,
+  vgi.want_vg,
+  
+  -- Leadership
+  ls.primary_group_type AS leader_group_type,
+  ls.vg_count AS leader_group_size,
+  ls.has_intern AS is_active_intern_mentor,
+  
+  -- Sector (Coalesced)
+  COALESCE(cs.school_normalized, ms.organization) AS organization,
+  COALESCE(cs.course, ms.role) AS role_or_course,
+  ms.industry,
+  m.occupation_type,
+  
+  -- Metadata
+  m.ingestion_timestamp
+
+FROM
+  ${ref("members")} m
+LEFT JOIN ${ref("view_demographics")} d ON m.email = d.email
+LEFT JOIN ${ref("view_discipleship_journey")} dj ON m.email = dj.email
+LEFT JOIN ${ref("view_ministry_involvement")} mi ON m.email = mi.email
+LEFT JOIN ${ref("view_vg_involvement")} vgi ON m.email = vgi.email
+LEFT JOIN ${ref("view_leadership_summary")} ls ON m.email = ls.email
+LEFT JOIN ${ref("view_campus_sector")} cs ON m.email = cs.email
+LEFT JOIN ${ref("view_marketplace_sector")} ms ON m.email = ms.email

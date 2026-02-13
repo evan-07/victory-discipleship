@@ -7,6 +7,7 @@ config {
 
 CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.bronze_dataset};
 CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.silver_dataset};
+CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.gold_dataset};
 
 CREATE TABLE IF NOT EXISTS ${dataform.projectConfig.vars.bronze_dataset}.raw_members (
   ingestion_timestamp TIMESTAMP,

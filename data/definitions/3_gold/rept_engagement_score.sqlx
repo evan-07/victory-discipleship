@@ -1,0 +1,36 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  description: "Scoring system to classify members by engagement level (Crowd, Committed, Core).",
+  tags: ["reporting", "gold"],
+  dependencies: ["create_infrastructure"]
+}
+
+WITH scored_members AS (
+  SELECT
+    m.email,
+    m.first_name,
+    m.last_name,
+    -- Points System
+    (IF(m.is_vg_member, 2, 0) + 
+     IF(m.is_ministry_member, 2, 0) + 
+     IF(m.is_vg_leader, 5, 0) +
+     IF(dj.finished_victory_weekend, 2, 0) +
+     IF(dj.finished_leadership_113, 3, 0)
+    ) AS engagement_score
+  FROM
+    ${ref("members")} m
+  LEFT JOIN ${ref("view_discipleship_journey")} dj ON m.email = dj.email
+)
+
+SELECT
+  *,
+  CASE
+    WHEN engagement_score >= 5 THEN 'Core'
+    WHEN engagement_score >= 2 THEN 'Committed'
+    ELSE 'Crowd'
+  END AS engagement_level
+FROM
+  scored_members
+ORDER BY
+  engagement_score DESC

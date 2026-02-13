@@ -1,0 +1,51 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  description: "Aggregated funnel metrics for the discipleship journey.",
+  tags: ["reporting", "gold"],
+  dependencies: ["create_infrastructure"]
+}
+
+SELECT
+  'Total Members' AS stage,
+  COUNT(email) AS count,
+  1 AS step_order
+FROM ${ref("members")}
+
+UNION ALL
+
+SELECT
+  'Finished One2One' AS stage,
+  COUNT(email) AS count,
+  2 AS step_order
+FROM ${ref("view_discipleship_journey")}
+WHERE finished_one2one = TRUE
+
+UNION ALL
+
+SELECT
+  'Finished Victory Weekend' AS stage,
+  COUNT(email) AS count,
+  3 AS step_order
+FROM ${ref("view_discipleship_journey")}
+WHERE finished_victory_weekend = TRUE
+
+UNION ALL
+
+SELECT
+  'Finished Spiritual Foundations' AS stage,
+  COUNT(email) AS count,
+  4 AS step_order
+FROM ${ref("view_discipleship_journey")}
+WHERE finished_spiritual_foundations = TRUE
+
+UNION ALL
+
+SELECT
+  'Active Leaders' AS stage,
+  COUNT(email) AS count,
+  5 AS step_order
+FROM ${ref("members")}
+WHERE is_vg_leader = TRUE
+
+ORDER BY step_order
