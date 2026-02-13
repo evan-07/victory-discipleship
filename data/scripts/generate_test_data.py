@@ -190,15 +190,31 @@ def main():
             leader["hasIntern"] = "No"
             leader["internNames"] = ""
 
-    # Combine all for final output
-    test_cases.extend(leaders_pool)
-    test_cases.extend(members_pool)
+    # Combine all for final processing
+    all_profiles = []
+    all_profiles.extend(leaders_pool)
+    all_profiles.extend(members_pool)
+
+    # Convert to Raw Schema format
+    raw_records = []
+    for profile in all_profiles:
+        record = {
+            "ingestion_timestamp": datetime.utcnow().isoformat(),
+            "payload": profile,
+            "metadata": {
+                "ip_address": fake.ipv4(),
+                "user_agent": fake.user_agent(),
+                "origin": "http://localhost:test",
+                "referer": "http://localhost:test/form"
+            }
+        }
+        raw_records.append(record)
 
     # Write to file
     with open('test_cases.json', 'w') as f:
-        json.dump(test_cases, f, indent=2)
+        json.dump(raw_records, f, indent=2)
 
-    print(f"Successfully generated {len(test_cases)} test cases in 'test_cases.json'.")
+    print(f"Successfully generated {len(raw_records)} raw records in 'test_cases.json'.")
     print(f"- Leaders: {len(leaders_pool)}")
     print(f"- Members: {len(members_pool)}")
 

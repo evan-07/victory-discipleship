@@ -44,11 +44,10 @@ jq -c '.[]' test_cases.json > test_cases.ndjson
 
 # Then load:
 bq load --project_id=victory-discipleship \
-  --autodetect \
   --source_format=NEWLINE_DELIMITED_JSON \
-  --schema_update_option=ALLOW_FIELD_ADDITION \
   victory-discipleship:bronze_dataset.raw_members \
-  test_cases.ndjson
+  test_cases.ndjson \
+  ingestion_timestamp:TIMESTAMP,payload:JSON,metadata:JSON
 ```
 
 **Note:** If you haven't set a default project in gcloud, you must include `--project_id=victory-discipleship` (as shown above) so BigQuery knows which project to bill for the load job. Alternatively, run `gcloud config set project victory-discipleship` once to set it as default.
