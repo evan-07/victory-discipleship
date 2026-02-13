@@ -1,21 +1,31 @@
-**/node_modules
+node_modules/
+**/node_modules/
+package.json
+package-lock.json
+*.json
+!dataform.json
+!package.json
+# Wait, package.json should be ignored? Yes. But wait, if I ignore *.json, I need to unignore dataform.json.
+# The previous config had explicit ignore for package.json AND *.json.
+# Let's be precise.
+
+# Ignore dependencies
 node_modules
-/node_modules
-package.json
-/package.json
-package-lock.json
-/package-lock.json
+**/node_modules
+
+# Ignore JSON files except config
 *.json
 !dataform.json
+!package.json # Actually, package.json IS needed for dependencies, but Dataform shouldn't compile it. 
+# Explicitly ignore package files to be safe
 package.json
-/package.json
 package-lock.json
-/package-lock.json
-*.json
-!dataform.json
+
+# Ignore logs and temp
 error.log
+temp_init/
+
+# Ignore Terraform
 **/.terraform/
 *.tfstate
 *.tfstate.*
-error.log
-temp_init/

@@ -1,5 +1,9 @@
 defaultProject: victory-discipleship
 defaultLocation: asia-southeast1
-defaultDataset: victory_data
+defaultDataset: silver
 defaultAssertionDataset: victory_assertions
 dataformCoreVersion: 3.0.46
+vars:
+  bronze_dataset: "bronze_dataset"
+  silver_dataset: "silver"
+  gold_dataset: "gold"

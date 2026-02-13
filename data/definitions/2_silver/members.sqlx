@@ -1,6 +1,6 @@
 config {
   type: "table",
-  schema: "victory_data",
+  schema: dataform.projectConfig.vars.silver_dataset,
   description: "Cleaned member data with standardized phone numbers and deduplication.",
   assertions: {
     uniqueKey: ["email"],
