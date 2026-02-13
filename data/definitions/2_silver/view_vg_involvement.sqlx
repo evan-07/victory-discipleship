@@ -1,0 +1,25 @@
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  description: "Analysis of Victory Group involvement - both active members and the pipeline of interested people.",
+  tags: ["analytical"]
+}
+
+SELECT
+  email,
+  first_name,
+  last_name,
+  is_vg_member,
+  vg_leader_name,
+  want_vg,
+  -- Status
+  CASE
+    WHEN is_vg_member THEN 'Active Member'
+    WHEN want_vg IS NOT NULL AND want_vg != '' THEN 'Interested'
+    ELSE 'None'
+  END AS vg_status
+FROM
+  ${ref("members")}
+WHERE
+  is_vg_member = TRUE 
+  OR (want_vg IS NOT NULL AND want_vg != '')

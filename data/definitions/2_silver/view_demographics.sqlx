@@ -1,0 +1,28 @@
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  description: "Demographic analysis of members including computed Age and Age Groups.",
+  tags: ["analytical"]
+}
+
+SELECT
+  email,
+  first_name,
+  last_name,
+  gender,
+  marital_status,
+  birthday,
+  -- Calculate Age
+  DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) AS age,
+  -- Age Grouping
+  CASE
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) < 13 THEN 'Kids'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 13 AND 17 THEN 'Youth'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 18 AND 35 THEN 'Young Adult'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 36 AND 59 THEN 'Adult'
+    ELSE 'Senior'
+  END AS age_group
+FROM
+  ${ref("members")}
+WHERE
+  birthday IS NOT NULL AND birthday != ''

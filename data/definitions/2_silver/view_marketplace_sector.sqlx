@@ -1,0 +1,22 @@
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  description: "Marketplace Ministry analysis focusing on professionals, business owners, and their industries.",
+  tags: ["analytical"]
+}
+
+SELECT
+  email,
+  first_name,
+  last_name,
+  occupation_type,
+  -- Consolidate Industry field
+  COALESCE(employer_industry, business_nature) AS industry,
+  -- Consolidate Role field
+  COALESCE(job_title, 'Business Owner') AS role,
+  -- Consolidate Organization field
+  COALESCE(company, business_name) AS organization
+FROM
+  ${ref("members")}
+WHERE
+  occupation_type IN ('Professional', 'Business Owner')

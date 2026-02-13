@@ -1,0 +1,28 @@
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  description: "Leadership dashboard showing active leaders, group capacity, and intern pipeline.",
+  tags: ["analytical"]
+}
+
+SELECT
+  email,
+  first_name,
+  last_name,
+  vg_count,
+  vg_details,
+  has_intern,
+  intern_names,
+  -- Extract Group Types using RegEx detection
+  CASE 
+    WHEN REGEXP_CONTAINS(vg_details, r'Students') THEN 'Students'
+    WHEN REGEXP_CONTAINS(vg_details, r'Single Men') THEN 'Single Men'
+    WHEN REGEXP_CONTAINS(vg_details, r'Single Women') THEN 'Single Women'
+    WHEN REGEXP_CONTAINS(vg_details, r'Couples') THEN 'Couples'
+    WHEN REGEXP_CONTAINS(vg_details, r'Seniors') THEN 'Seniors'
+    ELSE 'Mixed'
+  END AS primary_group_type
+FROM
+  ${ref("members")}
+WHERE
+  is_vg_leader = TRUE
