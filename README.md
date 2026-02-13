@@ -24,7 +24,7 @@ This repository is organized by architectural layer.
 
 ```mermaid
 graph TD;
-    root[/] --> backend[backend/];
+    root[Root] --> backend[backend/];
     root --> frontend[frontend/];
     root --> data[data/];
     root --> terraform[terraform/];
