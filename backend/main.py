@@ -35,24 +35,26 @@ def submit_form():
             return jsonify({"result": "success", "message": "Saved"}), 200
 
         # --- VALIDATION ---
-        if not data.get('email') or not data.get('lastName'):
-            return jsonify({"result": "error", "message": "Missing required fields"}), 400
+        # Minimal validation: just ensure it's not empty. 
+        # Schema enforcement happens in Dataform, not here.
+        if not data:
+             return jsonify({"result": "error", "message": "Empty payload"}), 400
 
         # --- PREPARE ROW ---
         table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
         
-        clean_payload = data.copy()
-        clean_payload.pop('website_url', None)
-
-        row_to_insert = [{
-            "event_timestamp": datetime.datetime.utcnow().isoformat(),
-            "email": data.get('email'),
-            "first_name": data.get('firstName'),
-            "last_name": data.get('lastName'),
-            "mobile_number": data.get('primaryMobile'),
+        # Metadata extraction
+        metadata = {
             "ip_address": request.headers.get('X-Forwarded-For', request.remote_addr),
             "user_agent": request.headers.get('User-Agent'),
-            "payload_json": json.dumps(clean_payload)
+            "origin": request.headers.get('Origin'),
+            "referer": request.headers.get('Referer')
+        }
+
+        row_to_insert = [{
+            "ingestion_timestamp": datetime.datetime.utcnow().isoformat(),
+            "payload": json.dumps(data),  # Store entire payload as JSON string
+            "metadata": json.dumps(metadata) # Store metadata as JSON string
         }]
 
         # --- INSERT ---

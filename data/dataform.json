@@ -1,0 +1,23 @@
+{
+    "defaultSchema": "victory_data",
+    "assertionSchema": "victory_assertions",
+    "warehouse": "bigquery",
+    "defaultDatabase": "victory-discipleship",
+    "defaultLocation": "asia-southeast1",
+    "environments": [
+        {
+            "name": "development",
+            "configOverride": {
+                "defaultSchema": "victory_data_dev",
+                "assertionSchema": "victory_assertions_dev"
+            }
+        },
+        {
+            "name": "production",
+            "configOverride": {
+                "defaultSchema": "victory_data",
+                "assertionSchema": "victory_assertions"
+            }
+        }
+    ]
+}

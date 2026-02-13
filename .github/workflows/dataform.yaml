@@ -1,0 +1,57 @@
+name: Dataform Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data/**'
+  pull_request:
+    paths:
+      - 'data/**'
+
+jobs:
+  compile:
+    name: Compile Dataform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli
+
+      - name: Compile Dataform
+        working-directory: ./data
+        run: dataform compile
+
+  run:
+    name: Run Dataform (Production)
+    if: github.ref == 'refs/heads/main'
+    needs: compile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Run Dataform
+        working-directory: ./data
+        run: dataform run

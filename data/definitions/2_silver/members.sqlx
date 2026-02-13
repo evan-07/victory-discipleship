@@ -1,0 +1,46 @@
+config {
+  type: "table",
+  schema: "victory_data",
+  description: "Cleaned member data with standardized phone numbers and deduplication.",
+  uniqueKey: ["email"],
+  assertions: {
+    uniqueKey: ["email"],
+    nonNull: ["email", "first_name", "last_name"]
+  }
+}
+
+WITH raw_data AS (
+  SELECT
+    ingestion_timestamp,
+    JSON_EXTRACT_SCALAR(payload, '$.firstName') AS first_name,
+    JSON_EXTRACT_SCALAR(payload, '$.middleName') AS middle_name,
+    JSON_EXTRACT_SCALAR(payload, '$.lastName') AS last_name,
+    LOWER(TRIM(JSON_EXTRACT_SCALAR(payload, '$.email'))) AS email,
+    JSON_EXTRACT_SCALAR(payload, '$.primaryMobile') AS raw_mobile,
+    JSON_EXTRACT_SCALAR(payload, '$.gender') AS gender,
+    JSON_EXTRACT_SCALAR(payload, '$.birthday') AS birthday,
+    JSON_EXTRACT_SCALAR(payload, '$.maritalStatus') AS marital_status,
+    payload -- Keep full payload for reference/debugging
+  FROM
+    ${ref("raw_members")}
+),
+
+cleaned_data AS (
+  SELECT
+    *,
+    -- Standardize mobile to local format (09xxxxxxxxx). 
+    -- Assumes input is reasonably close to valid due to frontend validation.
+    -- If it starts with +63, replace with 0. If 63, replace with 0.
+    REGEXP_REPLACE(
+      REGEXP_REPLACE(raw_mobile, r'^\+63', '0'), 
+      r'^63', '0'
+    ) AS mobile_number
+  FROM
+    raw_data
+)
+
+SELECT
+  *
+FROM
+  cleaned_data
+QUALIFY ROW_NUMBER() OVER(PARTITION BY email ORDER BY ingestion_timestamp DESC) = 1
