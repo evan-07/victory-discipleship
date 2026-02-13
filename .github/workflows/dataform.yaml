@@ -64,4 +64,6 @@ jobs:
 
       - name: Run Dataform
         working-directory: ./data
-        run: dataform run
+        run: dataform run --credentials "${{ steps.auth.outputs.credentials_file_path }}"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
