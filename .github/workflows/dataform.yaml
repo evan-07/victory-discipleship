@@ -63,8 +63,12 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
+      - name: Create Dataform Config
+        run: |
+          echo "{\"projectId\": \"victory-discipleship\", \"location\": \"asia-southeast1\"}" > dataform-config.json
+
       - name: Run Dataform
         working-directory: ./data
-        run: dataform run --credentials "${{ steps.auth.outputs.credentials_file_path }}"
+        run: dataform run --credentials ../dataform-config.json
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}

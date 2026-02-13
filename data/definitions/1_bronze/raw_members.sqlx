@@ -5,3 +5,4 @@ config {
   name: "raw_members",
   description: "Raw member data ingested from the website form. Contains full JSON payload."
 }
+ 
