@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Configuration
-PROJECT_ID=$(gcloud config get-value project)
+PROJECT_ID=$(gcloud config get-value project 2>/dev/null || echo "victory-discipleship")
+if [ -z "$PROJECT_ID" ]; then
+  PROJECT_ID="victory-discipleship"
+fi
 DATASET_ID="bronze_dataset"
 TABLE_ID="raw_members"
 LOCATION="asia-southeast1" # Adjust if your project is in a different region
