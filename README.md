@@ -51,4 +51,35 @@ chmod +x data/scripts/setup_bq.sh
 -   **Development**: Uses `victory_data_dev` schema.
 -   **Production**: Uses `victory_data` schema. Set via `dataform.json` environments.
 
+## Terraform & Workload Identity Federation
+
+We use Terraform to manage Google Cloud resources and Workload Identity Federation (WIF) for secure GitHub Actions authentication.
+
+### Prerequisites
+
+-   [Terraform](https://developer.hashicorp.com/terraform/downloads) installed (`brew install terraform`).
+-   Google Cloud SDK installed (`brew install --cask google-cloud-sdk`).
+-   Authenticated with `gcloud auth application-default login`.
+
+### Deploying Infrastructure
+
+1.  Navigate to the `terraform` directory:
+    ```bash
+    cd terraform
+    ```
+2.  Initialize Terraform:
+    ```bash
+    terraform init
+    ```
+3.  Apply the configuration:
+    ```bash
+    terraform apply
+    ```
+4.  Take note of the outputs:
+    -   `workload_identity_provider`
+    -   `service_account_email`
+5.  Add these as secrets in your GitHub Repository:
+    -   `WIF_PROVIDER`
+    -   `WIF_SERVICE_ACCOUNT`
+
 ## Website

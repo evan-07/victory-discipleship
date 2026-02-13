@@ -7,6 +7,15 @@ package-lock.json
 /package-lock.json
 *.json
 !dataform.json
+package.json
+/package.json
+package-lock.json
+/package-lock.json
+*.json
+!dataform.json
 error.log
+**/.terraform/
+*.tfstate
+*.tfstate.*
 error.log
 temp_init/
