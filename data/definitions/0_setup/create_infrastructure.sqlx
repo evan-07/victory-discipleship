@@ -1,0 +1,16 @@
+config {
+  type: "operations",
+  hasOutput: true,
+  name: "create_infrastructure",
+  tags: ["setup"]
+}
+
+CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.bronze_dataset};
+CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.silver_dataset};
+
+CREATE TABLE IF NOT EXISTS ${dataform.projectConfig.vars.bronze_dataset}.raw_members (
+  ingestion_timestamp TIMESTAMP,
+  payload JSON,
+  metadata JSON
+)
+PARTITION BY DATE(ingestion_timestamp);

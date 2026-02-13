@@ -5,7 +5,8 @@ config {
   assertions: {
     uniqueKey: ["email"],
     nonNull: ["email", "first_name", "last_name"]
-  }
+  },
+  dependencies: ["create_infrastructure"]
 }
 
 WITH raw_data AS (
