@@ -27,8 +27,8 @@ jobs:
         run: npm install -g @dataform/cli
 
       - name: Compile Dataform
-        working-directory: ./data
         run: dataform compile
+        working-directory: ./data
 
   run:
     name: Run Dataform (Production)

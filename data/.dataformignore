@@ -1,7 +1,12 @@
 **/node_modules
 node_modules
 /node_modules
-package-lock.json
 package.json
+/package.json
+package-lock.json
+/package-lock.json
+*.json
+!dataform.json
+error.log
 error.log
 temp_init/
