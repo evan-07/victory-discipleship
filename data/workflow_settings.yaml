@@ -1,0 +1,5 @@
+defaultProject: victory-discipleship
+defaultLocation: asia-southeast1
+defaultDataset: victory_data
+defaultAssertionDataset: victory_assertions
+dataformCoreVersion: 3.0.46
