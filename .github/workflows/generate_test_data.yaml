@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 0 * * *' # Runs daily at midnight
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   generate-data:
     runs-on: ubuntu-latest
