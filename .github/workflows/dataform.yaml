@@ -21,16 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
       - name: Install Dataform CLI
-        run: npm install -g @dataform/cli
+        run: npm install -g @dataform/cli@3.0.46
 
+      # Workaround: Remove package.json to prevent "unexpected package.json" error
+      # Dataform tries to compile it as a source file if present, but this workflow uses global CLI.
       - name: Remove package.json (Workaround)
         run: rm package.json package-lock.json
         working-directory: ./data
@@ -45,20 +47,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
       - name: Install Dataform CLI
-        run: npm install -g @dataform/cli
+        run: npm install -g @dataform/cli@3.0.46
 
-      - name: Debug Secrets
-        run: |
-          echo "WIF_PROVIDER is set: ${{ secrets.WIF_PROVIDER != '' }}"
-          echo "WIF_SERVICE_ACCOUNT is set: ${{ secrets.WIF_SERVICE_ACCOUNT != '' }}"
 
       - name: Authenticate to Google Cloud
         id: auth
@@ -74,6 +72,8 @@ jobs:
             --arg location "${{ secrets.GCP_LOCATION }}" \
             '{"projectId": $projectId, "location": $location}' > dataform-config.json
 
+      # Workaround: Remove package.json to prevent "unexpected package.json" error
+      # Dataform tries to compile it as a source file if present, but this workflow uses global CLI.
       - name: Remove package.json (Workaround)
         run: rm package.json package-lock.json
         working-directory: ./data
