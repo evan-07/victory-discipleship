@@ -31,6 +31,10 @@ jobs:
       - name: Install Dataform CLI
         run: npm install -g @dataform/cli
 
+      - name: Remove package.json (Workaround)
+        run: rm package.json package-lock.json
+        working-directory: ./data
+
       - name: Compile Dataform
         run: dataform compile
         working-directory: ./data
@@ -69,6 +73,10 @@ jobs:
             --arg projectId "${{ secrets.GCP_PROJECT_ID }}" \
             --arg location "${{ secrets.GCP_LOCATION }}" \
             '{"projectId": $projectId, "location": $location}' > dataform-config.json
+
+      - name: Remove package.json (Workaround)
+        run: rm package.json package-lock.json
+        working-directory: ./data
 
       - name: Run Dataform
         working-directory: ./data
