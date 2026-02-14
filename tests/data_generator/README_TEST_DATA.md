@@ -4,20 +4,20 @@ This guide explains how to generate realistic test data for the Member Profile s
 
 ## 1. Prerequisites
 
-Ensure you have Python 3 installed. You will also need the `faker` library.
+Ensure you have Python 3 installed. You will also need the dependencies listed in `tests/data_generator/requirements.txt`.
 
 ```bash
-pip3 install faker
+pip3 install -r tests/data_generator/requirements.txt
 ```
 
 ## 2. Generating Test Data
 
-The script `data/scripts/generate_test_data.py` creates a JSON file containing `Leaders` and `Members` with the correct relational links established (i.e., Members are assigned to seeded Leaders, and some Members are interns of those Leaders).
+The script `tests/data_generator/generate_test_data.py` creates a JSON file containing `Leaders` and `Members` with the correct relational links established (i.e., Members are assigned to seeded Leaders, and some Members are interns of those Leaders).
 
 Run the script from the root of the repository:
 
 ```bash
-python3 data/scripts/generate_test_data.py
+python3 tests/data_generator/generate_test_data.py
 ```
 
 **Output:**
@@ -65,7 +65,7 @@ bq load --project_id=victory-discipleship \
 
 ## 4. Script Configuration
 
-You can modify `data/scripts/generate_test_data.py` to change the number of records:
+You can modify `tests/data_generator/generate_test_data.py` to change the number of records:
 
 ```python
 # Configuration

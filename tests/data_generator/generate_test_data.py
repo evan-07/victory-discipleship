@@ -1,5 +1,5 @@
 # Purpose: Generate complex, relationally linked test cases for the Member Data Form.
-# Usage: python3 data/scripts/generate_test_data.py
+# Usage: python3 tests/data_generator/generate_test_data.py
 # Version: 1.0
 # Last Modified: 2026-02-13
 

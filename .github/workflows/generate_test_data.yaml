@@ -1,0 +1,32 @@
+name: Generate Test Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+
+jobs:
+  generate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f tests/data_generator/requirements.txt ]; then pip install -r tests/data_generator/requirements.txt; fi
+
+      - name: Generate Test Data
+        run: python tests/data_generator/generate_test_data.py
+
+      - name: Upload Test Data Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-cases
+          path: test_cases.json

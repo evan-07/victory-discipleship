@@ -66,8 +66,8 @@ graph TD;
 
 We have included a script to generate realistic test data for development and testing purposes.
 
-*   **Script**: `data/scripts/generate_test_data.py`
-*   **Guide**: Please refer to [data/README_TEST_DATA.md](data/README_TEST_DATA.md) for detailed instructions on how to generate and load test data into BigQuery.
+*   **Script**: `tests/data_generator/generate_test_data.py`
+*   **Guide**: Please refer to [tests/data_generator/README_TEST_DATA.md](tests/data_generator/README_TEST_DATA.md) for detailed instructions on how to generate and load test data into BigQuery.
 
 ---
 
