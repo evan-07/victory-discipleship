@@ -31,12 +31,6 @@ jobs:
       - name: Install Dataform CLI
         run: npm install -g @dataform/cli@3.0.46
 
-      # Workaround: Remove package.json to prevent "unexpected package.json" error
-      # Dataform tries to compile it as a source file if present, but this workflow uses global CLI.
-      # - name: Remove package.json (Workaround)
-      #   run: rm package.json package-lock.json
-      #   working-directory: ./data
-
       - name: Compile Dataform
         run: dataform compile
         working-directory: ./data
@@ -71,12 +65,6 @@ jobs:
             --arg projectId "${{ secrets.GCP_PROJECT_ID }}" \
             --arg location "${{ secrets.GCP_LOCATION }}" \
             '{"projectId": $projectId, "location": $location}' > dataform-config.json
-
-      # Workaround: Remove package.json to prevent "unexpected package.json" error
-      # Dataform tries to compile it as a source file if present, but this workflow uses global CLI.
-      - name: Remove package.json (Workaround)
-        run: rm package.json package-lock.json
-        working-directory: ./data
 
       - name: Run Dataform
         working-directory: ./data
