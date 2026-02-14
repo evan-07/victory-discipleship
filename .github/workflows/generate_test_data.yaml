@@ -51,9 +51,9 @@ jobs:
         run: |
           bq load \
             --source_format=NEWLINE_DELIMITED_JSON \
-            --autodetect \
             victory-discipleship:bronze_dataset.raw_members \
-            test_cases.ndjson
+            test_cases.ndjson \
+            ingestion_timestamp:TIMESTAMP,payload:JSON,metadata:JSON
 
       - name: Verify Load
         run: |
