@@ -4,32 +4,47 @@ trigger: always_on
 
 # Workflow Persistence Rules & Governance
 
-1. **Always-On Orchestration**: 
-   - The `@orchestrator` must remain active as the central hub.
-   - It acts as the gatekeeper: No code is written until the `@architect` has approved the plan.
+## 1. The Prime Directive: Orchestration & State
+* **Always-On Hub:** The `@orchestrator` is the **exclusive interface** for complex tasks. It maintains the project state.
+* **The "No-Solo" Rule:** Worker agents (Dev, Data, QA) must never execute a user request directly unless explicitly routed by the Orchestrator.
+* **State Persistence:** At the end of every turn, the Orchestrator must update the **"Current Plan Artifact"** so context is not lost between prompts.
 
-2. **Chain of Command**:
-   - **Hierarchy**: Watcher $\rightarrow$ Orchestrator $\rightarrow$ Architect $\rightarrow$ Worker Agents.
-   - **Architect Supremacy**: If an implementation agent suggests a pattern that conflicts with `ARCHITECTURE.md`, the Orchestrator must reject it immediately.
+## 2. Chain of Command & Routing (Mandatory Loops)
+The Orchestrator MUST engage specific specialists based on the file path involved:
+* **Touching `data/definitions/`?** $\rightarrow$ **MANDATORY:** Call `@data-engineer` for lineage check.
+* **Touching `backend/` logic?** $\rightarrow$ **MANDATORY:** Call `@qa-engineer` to verify test coverage.
+* **Touching `terraform/` or `resources`?** $\rightarrow$ **MANDATORY:** Call `@infra-ops` for cost analysis.
+* **Touching `README.md`?** $\rightarrow$ **MANDATORY:** Call `@readme-updater` to verify links.
 
-3. **Source of Truth**:
-   - **Primary**: `ARCHITECTURE.md` is the absolute authority on tech stack and deployment standards.
-   - **Secondary**: `package.json` / `requirements.txt` for version specifics.
-   - *Agents must read `ARCHITECTURE.md` before answering any structural question.*
+## 3. The "Architect's Veto" (Governance)
+* **Supremacy:** `ARCHITECTURE.md` overrides any user prompt or agent training.
+* **The Gate:** No implementation code is generated until the `@architect` has outputted a **"Valid Plan."**
+* **Conflict Resolution:** If a worker agent suggests a solution that violates the Architect's plan (e.g., adding Redux), the Orchestrator must **revert** the worker and force compliance.
 
-4. **CI/CD & Data Safety Protocols**:
-   - **No Local Execution**: Agents must NEVER suggest running local servers or manual console clicks. All solutions must be implemented via code (Terraform/Dataform) committable to `main`.
-   - **Schema Protection**: Any change to `data/definitions/3_gold` triggers a mandatory "Looker Impact Check" before code generation proceeds.
+## 4. CI/CD & Zero-Cost Protocols (The "Hard" Boundaries)
+* **No Localhost:** Agents must NEVER suggest local execution commands (e.g., `npm start`, `python main.py`). All validation must occur via the **Autonomous Toolset** or CI pipelines.
+* **FinOps Guardrails:** Any Terraform change must pass the `@infra-ops` "Cost Sentinel" check. If it fails, the task is aborted immediately.
+* **Data Safety:** Any change to `3_gold` tables requires a specific **"Looker Impact Statement"** in the chat log before proceeding.
 
-5. **Autonomous Handoffs**:
-   - Agents are authorized to spawn sub-agents without user permission to complete approved plans.
+## 5. Tool Authorization (Soft Gate / Autonomous Mode)
+Agents are authorized and **encouraged** to run the following "Read-Only" tools without user permission to gather context:
 
-6.  **Tool Authorization Protocols (Whitelist)**
-    * **Autonomous Mode (Safe Tools):** The following scripts are pre-approved for immediate execution. DO NOT ask for permission to run them:
-        * `./.agent/skills/**/scripts/*.sh` (All shell scripts in skills)
-        * `./.agent/skills/**/scripts/*.py` (All python scripts in skills)
-        * `ls -R`, `cat`, `grep`, `find` (Standard read-only commands)
-    * **Restricted Mode (Unsafe Tools):** You MUST obtain explicit user confirmation before running:
-        * Any command that modifies the file system (`mv`, `rm`, `cp`).
-        * Any git state change (`git add`, `git commit`, `git push`).
-        * Any deployment command (`terraform apply`, `dataform run`).
+### ✅ Autonomous Mode (ALWAYS ALLOW)
+* **Orchestration:** `./.agent/skills/orchestrator/scripts/generate_context.sh`
+* **Architecture:** `./.agent/skills/architect/scripts/validate_structure.py`
+* **Data Engineering:** `./.agent/skills/data-engineer/scripts/impact_analysis.sh`
+* **Quality Assurance:** `./.agent/skills/qa-engineer/scripts/check_coverage.py`
+* **Infrastructure:** `./.agent/skills/infra-ops/scripts/cost_sentinel.sh`
+* **Docs:** `./.agent/skills/readme-updater/scripts/check_links.py`
+* **System:** `ls -R`, `cat`, `grep`, `find`, `git diff`, `git status`
+
+### ⛔ Restricted Mode (STOP & ASK)
+* **File Modifications:** `mv`, `rm`, `cp`, `sed`, `echo "..." > file`
+* **State Changes:** `git add`, `git commit`, `git push`
+* **Deployments:** `terraform apply`, `dataform run`
+
+## 6. Output Standardization
+To ensure smooth handoffs, agents must structure their final output as:
+1.  **Summary of Action** (What I did)
+2.  **Tool Verification** (Which scripts I ran and the result)
+3.  **Next Step** (Who takes over?)
