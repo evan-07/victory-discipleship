@@ -66,8 +66,8 @@ jobs:
       - name: Create Dataform Config
         run: |
           jq -n \
-            --arg projectId "${{ vars.GCP_PROJECT_ID }}" \
-            --arg location "${{ vars.GCP_LOCATION }}" \
+            --arg projectId "${{ secrets.GCP_PROJECT_ID }}" \
+            --arg location "${{ secrets.GCP_LOCATION }}" \
             '{"projectId": $projectId, "location": $location}' > dataform-config.json
 
       - name: Run Dataform
