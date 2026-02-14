@@ -17,7 +17,7 @@ The script `data/scripts/generate_test_data.py` creates a JSON file containing `
 Run the script from the root of the repository:
 
 ```bash
-python3 data/scripts/generate_test_data.py 
+python3 data/scripts/generate_test_data.py
 ```
 
 **Output:**
