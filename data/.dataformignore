@@ -5,7 +5,6 @@ node_modules/
 package-lock.json
 *.json
 !dataform.json
-!package.json
 
 # Logs and temp
 error.log
