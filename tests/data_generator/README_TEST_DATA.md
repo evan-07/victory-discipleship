@@ -63,6 +63,16 @@ bq load --project_id=victory-discipleship \
 7. **Schema**: Check "Auto detect".
 8. Click **Create Table**.
 
+## 4. Automation (CI/CD)
+
+The GitHub Actions workflow `.github/workflows/generate_test_data.yaml` automates this process:
+1.  Generates `test_cases.json`.
+2.  Converts it to `test_cases.ndjson` using `jq`.
+3.  Loads it into **`victory-discipleship:bronze_dataset.raw_members`**.
+4.  Runs a verification query.
+
+You can trigger this workflow manually from the GitHub Actions tab.
+
 ## 4. Script Configuration
 
 You can modify `tests/data_generator/generate_test_data.py` to change the number of records:

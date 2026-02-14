@@ -30,3 +30,28 @@ jobs:
         with:
           name: test-cases
           path: test_cases.json
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Convert to NDJSON
+        run: jq -c '.[]' test_cases.json > test_cases.ndjson
+
+      - name: Load to BigQuery
+        run: |
+          bq load \
+            --source_format=NEWLINE_DELIMITED_JSON \
+            --autodetect \
+            victory-discipleship:bronze_dataset.raw_members \
+            test_cases.ndjson
+
+      - name: Verify Load
+        run: |
+          bq query --nouse_legacy_sql \
+          'SELECT count(*) as count FROM `victory-discipleship.bronze_dataset.raw_members`'
