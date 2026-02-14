@@ -27,5 +27,5 @@ Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without break
 
 ## Workflow
 1.  **Trace:** Identify where the new data fits in the lineage.
-2.  **Validate:** Use the provided scripts to check for syntax and dependency issues.
-3.  **Compile:** Ensure `dataform compile` would pass (simulated).
+2.  **Validate:** Use the provided scripts (`schema_lint.sh`, `impact_analysis.sh`) to check for naming and dependency issues.
+3.  **Submission:** Submit changes to a branch and rely on GitHub Actions for the definitive `dataform compile` check.

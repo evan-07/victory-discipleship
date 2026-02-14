@@ -12,7 +12,8 @@
     * **Single Source of Truth:** The `main` branch represents the live state of the application.
 3.  **Medallion Data Strategy:** Data quality is improved progressively through Bronze (Raw), Silver (Cleansed), and Gold (Aggregated) layers.
 4.  **Infrastructure as Code (IaC):** All GCP resources are defined in Terraform. Click-Ops in the GCP Console is strictly forbidden.
-5.  **FinOps & Cost Control:**
+5.  **Execution Protocols:** Local execution of infrastructure (`terraform apply`), data pipelines (`dataform run`), and backend APIs is strictly prohibited. All execution and deployment must occur within GitHub Actions to ensure consistency, security, and a clear audit trail.
+6.  **FinOps & Cost Control:**
     * **Query Efficiency:** All BigQuery tables MUST be partitioned by `_PARTITIONDATE` or `ingestion_timestamp`.
     * **Bot Defense:** Cloudflare "Bot Fight Mode" must be active to prevent spam from waking up Cloud Run containers.
 

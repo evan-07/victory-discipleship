@@ -9,12 +9,14 @@ The **Victory Discipleship Member Management System** is a full-stack applicatio
 
 ### Technology Stack
 
-*   **Frontend**: Vanilla HTML/CSS/JavaScript. Lightweight, semantic, and fast. Hosted on **Cloudflare Pages**.
-*   **Backend**: Python (Flask/FastAPI) running in a Docker container. Hosted on **Google Cloud Run**.
-*   **Data Warehouse**: Google BigQuery.
+*   **Frontend**: Vanilla HTML/CSS/JavaScript. Hosted on **Cloudflare Pages** for free global CDN and DDoS protection.
+*   **Backend**: Python (FastAPI) running on **Google Cloud Run**. Scales to zero for 100% cost efficiency when idle.
+*   **Data Warehouse**: Google BigQuery, utilizing Free Tier limits (10GB storage / 1TB query per month).
 *   **Data Pipeline**: **Dataform** (using SQLX) following the **Medallion Architecture** (Bronze $\rightarrow$ Silver $\rightarrow$ Gold).
+*   **Visualization**: **Looker Studio**. Native BigQuery connection, utilizing cached queries for cost control.
 *   **Infrastructure**: **Terraform** for Infrastructure-as-Code (IaC) on Google Cloud Platform (GCP).
-*   **CI/CD**: GitHub Actions with **Workload Identity Federation (WIF)** for secure authentication.
+*   **Security & WAF**: **Cloudflare WAF** with Bot Fight Mode enabled to protect backend resources.
+*   **CI/CD**: GitHub Actions with **Workload Identity Federation (WIF)** for secure, keyless authentication.
 
 ---
 
@@ -63,18 +65,21 @@ We strictly follow the **Medallion Architecture** pattern for our data pipeline:
 1.  **Bronze Layer (Raw)**:
     *   **Source**: `backend/main.py` inserts raw JSON payloads here.
     *   **Schema**: `definitions/1_bronze/`. Contains `ingestion_timestamp`, `payload` (JSON), and `metadata`.
+    *   **Partitioning**: MUST be partitioned by `ingestion_timestamp` or `_PARTITIONDATE` for query efficiency.
     *   **Goal**: Immutable, append-only store of all incoming data.
 2.  **Silver Layer (Cleansed)**:
     *   **Dataform**: `definitions/2_silver/`.
     *   **Goal**: Parsed JSON, deduplicated records, type casting, and data quality assertions.
 3.  **Gold Layer (Curated)**:
     *   **Dataform**: `definitions/3_gold/`.
-    *   **Goal**: Aggregated stats, business-level metrics, and views ready for dashboarding.
+    *   **Goal**: Aggregated stats, business-level metrics, and views ready for Looker Studio.
 
-### Coding Standards
+### Coding Standards & FinOps
 *   **General**: Follow Industry Best Practices. Keep code DRY (Don't Repeat Yourself), Clean, and Modular.
-*   **Python**: Follow **PEP 8** style guidelines.
-*   **SQL**: Use standard SQL formatting. Upper-case keywords, lower-case identifiers.
+*   **FinOps**: Adhere to GCP Free Tier limits. Avoid unnecessary full-table scans in BigQuery.
+*   **BigQuery**: All tables MUST be partitioned. Use lower-case identifiers.
+*   **Python**: Follow **PEP 8** style guidelines. Use FastAPI for backend logic.
+*   **SQL**: Use standard SQL formatting. Upper-case keywords.
 *   **HTML/CSS**: Use Semantic HTML tags. CSS should be organized and specific.
 *   **Commits**: Use conventional commit messages if possible.
 
@@ -86,22 +91,14 @@ We strictly follow the **Medallion Architecture** pattern for our data pipeline:
 
 To work on this repository, you must have the following tools installed:
 
-1.  **[Python 3.9+](https://www.python.org/downloads/)**: For backend development.
-2.  **[Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)**: For interacting with GCP resources.
+1.  **[Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)**: For interacting with GCP resources.
 3.  **[HashiCorp Terraform](https://developer.hashicorp.com/terraform/downloads)**: For infrastructure management.
-4.  **[Node.js](https://nodejs.org/)**: (Optional) Only required if you want to run Dataform locally.
 
 ### 🛠️ Setup Instructions
 
-#### 1. Backend (Python/Docker)
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-*   The API will start locally at `http://localhost:8080`.
+#### 1. Backend (FastAPI)
+*   **Exclusive Execution**: The backend runs exclusively on **Google Cloud Run**. Local execution of the API is prohibited to maintain environment parity and security.
+*   **Deployment**: Automated via GitHub Actions on every push to `main` that modifies the `backend/` directory.
 
 #### 2. Frontend (Static)
 *   Simply open `frontend/index.html` in your browser.
@@ -112,23 +109,17 @@ python main.py
     ```
 
 #### 3. Dataform (Pipeline)
-*   **Primary Execution**: Dataform runs automatically via **GitHub Actions** whenever code is pushed to the `main` branch.
-*   **Optional Local Development**:
-    ```bash
-    cd data
-    npm install -g @dataform/cli
-    dataform compile # Check for errors
-    dataform run     # Execute against BigQuery
-    ```
-*   **Note**: You need `~/.config/gcloud/application_default_credentials.json` setup via `gcloud auth application-default login`.
+*   **Exclusive Execution**: Dataform runs exclusively via **GitHub Actions** whenever code is pushed to the `main` branch or a Pull Request is created.
+*   **Validation**: Schema validation and compilation checks are performed automatically in the `Compile Dataform` job of the CI/CD pipeline. No local installation of the Dataform CLI is required.
 
 #### 4. Infrastructure (Terraform)
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
+*   **Local Validation**: You can use Terraform locally for linting and planning only.
+    ```bash
+    cd terraform
+    terraform init
+    terraform plan
+    ```
+*   **Exclusive Execution**: `terraform apply` is **strictly prohibited** locally. Infrastructure changes are applied exclusively via GitHub Actions upon merging to the `main` branch.
 
 ---
 
@@ -147,7 +138,7 @@ The following secrets MUST be configured in the GitHub Repository settings for C
 ### Deployment Targets
 *   **Backend**: Automatically deployed to **Cloud Run** on pushing to `main` (if changes are in `backend/`).
 *   **Frontend**: Deployed to **Cloudflare Pages** (configured via Cloudflare Dashboard linked to this repo).
-*   **Data Pipeline**: Compiled and run via **Dataform CLI** on pushing to `main` (if changes are in `data/`).
+*   **Data Pipeline**: Compiled and run via **GitHub Actions** on pushing to `main` (if changes are in `data/`). This is the **only** environment where Dataform is executed.
 
 ---
 
