@@ -33,14 +33,18 @@ graph TD;
     root --> workflows[.github/workflows/];
 
     backend --> py[main.py];
+    backend --> req[requirements.txt];
     backend --> docker[Dockerfile];
     
     frontend --> html[index.html];
     frontend --> css[css/];
 
+    data --> setup[definitions/0_setup/];
     data --> bronze[definitions/1_bronze/];
     data --> silver[definitions/2_silver/];
     data --> gold[definitions/3_gold/];
+    data --> scripts[scripts/];
+    data --> readme_test[README_TEST_DATA.md];
 
     terraform --> main_tf[main.tf];
 ```
@@ -52,12 +56,22 @@ graph TD;
 | **`backend/`** | Contains the API logic for receiving form submissions and inserting raw data into BigQuery. | Python, Flask, Docker | Google Cloud Run |
 | **`frontend/`** | The public-facing user interface. Standard web forms for data entry. | HTML5, CSS3, JS | Cloudflare Pages |
 | **`data/`** | The ELT pipeline definitions. Transforms raw JSON into structured tables. | Dataform, SQLX | Google BigQuery |
+| **`data/scripts/`** | Helper scripts for tasks like generating test data. | Python | Local Execution |
 | **`terraform/`** | Infrastructure definitions. Manages IAM roles, Service Accounts, and WIF. | Terraform | Google Cloud Platform |
 | **`.github/workflows/`** | CI/CD pipelines for testing and deploying each component. | YAML | GitHub Actions |
 
 ---
 
-## 3. Architecture & Data Flow
+## 3. Generating Test Data
+
+We have included a script to generate realistic test data for development and testing purposes.
+
+*   **Script**: `data/scripts/generate_test_data.py`
+*   **Guide**: Please refer to [data/README_TEST_DATA.md](data/README_TEST_DATA.md) for detailed instructions on how to generate and load test data into BigQuery.
+
+---
+
+## 4. Architecture & Data Flow
 
 ### Medallion Architecture
 We strictly follow the **Medallion Architecture** pattern for our data pipeline:
@@ -85,7 +99,7 @@ We strictly follow the **Medallion Architecture** pattern for our data pipeline:
 
 ---
 
-## 4. Development Workflow
+## 5. Development Workflow
 
 ### Prerequisites
 
@@ -100,7 +114,7 @@ To work on this repository, you must have the following tools installed:
 *   **Exclusive Execution**: The backend runs exclusively on **Google Cloud Run**. Local execution of the API is prohibited to maintain environment parity and security.
 *   **Deployment**: Automated via GitHub Actions on every push to `main` that modifies the `backend/` directory.
 
-#### 2. Frontend (Static)
+#### 2. Frontend
 *   Simply open `frontend/index.html` in your browser.
 *   For development, you can use a simple HTTP server:
     ```bash
@@ -123,22 +137,23 @@ To work on this repository, you must have the following tools installed:
 
 ---
 
-## 5. Deployment & Secrets
+## 6. Deployment & Secrets
 
 ### GitHub Actions Secrets
 The following secrets MUST be configured in the GitHub Repository settings for CI/CD to work:
 
 | Secret Name | Description | Required By |
 | :--- | :--- | :--- |
-| **`WIF_PROVIDER`** | The full GCP resource name of the Workload Identity Provider. | `deploy_backend.yaml`, `dataform.yaml` |
-| **`WIF_SERVICE_ACCOUNT`** | The Service Account email that GitHub Actions impersonates. | `deploy_backend.yaml`, `dataform.yaml` |
-| **`GCP_PROJECT_ID`** | The Google Cloud Project ID (e.g., `victory-discipleship`). | `deploy_backend.yaml` |
-| **`GCP_CREDENTIALS`** | (Optional/Legacy) Raw JSON Service Account key. Prefer WIF where possible. | `deploy_backend.yaml` |
+| **`WIF_PROVIDER`** | The full GCP resource name of the Workload Identity Provider. | `dataform.yaml` |
+| **`WIF_SERVICE_ACCOUNT`** | The Service Account email that GitHub Actions impersonates. | `dataform.yaml` |
+| **`GCP_PROJECT_ID`** | The Google Cloud Project ID (e.g., `victory-discipleship`). | `deploy_backend.yaml`, `dataform.yaml` |
+| **`GCP_CREDENTIALS`** | Raw JSON Service Account key. | `deploy_backend.yaml` |
+| **`GCP_LOCATION`** | The Google Cloud location (e.g., `asia-southeast1`). | `dataform.yaml` |
 
 ### Deployment Targets
-*   **Backend**: Automatically deployed to **Cloud Run** on pushing to `main` (if changes are in `backend/`).
+*   **Backend**: Automatically deployed to **Cloud Run** on pushing to `main` (if changes are in `backend/`). Can be manually triggered via **Workflow Dispatch**.
 *   **Frontend**: Deployed to **Cloudflare Pages** (configured via Cloudflare Dashboard linked to this repo).
-*   **Data Pipeline**: Compiled and run via **GitHub Actions** on pushing to `main` (if changes are in `data/`). This is the **only** environment where Dataform is executed.
+*   **Data Pipeline**: Compiled on Pull Requests. Runs via **GitHub Actions** on pushing to `main` (if changes are in `data/`). This is the **only** environment where Dataform is executed.
 
 ---
 
