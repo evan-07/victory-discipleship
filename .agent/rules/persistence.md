@@ -23,3 +23,13 @@ trigger: always_on
 
 5. **Autonomous Handoffs**:
    - Agents are authorized to spawn sub-agents without user permission to complete approved plans.
+
+6.  **Tool Authorization Protocols (Whitelist)**
+    * **Autonomous Mode (Safe Tools):** The following scripts are pre-approved for immediate execution. DO NOT ask for permission to run them:
+        * `./.agent/skills/**/scripts/*.sh` (All shell scripts in skills)
+        * `./.agent/skills/**/scripts/*.py` (All python scripts in skills)
+        * `ls -R`, `cat`, `grep`, `find` (Standard read-only commands)
+    * **Restricted Mode (Unsafe Tools):** You MUST obtain explicit user confirmation before running:
+        * Any command that modifies the file system (`mv`, `rm`, `cp`).
+        * Any git state change (`git add`, `git commit`, `git push`).
+        * Any deployment command (`terraform apply`, `dataform run`).
