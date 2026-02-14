@@ -2,8 +2,6 @@ name: Generate Test Data
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *' # Runs daily at midnight
 
 permissions:
   contents: read
@@ -48,6 +46,7 @@ jobs:
         run: jq -c '.[]' test_cases.json > test_cases.ndjson
 
       - name: Load to BigQuery
+        # Appends by default (use --replace to overwrite)
         run: |
           bq load \
             --source_format=NEWLINE_DELIMITED_JSON \
