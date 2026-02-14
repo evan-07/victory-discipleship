@@ -33,9 +33,9 @@ jobs:
 
       # Workaround: Remove package.json to prevent "unexpected package.json" error
       # Dataform tries to compile it as a source file if present, but this workflow uses global CLI.
-      - name: Remove package.json (Workaround)
-        run: rm package.json package-lock.json
-        working-directory: ./data
+      # - name: Remove package.json (Workaround)
+      #   run: rm package.json package-lock.json
+      #   working-directory: ./data
 
       - name: Compile Dataform
         run: dataform compile
