@@ -46,9 +46,13 @@ WITH raw_data AS (
     ARRAY(
       SELECT TRIM(m)
       FROM UNNEST(SPLIT(JSON_EXTRACT_SCALAR(payload, '$.ministry'), ',')) m
-      WHERE TRIM(m) NOT IN ('', 'None')
+      WHERE TRIM(m) NOT IN ('', 'None', '0 rows')
     ) AS ministry_teams,
-    JSON_EXTRACT_SCALAR(payload, '$.wantMinistry') AS want_ministry,
+    ARRAY(
+      SELECT TRIM(w)
+      FROM UNNEST(SPLIT(JSON_EXTRACT_SCALAR(payload, '$.wantMinistry'), ',')) w
+      WHERE TRIM(w) NOT IN ('', 'None', "None, I'll pray for it", "I'll pray for it")
+    ) AS want_ministry,
     
     -- Victory Group Member
     JSON_EXTRACT_SCALAR(payload, '$.isMember') = 'Yes' AS is_vg_member,
