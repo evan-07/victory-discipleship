@@ -22,7 +22,11 @@ description: Workflow manager. Coordinates agents and manages the project lifecy
 * **Gatekeeping:** Do not approve schema changes until Looker safety is confirmed.
 
 ### 3. Execution & Handoff
-* **Approve:** Spawn worker agents (e.g., `@feature-dev`, `@data-engineer`) to execute the approved plan.
+* **Approve:** Spawn worker agents to execute the approved plan:
+    * **Frontend:** `@frontend-dev`
+    * **Backend:** `@backend-dev`
+    * **Data:** `@data-engineer`
+    * **BI:** `@bi-analyst`
 * **Documentation:** Call `@readme-updater` once the work is complete.
 
 ### 4. Capability Expansion (Meta-Protocol)

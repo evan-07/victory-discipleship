@@ -1,0 +1,21 @@
+{
+    "table_name": "gold.members_summary",
+    "columns": [
+        {
+            "name": "member_id",
+            "type": "STRING"
+        },
+        {
+            "name": "join_date",
+            "type": "DATE"
+        },
+        {
+            "name": "age",
+            "type": "INTEGER"
+        },
+        {
+            "name": "total_donations",
+            "type": "FLOAT"
+        }
+    ]
+}

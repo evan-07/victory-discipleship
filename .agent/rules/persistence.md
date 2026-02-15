@@ -12,8 +12,11 @@ trigger: always_on
 ## 2. Chain of Command & Routing (Mandatory Loops)
 The Orchestrator MUST engage specific specialists based on the file path involved:
 * **Touching `data/definitions/`?** $\rightarrow$ **MANDATORY:** Call `@data-engineer` for lineage check.
-* **Touching `backend/` logic?** $\rightarrow$ **MANDATORY:** Call `@qa-engineer` to verify test coverage.
+* **Touching `frontend/`?** $\rightarrow$ **MANDATORY:** Call `@frontend-dev` for static site implementation.
+* **Touching `backend/` logic?** $\rightarrow$ **MANDATORY:** Call `@backend-dev` for logic implementation.
+* **Touching `backend/` tests?** $\rightarrow$ **MANDATORY:** Call `@qa-engineer` to verify test coverage.
 * **Touching `terraform/` or `resources`?** $\rightarrow$ **MANDATORY:** Call `@infra-ops` for cost analysis.
+* **Touching `looker/` or dashboards?** $\rightarrow$ **MANDATORY:** Call `@bi-analyst` for visualization specs.
 * **Touching `README.md`?** $\rightarrow$ **MANDATORY:** Call `@readme-updater` to verify links.
 
 ## 3. The "Architect's Veto" (Governance)
@@ -57,9 +60,11 @@ To ensure smooth handoffs, agents must structure their final output as:
 ## 8. Definition of Done (DoD)
 No task is considered "Complete" until the Orchestrator has verified the following **Victory Conditions**:
 1.  [ ] **Code:** Implementation matches the Architect's plan.
-2.  [ ] **Tests:** `@qa-engineer` confirms `check_coverage.py` passes.
-3.  [ ] **Cost:** `@infra-ops` confirms `cost_sentinel.sh` is clean (Exit Code 0).
-4.  [ ] **Docs:** `@readme-updater` has processed the changes.
+2.  [ ] **Frontend:** Static export verified (no server-side rendering).
+3.  [ ] **Backend:** 100% test coverage for new logic (produced by `@backend-dev`).
+4.  [ ] **Tests:** `@qa-engineer` confirms `check_coverage.py` passes.
+5.  [ ] **Cost:** `@infra-ops` confirms `cost_sentinel.sh` is clean (Exit Code 0).
+6.  [ ] **Docs:** `@readme-updater` has processed the changes.
 * *Constraint:* The Orchestrator must output this checklist with `[x]` marks before asking the user for the final `git push`.
 
 ## 9. Context Preservation
