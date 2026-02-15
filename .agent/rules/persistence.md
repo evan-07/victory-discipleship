@@ -48,3 +48,24 @@ To ensure smooth handoffs, agents must structure their final output as:
 1.  **Summary of Action** (What I did)
 2.  **Tool Verification** (Which scripts I ran and the result)
 3.  **Next Step** (Who takes over?)
+
+## 7. Error Handling & Self-Correction
+* **The "One-Retry" Rule:** If a verification tool (e.g., `check_coverage.py`, `cost_sentinel.sh`) fails, the active agent MUST attempt to fix the code **one time** automatically.
+    * *Example:* If `check_coverage.py` fails, the QA Agent should generate the missing test file immediately, then re-run the tool.
+* **Escalation:** If the tool fails a second time after the fix attempt, PAUSE and report the specific error log to the user. Do not loop indefinitely.
+
+## 8. Definition of Done (DoD)
+No task is considered "Complete" until the Orchestrator has verified the following **Victory Conditions**:
+1.  [ ] **Code:** Implementation matches the Architect's plan.
+2.  [ ] **Tests:** `@qa-engineer` confirms `check_coverage.py` passes.
+3.  [ ] **Cost:** `@infra-ops` confirms `cost_sentinel.sh` is clean (Exit Code 0).
+4.  [ ] **Docs:** `@readme-updater` has processed the changes.
+* *Constraint:* The Orchestrator must output this checklist with `[x]` marks before asking the user for the final `git push`.
+
+## 9. Context Preservation
+* **Plan Updates:** After every major step, the Orchestrator must update the **"Current Status Artifact"** (a pinned message or file).
+* **Format:**
+    * *Phase:* [Planning / Coding / Verifying]
+    * *Active Agent:* [@qa-engineer]
+    * *Decisions Log:* (e.g., "Pivoted to Flask-Caching due to Zero Cost rule")
+
