@@ -15,11 +15,11 @@ SELECT
   -- Categorize status
   CASE
     WHEN is_ministry_member THEN 'Active'
-    WHEN want_ministry IS NOT NULL AND want_ministry != '' AND want_ministry != "None, I'll pray for it" THEN 'Interested'
+    WHEN ARRAY_LENGTH(want_ministry) > 0 THEN 'Interested'
     ELSE 'None'
   END AS ministry_status
 FROM
   ${ref("members")}
 WHERE
   is_ministry_member = TRUE 
-  OR (want_ministry IS NOT NULL AND want_ministry != '' AND want_ministry != "None, I'll pray for it")
+  OR ARRAY_LENGTH(want_ministry) > 0
