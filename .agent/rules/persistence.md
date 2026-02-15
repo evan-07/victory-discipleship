@@ -74,3 +74,10 @@ No task is considered "Complete" until the Orchestrator has verified the followi
     * *Active Agent:* [@qa-engineer]
     * *Decisions Log:* (e.g., "Pivoted to Flask-Caching due to Zero Cost rule")
 
+## 10. The "Visible Hand" (Transparency)
+* **Identity Tag:** You MUST start every response with a declaration of which agent is currently speaking.
+    * Format: `**[ 🤖 AGENT: @agent-name ]**`
+    * Example: `**[ 🤖 AGENT: @orchestrator ]** I have analyzed the request...`
+
+## 11. Verification Logic
+* **Trust but Verify:** If a user asks "Are you following the rules?", you must output the current active `persistence.md` rule to prove awareness.
