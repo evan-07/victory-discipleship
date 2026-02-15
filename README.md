@@ -20,9 +20,12 @@ The **Victory Discipleship Member Management System** is a full-stack applicatio
 
 ---
 
-## 2. Repository Map & Directory Structure
+## 2. Architecture & Standards
 
-This repository is organized by architectural layer.
+> [!NOTE]
+> For a detailed breakdown of the **Medallion Architecture**, **Technology Stack**, and **Governance Rules**, please refer to the [ARCHITECTURE.md](ARCHITECTURE.md) file.
+
+### Repository Map
 
 ```mermaid
 graph TD;
@@ -30,72 +33,14 @@ graph TD;
     root --> frontend[frontend/];
     root --> data[data/];
     root --> terraform[terraform/];
-    root --> workflows[.github/workflows/];
-
-    backend --> py[main.py];
-    backend --> req[requirements.txt];
-    backend --> docker[Dockerfile];
     
+    backend --> py[main.py];
     frontend --> html[index.html];
-    frontend --> css[css/];
-
-    data --> setup[definitions/0_setup/];
-    data --> bronze[definitions/1_bronze/];
-    data --> silver[definitions/2_silver/];
-    data --> gold[definitions/3_gold/];
-    data --> scripts[scripts/];
-    data --> readme_test[README_TEST_DATA.md];
-
+    data --> definitions[definitions/];
     terraform --> main_tf[main.tf];
 ```
 
-### 📂 Directory Descriptions
-
-| Directory | Description | Key Tech | Hosting/Target |
-| :--- | :--- | :--- | :--- |
-| **`backend/`** | Contains the API logic for receiving form submissions and inserting raw data into BigQuery. | Python, Flask, Docker | Google Cloud Run |
-| **`frontend/`** | The public-facing user interface. Standard web forms for data entry. | HTML5, CSS3, JS | Cloudflare Pages |
-| **`data/`** | The ELT pipeline definitions. Transforms raw JSON into structured tables. | Dataform, SQLX | Google BigQuery |
-| **`data/scripts/`** | Helper scripts for tasks like generating test data. | Python | Local Execution |
-| **`terraform/`** | Infrastructure definitions. Manages IAM roles, Service Accounts, and WIF. | Terraform | Google Cloud Platform |
-| **`.github/workflows/`** | CI/CD pipelines for testing and deploying each component. | YAML | GitHub Actions |
-
----
-
-## 3. Generating Test Data
-
-We have included a script to generate realistic test data for development and testing purposes.
-
-*   **Script**: `tests/data_generator/generate_test_data.py`
-*   **Guide**: Please refer to [tests/data_generator/README_TEST_DATA.md](tests/data_generator/README_TEST_DATA.md) for detailed instructions on how to generate and load test data into BigQuery.
-
----
-
-## 4. Architecture & Data Flow
-
-### Medallion Architecture
-We strictly follow the **Medallion Architecture** pattern for our data pipeline:
-
-1.  **Bronze Layer (Raw)**:
-    *   **Source**: `backend/main.py` inserts raw JSON payloads here.
-    *   **Schema**: `definitions/1_bronze/`. Contains `ingestion_timestamp`, `payload` (JSON), and `metadata`.
-    *   **Partitioning**: MUST be partitioned by `ingestion_timestamp` or `_PARTITIONDATE` for query efficiency.
-    *   **Goal**: Immutable, append-only store of all incoming data.
-2.  **Silver Layer (Cleansed)**:
-    *   **Dataform**: `definitions/2_silver/`.
-    *   **Goal**: Parsed JSON, deduplicated records, type casting, and data quality assertions.
-3.  **Gold Layer (Curated)**:
-    *   **Dataform**: `definitions/3_gold/`.
-    *   **Goal**: Aggregated stats, business-level metrics, and views ready for Looker Studio.
-
-### Coding Standards & FinOps
-*   **General**: Follow Industry Best Practices. Keep code DRY (Don't Repeat Yourself), Clean, and Modular.
-*   **FinOps**: Adhere to GCP Free Tier limits. Avoid unnecessary full-table scans in BigQuery.
-*   **BigQuery**: All tables MUST be partitioned. Use lower-case identifiers.
-*   **Python**: Follow **PEP 8** style guidelines. Use FastAPI for backend logic.
-*   **SQL**: Use standard SQL formatting. Upper-case keywords.
-*   **HTML/CSS**: Use Semantic HTML tags. CSS should be organized and specific.
-*   **Commits**: Use conventional commit messages if possible.
+For a detailed file-by-file breakdown, see [ARCHITECTURE.md#4-repository-map--directory-structure](ARCHITECTURE.md#4-repository-map--directory-structure).
 
 ---
 
