@@ -41,6 +41,10 @@ Agents are authorized and **encouraged** to run the following "Read-Only" tools 
 * **Docs:** `./.agent/skills/readme-updater/scripts/check_links.py`
 * **System:** `ls -R`, `cat`, `grep`, `find`, `git diff`, `git status`
 
+### 🤖 MCP Tools (ALWAYS ALLOW)
+* **BigQuery:** `mcp_bigquery_get_table_info`, `mcp_bigquery_execute_sql` (READ ONLY), `mcp_bigquery_ask_data_insights`
+* **GitHub:** `mcp_github-mcp-server_search_issues`, `mcp_github-mcp-server_list_pull_requests`, `mcp_github-mcp-server_get_file_contents`
+
 ### ⛔ Restricted Mode (STOP & ASK)
 * **File Modifications:** `mv`, `rm`, `cp`, `sed`, `echo "..." > file`
 * **State Changes:** `git add`, `git commit`, `git push`

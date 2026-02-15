@@ -54,6 +54,7 @@
 | **ETL Pipeline** | Dataform (SQLX) | BigQuery | Free to use (part of BigQuery). |
 | **Visualization** | Looker Studio | Google Cloud | Free tier available. Connects natively to BigQuery. |
 | **Infra & Auth** | Terraform & WIF | GitHub Actions | Secure, keyless authentication. |
+| **Agent Tools** | MCP (BigQuery, GitHub) | Local Environment | Automation of data checks and repo management. |
 
 ---
 
