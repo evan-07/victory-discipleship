@@ -94,7 +94,7 @@ def search_members():
         
         # Build BigQuery SQL query
         # Search by exact email match OR partial first/last name match (case-insensitive)
-        sql_query = f"""
+        sql_query = """
         SELECT 
             ingestion_timestamp,
             first_name,
