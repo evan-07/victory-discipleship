@@ -1,13 +1,18 @@
-import unittest
-from unittest.mock import Mock, patch
-import json
+"""
+Tests for the /api/search endpoint.
+"""
 import sys
 import os
+import unittest
+from unittest.mock import patch, MagicMock
+import json
 
-# Add parent directory to path to import main
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from main import app
+# Mock BigQuery client before importing main
+with patch('google.cloud.bigquery.Client'):
+    from main import app
 
 class TestSearchEndpoint(unittest.TestCase):
     """Test suite for GET /api/search endpoint"""

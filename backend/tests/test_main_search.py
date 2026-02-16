@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Tests for the /api/search endpoint in backend/main.py
-Validates member search by email and name
+Tests for the /api/search endpoint (comprehensive).
 """
-
 import pytest
-from unittest.mock import patch, MagicMock
 import sys
 import os
+import unittest
+from unittest.mock import patch, MagicMock
+import json
 
-# Add backend directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.main import app
+# Mock BigQuery client before importing main
+with patch('google.cloud.bigquery.Client'):
+    from main import app
 
 
 @pytest.fixture
