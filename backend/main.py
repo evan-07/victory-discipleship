@@ -4,6 +4,7 @@ import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS  # <--- CRITICAL IMPORT
 from google.cloud import bigquery
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -13,8 +14,16 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}}) 
 # --- FIX END ---
 
-# Initialize BigQuery Client
-client = bigquery.Client()
+# Initialize BigQuery client
+project_id = os.getenv("GCP_PROJECT", "victory-discipleship")
+client = bigquery.Client(project=project_id)
+
+def get_api_version():
+    """
+    Returns the current API version.
+    This is a test function to verify PR and SonarQube workflows.
+    """
+    return "1.0.0"
 
 # Configuration (Change these to match your GCP project)
 DATASET_ID = "bronze_dataset"
