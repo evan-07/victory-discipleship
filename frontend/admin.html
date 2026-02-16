@@ -289,9 +289,16 @@
           <div class="section-title">Discipleship Journey</div>
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label mb-2">Discipleship Classes Completed (separated by commas):</label>
-              <input type="text" x-model="form.discipleship" class="form-control"
-                placeholder="e.g. One2One, Victory Weekend, Leadership L113">
+              <label class="form-label mb-2">Check the classes completed:</label>
+              <div class="conditional-section">
+                <template x-for="classOption in lists.discipleshipClasses" :key="classOption">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" :value="classOption" x-model="form.discipleshipList"
+                      :id="'dc-'+classOption">
+                    <label class="form-check-label" :for="'dc-'+classOption" x-text="classOption"></label>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
 
@@ -382,16 +389,36 @@
 
             <div class="col-12" x-show="form.isMinistryMemberToggle" x-transition>
               <div class="conditional-section">
-                <label class="form-label mb-2">Ministry Teams (separated by commas):</label>
-                <input type="text" x-model="form.ministry" class="form-control"
-                  placeholder="e.g. Worship, Kids, Ushering">
+                <label class="form-label mb-2">Check all Ministry Teams:</label>
+                <div class="row">
+                  <template x-for="ministry in lists.ministryOptions" :key="ministry">
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" :value="ministry" x-model="form.ministryList"
+                          :id="'ministry-'+ministry">
+                        <label class="form-check-label" :for="'ministry-'+ministry" x-text="ministry"></label>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
 
             <div class="col-12" x-show="!form.isMinistryMemberToggle" x-transition>
               <div class="conditional-section">
-                <label class="form-label mb-2">Ministries you'd like to join (separated by commas):</label>
-                <input type="text" x-model="form.wantMinistry" class="form-control" placeholder="e.g. Worship, Kids">
+                <label class="form-label mb-2">Which Ministry would you like to join? (Check up to 2):</label>
+                <div class="row">
+                  <template x-for="ministry in lists.ministryOptions" :key="ministry">
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" :value="ministry"
+                          x-model="form.wantMinistryList" :id="'want-ministry-'+ministry"
+                          :disabled="form.wantMinistryList.length >= 2 && !form.wantMinistryList.includes(ministry)">
+                        <label class="form-check-label" :for="'want-ministry-'+ministry" x-text="ministry"></label>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
           </div>

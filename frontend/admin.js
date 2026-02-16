@@ -36,8 +36,8 @@ function adminForm() {
             businessName: '',
             businessNature: '',
             businessAddress: '',
-            // Discipleship
-            discipleship: '',
+            // Discipleship (array for checkboxes)
+            discipleshipList: [],
             // VG fields
             isMemberToggle: false,
             leaderName: '',
@@ -47,10 +47,31 @@ function adminForm() {
             vgDetails: '',
             hasInternToggle: false,
             internNames: '',
-            // Ministry fields
+            // Ministry fields (arrays for checkboxes)
             isMinistryMemberToggle: false,
-            ministry: '',
-            wantMinistry: ''
+            ministryList: [],
+            wantMinistryList: []
+        },
+
+        // Reference lists for validation (hardcoded for now, future: fetch from API)
+        lists: {
+            discipleshipClasses: [
+                "One2One",
+                "Victory Weekend",
+                "Spiritual Foundations",
+                "Discipleship Class / Leader's Lab",
+                "Leadership L113"
+            ],
+            ministryOptions: [
+                "Kids Church",
+                "Multimedia",
+                "Prayer",
+                "Safety",
+                "Stage Mgmt",
+                "Technical",
+                "Ushering",
+                "Worship"
+            ]
         },
 
         init() {
@@ -132,8 +153,10 @@ function adminForm() {
                 businessName: member.business_name || '',
                 businessNature: member.business_nature || '',
                 businessAddress: member.business_address || '',
-                // Discipleship
-                discipleship: member.discipleship_classes || '',
+                // Discipleship (parse comma-separated to array)
+                discipleshipList: member.discipleship_classes
+                    ? member.discipleship_classes.split(',').map(s => s.trim()).filter(s => s)
+                    : [],
                 // VG fields
                 isMemberToggle: member.is_vg_member || false,
                 leaderName: member.vg_leader_name || '',
@@ -143,14 +166,14 @@ function adminForm() {
                 vgDetails: member.vg_details || '',
                 hasInternToggle: member.has_intern || false,
                 internNames: member.intern_names || '',
-                // Ministry fields
+                // Ministry fields (parse comma-separated to arrays)
                 isMinistryMemberToggle: member.is_ministry_member || false,
-                ministry: Array.isArray(member.ministry_teams)
-                    ? member.ministry_teams.join(', ')
-                    : (member.ministry_teams || ''),
-                wantMinistry: Array.isArray(member.want_ministry)
-                    ? member.want_ministry.join(', ')
-                    : (member.want_ministry || '')
+                ministryList: Array.isArray(member.ministry_teams)
+                    ? member.ministry_teams
+                    : (member.ministry_teams ? member.ministry_teams.split(',').map(s => s.trim()).filter(s => s) : []),
+                wantMinistryList: Array.isArray(member.want_ministry)
+                    ? member.want_ministry
+                    : (member.want_ministry ? member.want_ministry.split(',').map(s => s.trim()).filter(s => s) : [])
             };
 
             // Reset status
@@ -183,7 +206,7 @@ function adminForm() {
                 businessName: '',
                 businessNature: '',
                 businessAddress: '',
-                discipleship: '',
+                discipleshipList: [],
                 isMemberToggle: false,
                 leaderName: '',
                 wantVgToggle: false,
@@ -193,8 +216,8 @@ function adminForm() {
                 hasInternToggle: false,
                 internNames: '',
                 isMinistryMemberToggle: false,
-                ministry: '',
-                wantMinistry: ''
+                ministryList: [],
+                wantMinistryList: []
             };
             this.status = { message: '', type: '' };
         },
@@ -235,25 +258,21 @@ function adminForm() {
                 jobTitle: this.selectedMember.job_title || '',
                 company: this.selectedMember.company || '',
                 employerIndustry: this.selectedMember.employer_industry || '',
-                businessName: this.selectedMember.business_name || '',
-                businessNature: this.selectedMember.business_nature || '',
-                businessAddress: this.selectedMember.business_address || '',
-                discipleship: this.selectedMember.discipleship_classes || '',
-                isMember: this.selectedMember.is_vg_member ? 'Yes' : 'No',
-                leaderName: this.selectedMember.vg_leader_name || '',
-                wantVg: this.selectedMember.want_vg || '',
-                isLeader: this.selectedMember.is_vg_leader ? 'Yes' : 'No',
-                groupCount: this.selectedMember.vg_count || '',
-                vgDetails: this.selectedMember.vg_details || '',
-                hasIntern: this.selectedMember.has_intern ? 'Yes' : 'No',
-                internNames: this.selectedMember.intern_names || '',
-                isMinistryMember: this.selectedMember.is_ministry_member ? 'Yes' : 'No',
-                ministry: Array.isArray(this.selectedMember.ministry_teams)
-                    ? this.selectedMember.ministry_teams.join(', ')
-                    : '',
-                wantMinistry: Array.isArray(this.selectedMember.want_ministry)
-                    ? this.selectedMember.want_ministry.join(', ')
-                    : ''
+                businessName: this.form.businessName,
+                businessNature: this.form.businessNature,
+                businessAddress: this.form.businessAddress,
+                discipleship: this.form.discipleshipList.join(', '),
+                isMember: this.form.isMemberToggle ? 'Yes' : 'No',
+                leaderName: this.form.leaderName,
+                wantVg: this.form.wantVgToggle ? 'Yes' : 'No',
+                isLeader: this.form.isLeaderToggle ? 'Yes' : 'No',
+                groupCount: this.form.groupCount,
+                vgDetails: this.form.vgDetails,
+                hasIntern: this.form.hasInternToggle ? 'Yes' : 'No',
+                internNames: this.form.internNames,
+                isMinistryMember: this.form.isMinistryMemberToggle ? 'Yes' : 'No',
+                ministry: this.form.ministryList.join(', '),
+                wantMinistry: this.form.wantMinistryList.join(', ')
             };
 
             const API_ENDPOINT = 'https://member-api-132324496795.asia-southeast1.run.app/api/submit';
