@@ -42,14 +42,26 @@
 *   **No Localhost:** Agents must NEVER suggest local execution commands (e.g., `npm start`, `python main.py`). All validation must occur via the **Autonomous Toolset** or CI pipelines.
 *   **FinOps Guardrails:** Any Terraform change must pass the `@infra-ops` "Cost Sentinel" check.
 
+### Feature Branch Workflow
+*   **No Direct Push to Main:** All changes must go through a Pull Request.
+*   **Branch Naming:** Use descriptive branch names following the pattern `<type>/<description>` (e.g., `feature/member-search`, `fix/dataform-bug`).
+*   **PR Quality Gates:** All PRs must pass:
+    *   SonarQube Quality Gate (code quality & security)
+    *   Test coverage validation (≥80% for new code)
+    *   Dataform compilation (if `data/**` changed)
+    *   Backend tests (if `backend/**` changed)
+*   **Branch Protection:** The `main` branch is protected and requires PR approval and passing status checks.
+*   **Deployment Trigger:** Only merges to `main` trigger production deployments (Cloud Run, Dataform).
+
 ### Definition of Done (DoD)
-1.  **Code:** Implementation matches the Architect's plan.
+1.  **Code:** Implementation matches the Architect's plan and is submitted via Pull Request.
 2.  **Frontend:** Static export verified.
 3.  **Backend:** 100% test coverage for new logic.
 4.  **Tests:** `check_coverage.py` passes.
 5.  **Cost:** `cost_sentinel.sh` is clean.
 6.  **Docs:** Both ARCHITECTURE.md and README.md updated if triggers met (see Section 8).
 7.  **Docs:** `check_links.py` PASS if README.md touched.
+8.  **Code Quality:** SonarQube Quality Gate PASS for all PRs.
 
 ---
 
@@ -64,6 +76,7 @@
 | **Visualization** | Looker Studio | Google Cloud | Free tier available. Connects natively to BigQuery. |
 | **Infra & Auth** | Terraform & WIF | GitHub Actions | Secure, keyless authentication. |
 | **Agent Tools** | MCP (BigQuery, GitHub) | Local Environment | Automation of data checks and repo management. |
+| **Code Quality** | SonarQube Cloud | SonarQube Cloud | Free tier: unlimited public repos, automated code quality & security scanning. |
 
 ---
 
@@ -213,6 +226,7 @@ This section defines what code changes require updates to `ARCHITECTURE.md` to e
 | **New GCP resource** | Section 3 (Technology Stack) | `@infra-ops` → `@readme-updater` | Adding Cloud Storage bucket |
 | **Workflow/governance change** | Section 2 (Governance & Workflow Rules) | `@architect` | New hard boundary or DoD item |
 | **Authentication model change** | Section 6 (Authentication & Authorization) | `@infra-ops` + `@backend-dev` | Implementing OAuth |
+| **Quality gate changes** | Section 2 (Governance & Workflow Rules) | `@qa-engineer` → `@readme-updater` | Changing SonarQube quality gate thresholds |
 
 ### Enforcement
 

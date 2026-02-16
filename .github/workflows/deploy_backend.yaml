@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - 'backend/**'
-      
+  pull_request:
+    paths:
+      - 'backend/**'
   workflow_dispatch:
 
 env:
@@ -15,7 +17,34 @@ env:
   SERVICE_NAME: member-api
 
 jobs:
+  test:
+    name: Run Tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          cd backend
+          pytest --cov=. --cov-report=term --cov-report=xml
+
+      - name: Check coverage
+        run: python3 .agent/skills/qa-engineer/scripts/check_coverage.py
+
   deploy:
+    name: Deploy to Cloud Run
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     permissions:
@@ -23,27 +52,22 @@ jobs:
       id-token: 'write'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Authenticate via Credentials JSON
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      # Step 1: Build and Push the Container Image
-      # We use 'gcloud builds submit' which is more robust than 'run deploy --source'
       - name: 'Build Container'
         run: |-
           gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} ./backend
 
-      # Step 2: Deploy the Image
-      # We deploy the *specific image* we just built
       - name: 'Deploy to Cloud Run'
         uses: 'google-github-actions/deploy-cloudrun@v1'
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.RUN_REGION }}
-          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} # <--- Point to the image, not source
+          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}
           env_vars: |
             GCP_PROJECT=${{ env.PROJECT_ID }}

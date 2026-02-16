@@ -60,7 +60,7 @@ All agent definitions are located in `.agent/skills/`. Each agent has specific r
 | **@backend-dev** | Backend logic implementation (FastAPI, Python); Test-Driven | `run_backend_tests.sh` |
 | **@data-engineer** | Manages Dataform pipelines and Looker compatibility | `impact_analysis.sh`, `find_lineage.sh`, `schema_lint.py` |
 | **@infra-ops** | Manages Terraform and enforces Free Tier constraints | `cost_sentinel.sh` |
-| **@qa-engineer** | Writes and maintains test suite (Pytest/Playwright) | `check_coverage.py` |
+| **@qa-engineer** | Writes and maintains test suite (Pytest/Playwright); **SonarQube quality gate enforcement** | `check_coverage.py`, **SonarQube MCP tools** |
 | **@bi-analyst** | Transforms data into Looker Studio visualizations | `generate_looker_spec.py` |
 | **@readme-updater** | Updates README.md and verifies documentation integrity | `check_links.py` |
 | **@code-watcher** | Continuously monitors /src for file modifications | (monitoring only) |
@@ -72,6 +72,8 @@ The project includes predefined workflows in `.agent/workflows/`:
 *   **`/feature-development`** - Standard instructions for implementing a new feature from idea to production
 *   **`/data-pipeline-evolution`** - Guide for evolving the data warehouse schema
 *   **`/mcp-integration`** - Guide for using Model Context Protocol (MCP) tools for BigQuery and GitHub
+*   **`/sonarqube-quality-gate`** - Guide for running SonarQube analysis and checking quality gates
+*   **`/feature-branch-workflow`** - Standard workflow for feature branch development and Pull Requests
 
 ### Agent Triggering (Routing Matrix)
 
@@ -92,6 +94,57 @@ Agents are automatically invoked based on file paths being modified. See [ARCHIT
 4.  **Documentation updates:** `@readme-updater` is automatically triggered based on file changes (see routing matrix)
 
 Refer to `.agent/rules/persistence.md` for detailed governance rules and agent protocols.
+
+### Feature Branch Workflow
+
+This project uses a feature branch workflow with Pull Requests for all changes.
+
+#### Creating a Feature Branch
+
+1. **Ensure you're on main and up to date:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+2. **Create a new feature branch:**
+   ```bash
+   git checkout -b <type>/<description>
+   ```
+   
+   **Branch Types:**
+   - `feature/` - New features or enhancements
+   - `fix/` - Bug fixes
+   - `docs/` - Documentation updates
+   - `refactor/` - Code refactoring
+   - `test/` - Test additions or updates
+   - `chore/` - Maintenance tasks
+
+3. **Make your changes and commit:**
+   ```bash
+   git add .
+   git commit -m "feat: your feature description"
+   ```
+
+4. **Push to GitHub:**
+   ```bash
+   git push origin <your-branch-name>
+   ```
+
+5. **Create a Pull Request:**
+   - Go to GitHub repository
+   - Click "Compare & pull request"
+   - Wait for automated checks to pass:
+     - ✅ SonarQube Quality Gate
+     - ✅ Test Coverage
+     - ✅ Dataform Compilation (if applicable)
+     - ✅ Backend Tests (if applicable)
+
+6. **Merge the PR:**
+   - Once all checks pass, merge the PR
+   - Delete the feature branch after merge
+
+**Note:** Direct pushes to `main` are blocked by branch protection rules. See `/feature-branch-workflow` for detailed instructions.
 
 ---
 
@@ -211,6 +264,9 @@ The following secrets MUST be configured in the GitHub Repository settings for C
 | **`GCP_PROJECT_ID`** | The Google Cloud Project ID (e.g., `victory-discipleship`). | `deploy_backend.yaml`, `dataform.yaml` |
 | **`GCP_CREDENTIALS`** | Raw JSON Service Account key. | `deploy_backend.yaml` |
 | **`GCP_LOCATION`** | The Google Cloud location (e.g., `asia-southeast1`). | `dataform.yaml` |
+| **`SONAR_TOKEN`** | SonarQube Cloud authentication token | `sonarqube-analysis.yaml` |
+| **`SONAR_ORGANIZATION`** | SonarQube Cloud organization key (e.g., `evan-07`) | `sonarqube-analysis.yaml` |
+| **`SONAR_PROJECT_KEY`** | SonarQube Cloud project key (e.g., `evan-07_victory-discipleship`) | `sonarqube-analysis.yaml` |
 
 ### Deployment Targets
 *   **Backend**: Automatically deployed to **Cloud Run** on pushing to `main` (if changes are in `backend/`). Can be manually triggered via **Workflow Dispatch**.

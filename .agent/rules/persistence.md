@@ -93,8 +93,8 @@ Hard gate: touching 3_gold requires Looker Impact Statement BEFORE implementatio
 
 ## 8. Tool Authorization
 Always allow (read-only/context): generate_context.sh, validate_structure.py, impact_analysis.sh, find_lineage.sh, schema_lint.py, check_coverage.py, cost_sentinel.sh, check_links.py, get_diff.sh, generate_looker_spec.py, ls/cat/grep/find/git diff/git status.
-MCP read-only allowed: BigQuery get_table_info/execute_sql(read-only)/ask_data_insights; GitHub search/list PR/get file.
-Restricted (STOP & ASK): mv/rm/cp/sed/redirect writes; git add/commit/push; terraform apply; dataform run.
+MCP read-only allowed: BigQuery get_table_info/execute_sql(read-only)/ask_data_insights; GitHub search/list PR/get file/create_branch/create_pull_request/list_pull_requests/pull_request_read/list_branches; SonarQube search_sonar_issues_in_projects/get_component_measures/get_project_quality_gate_status/analyze_code_snippet/get_raw_source/show_rule/search_my_sonarqube_projects/list_*.
+Restricted (STOP & ASK): mv/rm/cp/sed/redirect writes; git add/commit/push; terraform apply; dataform run; SonarQube change_sonar_issue_status/create_webhook; GitHub merge_pull_request/update_pull_request.
 
 ## 9. Repo Artifacts (HARD REQUIRED)
 Files MUST exist and be updated:
@@ -119,8 +119,24 @@ Orchestrator must output:
 - [ ] Walkthrough includes "Documentation Updates" section if docs were modified
 
 ## 11. Challenge Response
-If user asks “Are you following the rules?” @orchestrator MUST output:
+If user asks "Are you following the rules?" @orchestrator MUST output:
 - current PRE-FLIGHT block
 - ROUTING PROOF block
 - CPA + CSA summary
 - artifact list (Implementation Plan/Task List/Walkthrough)
+
+## 12. Code Quality Governance (SonarQube)
+- Quality Gate: "Sonar way" (default) or custom gate defined in SonarQube Cloud.
+- Hard gate: Pull Requests MUST pass SonarQube Quality Gate before merge.
+- Coverage target: 80% minimum for new code (enforced by SonarQube).
+- Security: Zero "Blocker" or "Critical" security vulnerabilities allowed.
+- Code Smells: "A" or "B" maintainability rating required.
+- Agent responsibility: @qa-engineer runs SonarQube analysis and reports issues; @backend-dev and @frontend-dev fix issues.
+- MCP tools: Read-only analysis tools always allowed; write operations (change issue status, create webhooks) require user approval.
+
+## 13. Feature Branch Workflow
+- No direct push to main: All changes via Pull Request.
+- Branch naming: `<type>/<description>` (e.g., `feature/member-search`, `fix/dataform-bug`).
+- PR quality gates: SonarQube, test coverage, Dataform compilation, backend tests.
+- Deployment trigger: Only `main` merges trigger production deployment.
+- MCP GitHub tools: create_branch, create_pull_request, list_pull_requests, pull_request_read, list_branches are allowed for feature branch workflow.

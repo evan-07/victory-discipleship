@@ -1,36 +1,69 @@
-# Current Plan (CPA)
+# Current Plan Artifact (CPA)
 
-**Phase:** Planning
+## Phase
+EXECUTION
 
-**Goal:** Fix Dataform pipeline error where `silver_dataset.stg_members` table cannot be replaced due to partitioning spec mismatch.
+## Goal
+Integrate SonarQube MCP into the Victory Discipleship Member Management System to establish automated code quality governance, security scanning, and technical debt tracking.
 
-**Non-negotiables:**
-- Must follow GitOps principles (no manual GCP Console changes if possible)
-- Must maintain data integrity (regenerate from Bronze layer)
-- Must comply with ARCHITECTURE.md partitioning requirements
+## Non-negotiables
+- Maintain Free Tier constraints (SonarQube Cloud Free Tier)
+- Follow GitOps principles (no manual deployments)
+- No local execution of quality gates
+- All quality checks via GitHub Actions
+- MCP tools read-only by default (write operations require user approval)
 
-**Affected Paths:**
-- `data/definitions/2_silver/stg_members.sqlx` (potentially)
-- BigQuery table: `silver_dataset.stg_members`
+## Affected Paths
+- `.agent/rules/persistence.md` (Tool authorization + quality governance)
+- `ARCHITECTURE.md` (Technology stack, DoD, documentation triggers)
+- `README.md` (Agent responsibilities, workflows, secrets)
+- `.agent/skills/qa-engineer/SKILL.md` (SonarQube tools and workflow)
+- `.agent/workflows/sonarqube-quality-gate.md` (NEW - workflow documentation)
+- `.github/workflows/sonarqube-analysis.yaml` (NEW - CI/CD integration)
+- `sonar-project.properties` (NEW - SonarQube configuration)
 
-**Mandatory Agents:**
-- @data-engineer (primary)
-- @architect (review Click-Ops exception if needed)
+## Mandatory Agents
+- `@architect` - Review ARCHITECTURE.md changes for compliance
+- `@qa-engineer` - Update SKILL.md with SonarQube MCP tools
+- `@readme-updater` - Update README.md and verify documentation links
+- `@infra-ops` - Review GitHub Actions workflow for cost/security
 
-**Documentation Impact:**
-- None (one-time fix)
+## Documentation Impact
+- **persistence.md**: Add SonarQube MCP tools to authorization whitelist; add Section 12 for code quality governance
+- **ARCHITECTURE.md**: Add SonarQube to technology stack; update DoD with quality gate requirement; add documentation trigger for quality gate changes
+- **README.md**: Update @qa-engineer responsibilities; add /sonarqube-quality-gate workflow; add GitHub Secrets for SonarQube
+- **qa-engineer/SKILL.md**: Add SonarQube MCP tools and updated workflow
 
-**Architect Valid Plan:**
-*(Pending architect review)*
+## Architect Valid Plan
+**Status:** APPROVED BY USER
 
-**Steps + Owners:**
-1. @orchestrator: Analyze error and create implementation plan ✅
-2. @data-engineer: Review approaches and recommend solution
-3. @orchestrator: Get user approval on approach
-4. @data-engineer: Implement chosen solution
-5. @orchestrator: Verify fix in GitHub Actions
+**Implementation Strategy:**
+1. Update governance rules (persistence.md) with SonarQube tool authorization
+2. Update architecture documentation (ARCHITECTURE.md) with SonarQube integration
+3. Update README.md with agent responsibilities and workflow references
+4. Update @qa-engineer SKILL.md with SonarQube MCP tools
+5. Create /sonarqube-quality-gate workflow documentation
+6. Create GitHub Actions workflow for SonarQube analysis
+7. Create sonar-project.properties configuration file
 
-**Verification Plan:**
-- Monitor GitHub Actions Dataform workflow
-- Query BigQuery INFORMATION_SCHEMA to confirm partitioning
-- Verify data regeneration in Silver and Gold layers
+**Quality Gates:**
+- SonarQube Quality Gate must PASS for all PRs
+- Coverage: ≥80% on new code
+- Security: Zero "Blocker" or "Critical" vulnerabilities
+- Maintainability: "A" or "B" rating required
+
+## Steps + Owners
+1. **@orchestrator**: Update persistence.md with tool authorization ⏳
+2. **@orchestrator**: Update ARCHITECTURE.md with SonarQube integration ⏳
+3. **@readme-updater**: Update README.md with workflows and secrets ⏳
+4. **@qa-engineer**: Update SKILL.md with SonarQube tools ⏳
+5. **@orchestrator**: Create /sonarqube-quality-gate workflow ⏳
+6. **@infra-ops**: Review GitHub Actions workflow ⏳
+7. **@orchestrator**: Create sonar-project.properties ⏳
+8. **@readme-updater**: Verify documentation links ⏳
+
+## Verification Plan
+1. **Documentation validation**: Run `check_links.py` to verify all links
+2. **Workflow syntax**: Validate GitHub Actions YAML syntax
+3. **MCP tool testing**: Test SonarQube MCP connection (requires project creation by user)
+4. **User manual testing**: User creates SonarQube project and tests GitHub Actions workflow
