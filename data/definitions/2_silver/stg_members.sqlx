@@ -5,6 +5,9 @@ config {
   assertions: {
     uniqueKey: ["email"],
     nonNull: ["email", "first_name", "last_name"]
+  },
+  bigquery: {
+    partitionBy: "DATE(ingestion_timestamp)"
   }, 
   dependencies: ["create_infrastructure"]
 }
