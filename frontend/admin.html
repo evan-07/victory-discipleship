@@ -66,7 +66,9 @@
                 <tbody>
                   <template x-for="member in searchResults" :key="member.email">
                     <tr>
-                      <td x-text="`${member.first_name} ${member.middle_name} ${member.last_name} ${member.suffix || ''}`.trim()"></td>
+                      <td
+                        x-text="`${member.first_name} ${member.middle_name} ${member.last_name} ${member.suffix || ''}`.trim()">
+                      </td>
                       <td x-text="member.email"></td>
                       <td x-text="member.mobile_number"></td>
                       <td>
@@ -192,10 +194,206 @@
             </div>
           </div>
 
-          <!-- Note about simplified form -->
-          <div class="alert alert-info mt-4">
-            <strong>Note:</strong> This admin form only allows updating personal details. For occupation, discipleship,
-            ministry, and Victory Group information, please ask the member to update via the public form or contact IT.
+          <div class="section-title">Occupation & Education</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Current Occupation Status <span class="text-danger">*</span></label>
+              <select x-model="form.occupationType" class="form-select" required>
+                <option value="">Select Status...</option>
+                <option value="Student">Student</option>
+                <option value="Professional">Employed Professional</option>
+                <option value="Business Owner">Business Owner</option>
+                <option value="N/A">None / Homemaker / Retired</option>
+              </select>
+            </div>
+
+            <div class="col-12" x-show="form.occupationType === 'Student'" x-transition>
+              <div class="conditional-section">
+                <h6 class="text-secondary">Student Details</h6>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Education Level <span class="text-danger">*</span></label>
+                    <select x-model="form.educationLevel" class="form-select"
+                      :required="form.occupationType === 'Student'">
+                      <option value="">Select...</option>
+                      <option value="K-12">K-12 (Basic Ed)</option>
+                      <option value="College">College / University</option>
+                    </select>
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label">School <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.school" class="form-control"
+                      :required="form.occupationType === 'Student'">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Year Level <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.yearLevel" class="form-control"
+                      :required="form.occupationType === 'Student'">
+                  </div>
+                  <div class="col-md-8" x-show="form.educationLevel === 'College'">
+                    <label class="form-label">Course / Major <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.course" class="form-control"
+                      :required="form.educationLevel === 'College'">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12" x-show="form.occupationType === 'Professional'" x-transition>
+              <div class="conditional-section">
+                <h6 class="text-secondary">Employment Details</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Job Title <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.jobTitle" class="form-control"
+                      :required="form.occupationType === 'Professional'">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Company <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.company" class="form-control"
+                      :required="form.occupationType === 'Professional'">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Industry <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.employerIndustry" class="form-control"
+                      :required="form.occupationType === 'Professional'">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12" x-show="form.occupationType === 'Business Owner'" x-transition>
+              <div class="conditional-section">
+                <h6 class="text-secondary">Business Details</h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Business Name <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.businessName" class="form-control"
+                      :required="form.occupationType === 'Business Owner'">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Nature of Business <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.businessNature" class="form-control"
+                      :required="form.occupationType === 'Business Owner'">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Address <span class="text-danger">*</span></label>
+                    <input type="text" x-model="form.businessAddress" class="form-control"
+                      :required="form.occupationType === 'Business Owner'">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Discipleship Journey</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label mb-2">Discipleship Classes Completed (separated by commas):</label>
+              <input type="text" x-model="form.discipleship" class="form-control"
+                placeholder="e.g. One2One, Victory Weekend, Leadership L113">
+            </div>
+          </div>
+
+          <div class="section-title">Small Group Involvement</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label d-block">Are you a member of a Victory Group?</label>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="memberSwitch"
+                  x-model="form.isMemberToggle">
+                <label class="form-check-label brand-text fw-bold ms-2" for="memberSwitch"
+                  x-text="form.isMemberToggle ? 'Yes' : 'No'"></label>
+              </div>
+            </div>
+
+            <div class="col-12" x-show="form.isMemberToggle" x-transition>
+              <div class="conditional-section">
+                <label class="form-label">Leader's Name</label>
+                <input type="text" x-model="form.leaderName" class="form-control" :required="form.isMemberToggle">
+              </div>
+            </div>
+
+            <div class="col-12" x-show="!form.isMemberToggle" x-transition>
+              <div class="conditional-section">
+                <label class="form-label d-block">Would you like to be part of a Victory Group?</label>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" role="switch" id="wantVgSwitch"
+                    x-model="form.wantVgToggle">
+                  <label class="form-check-label brand-text fw-bold ms-2" for="wantVgSwitch"
+                    x-text="form.wantVgToggle ? 'Yes' : 'No'"></label>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 mt-4">
+              <label class="form-label d-block">Are you leading a Victory Group?</label>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="leaderSwitch"
+                  x-model="form.isLeaderToggle">
+                <label class="form-check-label brand-text fw-bold ms-2" for="leaderSwitch"
+                  x-text="form.isLeaderToggle ? 'Yes' : 'No'"></label>
+              </div>
+            </div>
+
+            <div class="col-12" x-show="form.isLeaderToggle" x-transition>
+              <div class="conditional-section">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Number of Groups Leading</label>
+                    <input type="text" x-model="form.groupCount" class="form-control" :required="form.isLeaderToggle">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Victory Group Details</label>
+                    <input type="text" x-model="form.vgDetails" class="form-control">
+                  </div>
+                </div>
+
+                <div class="mt-4 border-top pt-3">
+                  <label class="form-label d-block">Do you have a Victory Group Intern?</label>
+                  <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="internSwitch"
+                      x-model="form.hasInternToggle">
+                    <label class="form-check-label brand-text fw-bold ms-2" for="internSwitch"
+                      x-text="form.hasInternToggle ? 'Yes' : 'No'"></label>
+                  </div>
+                </div>
+
+                <div class="mt-3" x-show="form.hasInternToggle" x-transition>
+                  <label class="form-label">Intern Names</label>
+                  <input type="text" x-model="form.internNames" class="form-control"
+                    placeholder="e.g. John Doe, Jane Smith">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Ministry Involvement</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label d-block">Are you a member of a Ministry Team?</label>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="ministrySwitch"
+                  x-model="form.isMinistryMemberToggle">
+                <label class="form-check-label brand-text fw-bold ms-2" for="ministrySwitch"
+                  x-text="form.isMinistryMemberToggle ? 'Yes' : 'No'"></label>
+              </div>
+            </div>
+
+            <div class="col-12" x-show="form.isMinistryMemberToggle" x-transition>
+              <div class="conditional-section">
+                <label class="form-label mb-2">Ministry Teams (separated by commas):</label>
+                <input type="text" x-model="form.ministry" class="form-control"
+                  placeholder="e.g. Worship, Kids, Ushering">
+              </div>
+            </div>
+
+            <div class="col-12" x-show="!form.isMinistryMemberToggle" x-transition>
+              <div class="conditional-section">
+                <label class="form-label mb-2">Ministries you'd like to join (separated by commas):</label>
+                <input type="text" x-model="form.wantMinistry" class="form-control" placeholder="e.g. Worship, Kids">
+              </div>
+            </div>
           </div>
 
           <div class="col-12 mt-4">

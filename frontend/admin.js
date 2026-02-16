@@ -23,7 +23,34 @@ function adminForm() {
             gender: '',
             birthday: '',
             maritalStatus: '',
-            anniversary: ''
+            anniversary: '',
+            // Occupation fields
+            occupationType: '',
+            educationLevel: '',
+            school: '',
+            yearLevel: '',
+            course: '',
+            jobTitle: '',
+            company: '',
+            employerIndustry: '',
+            businessName: '',
+            businessNature: '',
+            businessAddress: '',
+            // Discipleship
+            discipleship: '',
+            // VG fields
+            isMemberToggle: false,
+            leaderName: '',
+            wantVgToggle: false,
+            isLeaderToggle: false,
+            groupCount: '',
+            vgDetails: '',
+            hasInternToggle: false,
+            internNames: '',
+            // Ministry fields
+            isMinistryMemberToggle: false,
+            ministry: '',
+            wantMinistry: ''
         },
 
         init() {
@@ -80,6 +107,7 @@ function adminForm() {
 
             // Populate form with member data
             this.form = {
+                // Personal details
                 firstName: member.first_name || '',
                 middleName: member.middle_name || '',
                 lastName: member.last_name || '',
@@ -91,7 +119,38 @@ function adminForm() {
                 gender: member.gender || '',
                 birthday: member.birthday || '',
                 maritalStatus: member.marital_status || '',
-                anniversary: member.anniversary || ''
+                anniversary: member.anniversary || '',
+                // Occupation fields
+                occupationType: member.occupation_type || '',
+                educationLevel: member.education_level || '',
+                school: member.school || '',
+                yearLevel: member.year_level || '',
+                course: member.course || '',
+                jobTitle: member.job_title || '',
+                company: member.company || '',
+                employerIndustry: member.employer_industry || '',
+                businessName: member.business_name || '',
+                businessNature: member.business_nature || '',
+                businessAddress: member.business_address || '',
+                // Discipleship
+                discipleship: member.discipleship_classes || '',
+                // VG fields
+                isMemberToggle: member.is_vg_member || false,
+                leaderName: member.vg_leader_name || '',
+                wantVgToggle: member.want_vg === 'Yes',
+                isLeaderToggle: member.is_vg_leader || false,
+                groupCount: member.vg_count || '',
+                vgDetails: member.vg_details || '',
+                hasInternToggle: member.has_intern || false,
+                internNames: member.intern_names || '',
+                // Ministry fields
+                isMinistryMemberToggle: member.is_ministry_member || false,
+                ministry: Array.isArray(member.ministry_teams)
+                    ? member.ministry_teams.join(', ')
+                    : (member.ministry_teams || ''),
+                wantMinistry: Array.isArray(member.want_ministry)
+                    ? member.want_ministry.join(', ')
+                    : (member.want_ministry || '')
             };
 
             // Reset status
@@ -112,7 +171,30 @@ function adminForm() {
                 gender: '',
                 birthday: '',
                 maritalStatus: '',
-                anniversary: ''
+                anniversary: '',
+                occupationType: '',
+                educationLevel: '',
+                school: '',
+                yearLevel: '',
+                course: '',
+                jobTitle: '',
+                company: '',
+                employerIndustry: '',
+                businessName: '',
+                businessNature: '',
+                businessAddress: '',
+                discipleship: '',
+                isMemberToggle: false,
+                leaderName: '',
+                wantVgToggle: false,
+                isLeaderToggle: false,
+                groupCount: '',
+                vgDetails: '',
+                hasInternToggle: false,
+                internNames: '',
+                isMinistryMemberToggle: false,
+                ministry: '',
+                wantMinistry: ''
             };
             this.status = { message: '', type: '' };
         },
