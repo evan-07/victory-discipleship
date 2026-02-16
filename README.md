@@ -10,7 +10,7 @@ The **Victory Discipleship Member Management System** is a full-stack applicatio
 ### Technology Stack
 
 *   **Frontend**: Vanilla HTML/CSS/JavaScript. Hosted on **Cloudflare Pages** for free global CDN and DDoS protection.
-*   **Backend**: Python (FastAPI) running on **Google Cloud Run**. Scales to zero for 100% cost efficiency when idle.
+*   **Backend**: Python (Flask) running on **Google Cloud Run**. Scales to zero for 100% cost efficiency when idle.
 *   **Data Warehouse**: Google BigQuery, utilizing Free Tier limits (10GB storage / 1TB query per month).
 *   **Data Pipeline**: **Dataform** (using SQLX) following the **Medallion Architecture** (Bronze $\rightarrow$ Silver $\rightarrow$ Gold).
 *   **Visualization**: **Looker Studio**. Native BigQuery connection, utilizing cached queries for cost control.

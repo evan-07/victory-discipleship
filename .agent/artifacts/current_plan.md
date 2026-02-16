@@ -1,14 +1,15 @@
 # Current Plan (CPA)
-Last updated: 2026-02-16 15:55 (local)
+Last updated: 2026-02-16T17:26:06+08:00
 
 ## Phase
-Planning | Delegating | **Implementing** | Verifying | Done
+**Planning** | Delegating | Implementing | Verifying | Done
 
 ## Goal
-Create a secured Admin Interface (`admin.html`) that allows authorized users to search for existing members and update their personal details using an "Append-Only" strategy.
+Perform a systematic architecture compliance audit to identify violations of ARCHITECTURE.md standards across all codebase components (backend, frontend, data, terraform, workflows, agent skills, documentation).
 
 ## Non-negotiables
-- README-first, ARCHITECTURE.md supremacy
+- README.md read first (completed)
+- ARCHITECTURE.md supremacy (completed)
 - CI/CD only deployments via GitHub Actions
 - No GCP Console click-ops
 - No local backend execution (FastAPI on Cloud Run only)
@@ -17,45 +18,51 @@ Create a secured Admin Interface (`admin.html`) that allows authorized users to 
 - BigQuery free tier guardrails, partitioning required
 - Cloudflare WAF and Bot Fight Mode stays on
 
-## Affected paths (expected)
-- frontend/
-- backend/
+## Affected Paths
+**Read-only audit** - no code changes during planning phase. Will examine:
+- `backend/`
+- `frontend/`
+- `data/definitions/`
+- `terraform/`
+- `.github/workflows/`
+- `.agent/skills/`
+- `.agent/rules/`
+- `README.md`
+- `ARCHITECTURE.md`
 
-## Mandatory agents (expected)
-- @architect (always for non-trivial tasks)
-- @frontend-dev
-- @backend-dev
+## Mandatory Agents Triggered
+- `@architect` (always for non-trivial tasks; audit requires architecture expertise)
+- `@orchestrator` (managing the audit workflow)
 
-## Architect Valid Plan (verbatim)
-### Valid Plan: Admin Update Feature
+## Documentation Impact
+**README.md**: Potentially - if audit reveals missing workflows or outdated routing matrix
+**ARCHITECTURE.md**: Potentially - if audit reveals gaps in governance rules or documentation triggers
 
-#### 1. Architecture Strategy
-- **Update Mechanism**: Use "Append-Only" logic. The Admin form submits a full JSON payload to `/api/submit`. The `silver` layer's deduplication logic (`QUALIFY ROW_NUMBER() ... ORDER BY ingestion_timestamp DESC`) will automatically handle versioning.
-- **Search Mechanism**: New `GET /api/search` endpoint queries `silver_dataset.members` to populate the form.
-- **Latency**: User must be aware that updates are not reflected in "Search" until the Dataform pipeline runs.
+## Architect Valid Plan
+**PENDING** - Awaiting @architect review and validation
 
-#### 2. Security
-- **Frontend**: Protect `admin.html` with Cloudflare Access (Action item for User).
-- **Backend**: Publicly accessible. Future hardening required.
+## Work Breakdown
+1) **Automated Checks** (Owner: @orchestrator)
+   - Run validation scripts (validate_structure.py, cost_sentinel.sh, schema_lint.py, check_coverage.py, check_links.py)
+   - Search for prohibited patterns (local execution commands, manual terraform apply, etc.)
+   
+2) **Manual Code Review** (Owner: @architect + @orchestrator)
+   - Infrastructure & Deployment audit
+   - Backend API audit
+   - Frontend audit
+   - Data Pipeline audit
+   - Agent Skills & Governance audit
+   - Documentation audit
+   
+3) **Cross-Reference Validation** (Owner: @orchestrator)
+   - Verify consistency: API endpoints, frontend components, BigQuery datasets, agent routing
+   
+4) **Audit Report Generation** (Owner: @orchestrator)
+   - Compile findings by category
+   - Categorize by severity (Critical / High / Medium / Low)
+   - Propose remediation actions
 
-#### 3. Components
-- **Frontend**: `admin.html` (Search + Form), `js/admin.js` (API interaction).
-- **Backend API**: `main.py` adds `GET /api/search`.
-
-## Work breakdown
-1) **Frontend Implementation**
-   Owner: @frontend-dev
-   Gate to proceed: Plan Approval
-2) **Backend Implementation**
-   Owner: @backend-dev
-   Gate to proceed: Frontend structure defined
-3) **Verification**
-   Owner: @orchestrator
-   Gate to proceed: Deployment to Dev/Preview
-
-## Verification plan
-- **Automated**: Backend unit tests for `GET /api/search`.
-- **Manual**: 
-    1. Search for user -> Verify data.
-    2. Update user -> Verify success message.
-    3. Check BigQuery `bronze` table for new row.
+## Verification Plan
+- **Automated**: Run all available validation scripts and grep searches
+- **Manual**: User review of audit report artifact
+- **Deliverable**: `audit_report.md` artifact with categorized findings and remediation priorities

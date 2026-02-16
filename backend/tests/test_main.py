@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""
+Tests for the /api/submit endpoint in backend/main.py
+Validates form submission, spam detection, and error handling
+"""
+
+import pytest
+from unittest.mock import patch, MagicMock
+import sys
+import os
+
+# Add backend directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from backend.main import app
+
+
+@pytest.fixture
+def client():
+    """Create a test client for the Flask app"""
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
+
+
+def test_submit_form_valid_payload(client):
+    """Test successful form submission with valid data"""
+    with patch('backend.main.client.insert_rows_json') as mock_insert:
+        mock_insert.return_value = []  # No errors from BigQuery
+        
+        response = client.post('/api/submit', json={
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john.doe@example.com",
+            "primaryMobile": "123456789"
+        })
+        
+        assert response.status_code == 200
+        assert response.json['result'] == 'success'
+        mock_insert.assert_called_once()
+
+
+def test_submit_form_honeypot_spam_detection(client):
+    """Test honeypot field detects and silently rejects spam"""
+    with patch('backend.main.client.insert_rows_json') as mock_insert:
+        response = client.post('/api/submit', json={
+            "firstName": "Spammer",
+            "lastName": "Bot",
+            "email": "spam@bot.com",
+            "website_url": "http://spam-site.com"  # Honeypot field
+        })
+        
+        # Should return success to fool bot, but not insert
+        assert response.status_code == 200
+        assert response.json['result'] == 'success'
+        mock_insert.assert_not_called()
+
+
+def test_submit_form_empty_payload(client):
+    """Test rejection of empty payload"""
+    response = client.post('/api/submit', json={})
+    
+    assert response.status_code == 400
+    assert response.json['result'] == 'error'
+    assert 'Empty payload' in response.json['message']
+
+
+def test_submit_form_non_json_request(client):
+    """Test rejection of non-JSON content type"""
+    response = client.post('/api/submit', 
+                          data="not json content",
+                          content_type='text/plain')
+    
+    assert response.status_code == 400
+    assert response.json['result'] == 'error'
+    assert 'must be JSON' in response.json['message']
+
+
+def test_submit_form_bigquery_error(client):
+    """Test handling of BigQuery insertion errors"""
+    with patch('backend.main.client.insert_rows_json') as mock_insert:
+        mock_insert.return_value = [{'errors': ['Database error']}]
+        
+        response = client.post('/api/submit', json={
+            "firstName": "Jane",
+            "lastName": "Smith",
+            "email": "jane@example.com"
+        })
+        
+        assert response.status_code == 500
+        assert response.json['result'] == 'error'
+        assert 'Database error' in response.json['message']
+
+
+def test_submit_form_includes_metadata(client):
+    """Test that submission includes IP and user agent metadata"""
+    with patch('backend.main.client.insert_rows_json') as mock_insert:
+        mock_insert.return_value = []
+        
+        response = client.post('/api/submit',
+                               json={"firstName": "Test", "lastName": "User", "email": "test@example.com"},
+                               headers={'X-Forwarded-For': '1.2.3.4', 'User-Agent': 'TestBrowser/1.0'})
+        
+        assert response.status_code == 200
+        # Verify metadata was captured (check mock call args)
+        call_args = mock_insert.call_args[0][1][0]
+        assert 'metadata' in call_args
+
+
+def test_submit_form(client):
+    """Base test for submit_form function - validates basic functionality"""
+    with patch('backend.main.client.insert_rows_json') as mock_insert:
+        mock_insert.return_value = []
+        response = client.post('/api/submit', json={"firstName": "Test", "lastName": "User", "email": "test@example.com"})
+        assert response.status_code == 200
+
+
+def test_search_members(client):
+    """Base test for search_members function - validates basic functionality"""
+    with patch('backend.main.client.query') as mock_query:
+        mock_result = MagicMock()
+        mock_result.result.return_value = []
+        mock_query.return_value = mock_result
+        response = client.get('/api/search?query=test@example.com')
+        assert response.status_code == 200
+
+
+def test_search_members_by_exact_email(client):
+    """Test search by exact email match"""
+    with patch('backend.main.client.query') as mock_query:
+        # Mock BigQuery result
+        mock_result = MagicMock()
+        mock_row = {
+            'email': 'john@example.com',
+            'first_name': 'John',
+            'last_name': 'Doe',
+            'mobile_number': '09123456789'
+        }
+        mock_result.result.return_value = [type('Row', (), mock_row)]
+        mock_query.return_value = mock_result
+        
+        response = client.get('/api/search?query=john@example.com')
+        
+        assert response.status_code == 200
+        assert response.json['result'] == 'success'
+        assert len(response.json['members']) == 1
+        assert response.json['members'][0]['email'] == 'john@example.com'
+
+
+def test_search_members_by_partial_name(client):
+    """Test search by partial first or last name"""
+    with patch('backend.main.client.query') as mock_query:
+        mock_result = MagicMock()
+        mock_row1 = {'first_name': 'John', 'last_name': 'Doe', 'email': 'john@example.com'}
+        mock_row2 = {'first_name': 'Johnny', 'last_name': 'Smith', 'email': 'johnny@example.com'}
+        mock_result.result.return_value = [
+            type('Row', (), mock_row1),
+            type('Row', (), mock_row2)
+        ]
+        mock_query.return_value = mock_result
+        
+        response = client.get('/api/search?query=john')
+        
+        assert response.status_code == 200
+        assert response.json['result'] == 'success'
+        assert len(response.json['members']) == 2
+
+
+def test_search_members_empty_query_parameter(client):
+    """Test rejection of empty query parameter"""
+    response = client.get('/api/search?query=')
+    
+    assert response.status_code == 400
+    assert response.json['result'] == 'error'
+    assert 'Query parameter required' in response.json['message']
+
+
+def test_search_members_bigquery_error(client):
+    """Test handling of BigQuery query errors"""
+    with patch('backend.main.client.query') as mock_query:
+        mock_query.side_effect = Exception("BigQuery connection failed")
+        
+        response = client.get('/api/search?query=test@example.com')
+        
+        assert response.status_code == 500
+        assert response.json['result'] == 'error'
+        assert 'Search failed' in response.json['message']

@@ -50,7 +50,7 @@
 | Layer | Technology | Hosting / Service | Justification |
 | :--- | :--- | :--- | :--- |
 | **Frontend** | Vanilla HTML/CSS/JS | Cloudflare Pages | Free global CDN, DDoS protection, unlimited bandwidth. |
-| **Backend** | Python (FastAPI) | Google Cloud Run | Scales to zero (0 cost when idle). First 2M requests/mo are free. |
+| **Backend** | Python (Flask) | Google Cloud Run | Scales to zero (0 cost when idle). First 2M requests/mo are free. |
 | **Database** | BigQuery | Google Cloud | 10GB storage / 1TB query per month free. |
 | **ETL Pipeline** | Dataform (SQLX) | BigQuery | Free to use (part of BigQuery). |
 | **Visualization** | Looker Studio | Google Cloud | Free tier available. Connects natively to BigQuery. |

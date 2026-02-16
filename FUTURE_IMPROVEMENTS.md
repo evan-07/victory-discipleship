@@ -200,6 +200,40 @@ This document tracks potential enhancements and improvements for the Victory Dis
 
 ---
 
+## Infrastructure & DevOps
+
+### 🔐 Migrate Backend Workflow to Workload Identity Federation (Priority: Medium)
+**Current State**: `.github/workflows/deploy_backend.yaml` uses `credentials_json` secret for GCP authentication, while `dataform.yaml` uses Workload Identity Federation (WIF)
+
+**Issue Identified**: Architecture Audit 2026-02-16 found inconsistent authentication methods across workflows
+
+**Proposed Enhancement**:
+- Update `.github/workflows/deploy_backend.yaml` to use WIF
+- Replace `credentials_json: '${{ secrets.GCP_CREDENTIALS }}'` with:
+  ```yaml
+  - uses: google-github-actions/auth@v2
+    with:
+      workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+      service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+  ```
+- Remove `GCP_CREDENTIALS` secret from GitHub after migration
+- Ensure Cloud Run SA has same permissions as current credentials
+- Update Terraform if needed to grant Cloud Run deployment permissions to WIF SA
+
+**Benefits**:
+- ✅ Consistent authentication across all workflows
+- ✅ Keyless authentication (no long-lived credentials)
+- ✅ Better security posture
+- ✅ Aligns with ARCHITECTURE.md standards
+
+**Effort**: ~2-3 hours
+
+**Reference**: 
+- Audit Report: `audit_report.md` (MEDIUM Priority Violation #2)
+- Working Example: `.github/workflows/dataform.yaml` lines 59-61
+
+---
+
 ## How to Use This File
 
 1. **Adding Ideas**: Anyone can add improvement ideas using the template below
