@@ -8,6 +8,12 @@ config {
   dependencies: ["stg_members"]
 }
 
+pre_operations {
+  -- Temporary: Drop existing table to allow partitioning spec change
+  -- TODO: Remove this block after successful deployment
+  DROP TABLE IF EXISTS ${self()}
+}
+
 SELECT
   -- Identifiers & Contact
   email,
