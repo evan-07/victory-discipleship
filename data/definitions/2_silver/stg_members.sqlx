@@ -8,8 +8,14 @@ config {
   },
   bigquery: {
     partitionBy: "DATE(ingestion_timestamp)"
-  }, 
+  },
   dependencies: ["create_infrastructure"]
+}
+
+pre_operations {
+  -- Temporary: Drop existing table to allow partitioning spec change
+  -- TODO: Remove this block after successful deployment
+  DROP TABLE IF EXISTS ${self()}
 }
 
 WITH raw_data AS (
