@@ -5,3 +5,7 @@ terraform.tfstate.backup
 # Generated test data
 test_cases.json
 test_cases.ndjson
+
+# Agent artifacts
+.agent/artifacts/current_plan.md
+.agent/artifacts/current_status.md
