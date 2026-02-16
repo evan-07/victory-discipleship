@@ -12,7 +12,7 @@ SELECT * FROM (
   UNION ALL
   SELECT 'discipleship_classes', 'Spiritual Foundations', 3, TRUE, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
   UNION ALL
-  SELECT 'discipleship_classes', 'Discipleship Class / Leader''s Lab', 4, TRUE, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+  SELECT 'discipleship_classes', 'Discipleship Class / Leader' 's Lab', 4, TRUE, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
   UNION ALL
   SELECT 'discipleship_classes', 'Leadership L113', 5, TRUE, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
   
