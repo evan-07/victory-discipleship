@@ -5,7 +5,7 @@ config {
   bigquery: {
     partitionBy: "_PARTITIONDATE"
   },
-  dependencies: ["members"]
+  dependencies: ["stg_members"]
 }
 
 SELECT
@@ -40,6 +40,6 @@ SELECT
   vg_leader_name
   
 FROM
-  ${ref("members")}
+  ${ref("stg_members")}
 WHERE
   birthday IS NOT NULL AND birthday != ''

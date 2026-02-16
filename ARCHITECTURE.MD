@@ -19,6 +19,14 @@
 6.  **FinOps & Cost Control:**
     * **Query Efficiency:** All BigQuery tables MUST be partitioned by `_PARTITIONDATE` or `ingestion_timestamp`.
     * **Bot Defense:** Cloudflare "Bot Fight Mode" must be active to prevent spam from waking up Cloud Run containers.
+7.  **Data Layer Naming Conventions:** All Dataform tables MUST follow industry-standard prefixes for maximum clarity:
+    * **Bronze Layer:** `raw_*` prefix (e.g., `raw_members`, `raw_events`) - indicates unprocessed, append-only data
+    * **Silver Layer:** `stg_*` prefix (e.g., `stg_members`, `stg_events`) - indicates cleaned, deduplicated, staged data
+    * **Gold Layer:**
+      - `dim_*` prefix for dimension tables (e.g., `dim_members`, `dim_date`)
+      - `fact_*` prefix for fact tables (e.g., `fact_attendance`, `fact_registrations`)
+      - `agg_*` or `rpt_*` prefix for aggregated reports (e.g., `agg_monthly_stats`, `rpt_dashboard`)
+    * **Enforcement:** The `@data-engineer` agent MUST validate naming conventions for all new tables. Use `schema_lint.py` to verify compliance.
 
 ## 2. Governance & Workflow Rules
 
