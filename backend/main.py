@@ -123,7 +123,7 @@ def search_members():
             intern_names,
             mobile_number,
             sec_mobile_number
-        FROM `silver_dataset.members`
+        FROM `silver_dataset.stg_members`
         WHERE 
             LOWER(email) = LOWER(@query)
             OR LOWER(first_name) LIKE CONCAT('%', LOWER(@query), '%')
