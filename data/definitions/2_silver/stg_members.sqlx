@@ -48,12 +48,12 @@ WITH raw_data AS (
     JSON_EXTRACT_SCALAR(payload, '$.isMinistryMember') = 'Yes' AS is_ministry_member,
     ARRAY(
       SELECT TRIM(m)
-      FROM UNNEST(SPLIT(JSON_EXTRACT_SCALAR(payload, '$.ministry'), ',')) m
+      FROM UNNEST(SPLIT(COALESCE(JSON_EXTRACT_SCALAR(payload, '$.ministry'), ''), ',')) m
       WHERE TRIM(m) NOT IN ('', 'None', '0 rows')
     ) AS ministry_teams,
     ARRAY(
       SELECT TRIM(w)
-      FROM UNNEST(SPLIT(JSON_EXTRACT_SCALAR(payload, '$.wantMinistry'), ',')) w
+      FROM UNNEST(SPLIT(COALESCE(JSON_EXTRACT_SCALAR(payload, '$.wantMinistry'), ''), ',')) w
       WHERE TRIM(w) NOT IN ('', 'None', "None, I'll pray for it", "I'll pray for it")
     ) AS want_ministry,
     

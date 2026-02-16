@@ -2,7 +2,8 @@ config {
   type: "operations",
   hasOutput: true,
   name: "create_infrastructure",
-  tags: ["setup"]
+  tags: ["setup"],
+  description: "Initializes BigQuery datasets and creates the raw_members table."
 }
 
 CREATE SCHEMA IF NOT EXISTS ${dataform.projectConfig.vars.bronze_dataset};

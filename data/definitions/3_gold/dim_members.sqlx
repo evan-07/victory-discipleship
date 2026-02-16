@@ -17,15 +17,16 @@ SELECT
   
   -- Demographics
   gender,
-  SAFE.PARSE_DATE('%m/%d/%Y', birthday) AS birth_date,
-  DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%d/%Y', birthday), YEAR) AS age,
+  gender,
+  COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)) AS birth_date,
+  DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) AS age,
   
   -- Age Group Logic (for Looker dashboards)
   CASE
-    WHEN DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%d/%Y', birthday), YEAR) < 13 THEN 'Kids'
-    WHEN DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 13 AND 17 THEN 'Youth'
-    WHEN DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 18 AND 35 THEN 'Young Adult'
-    WHEN DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 36 AND 59 THEN 'Adult'
+    WHEN DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) < 13 THEN 'Kids'
+    WHEN DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) BETWEEN 13 AND 17 THEN 'Youth'
+    WHEN DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) BETWEEN 18 AND 35 THEN 'Young Adult'
+    WHEN DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) BETWEEN 36 AND 59 THEN 'Adult'
     ELSE 'Senior'
   END AS age_group,
   
