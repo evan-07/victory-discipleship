@@ -10,7 +10,7 @@ Prevent "CI/CD Rejection" by ensuring 100% test coverage for new logic.
 
 ## Tools (Soft Gate: ALLOWED)
 * **Coverage Check:** `python3 .agent/skills/qa-engineer/scripts/check_coverage.py`
-    * *Action:* Scans `backend/main.py` and checks if corresponding functions exist in `backend/tests/`.
+    * *Action:* Scans `backend/main.py` and checks if corresponding functions exist in `backend/tests/`. Use `--help` for details.
 * **Mock Validator:** `grep -r "@mock" backend/tests/`
     * *Action:* Ensures we are MOCKING BigQuery/Cloud Run calls (since CI cannot access Prod data).
 

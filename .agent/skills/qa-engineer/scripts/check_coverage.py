@@ -1,6 +1,7 @@
 import ast
 import os
 import sys
+import argparse
 
 # Configuration
 SOURCE_DIR = "backend"
@@ -55,4 +56,7 @@ def scan_coverage():
         print("✅ [QA PASS] All functions have corresponding test definitions.")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Checks if all source functions have corresponding tests.")
+    args = parser.parse_args()
+
     scan_coverage()

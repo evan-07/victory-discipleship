@@ -3,6 +3,12 @@
 
 SEARCH_TERM=$1
 
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: ./impact_analysis.sh <column_name>"
+    echo "Finds all references to a column in Dataform definitions to assess impact of changes."
+    exit 0
+fi
+
 if [ -z "$SEARCH_TERM" ]; then
   echo "Error: No column name provided."
   exit 1

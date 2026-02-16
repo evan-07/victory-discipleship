@@ -2,6 +2,12 @@
 # Scaffolds a new HTML page in frontend/
 # Usage: ./create_page.sh <page_name>
 
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: ./create_page.sh <page_name>"
+    echo "Scaffolds a new HTML page in frontend/ with standard structure."
+    exit 0
+fi
+
 if [ -z "$1" ]; then
     echo "Usage: ./create_page.sh <page_name>"
     exit 1

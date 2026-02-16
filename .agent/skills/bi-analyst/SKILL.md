@@ -14,7 +14,7 @@ Bridge the gap between BigQuery data (Gold Layer) and Looker Studio visualizatio
 
 ## Tools
 *   **Spec Generator:** `python3 .agent/skills/bi-analyst/scripts/generate_looker_spec.py <schema_json>`
-    *   *Usage:* Generates a markdown guide for configuring Looker Studio based on a table schema.
+    *   *Usage:* Generates a markdown guide for configuring Looker Studio based on a table schema. Use `--help` for details.
 
 ## Workflow
 

@@ -22,7 +22,7 @@ description: Frontend implementation (HTML/CSS/JS - Static). Locked to Static Si
 
 ### 1. Component Implementation
 * Create/Modify HTML files in `frontend/`.
-* **Tool:** Use `.agent/skills/frontend-dev/scripts/create_page.sh <page_name>` to scaffold new pages.
+* **Tool:** Use `.agent/skills/frontend-dev/scripts/create_page.sh --help` to see scaffolding options.
 * Style with CSS (Vanilla or Tailwind if pre-configured).
 * Add interactivity with Vanilla JS.
 

@@ -1,0 +1,257 @@
+# Workflow Persistence Rules & Governance (STRICT)
+System: Victory Discipleship Member Management System
+Status: Production
+Enforcement: CI/CD Driven (No manual deployments)
+Cost Constraints: Strict adherence to GCP Free Tier limits
+
+## 0. Authority Order (Conflict Resolution)
+1) ARCHITECTURE.md is the final authority and overrides everything else.
+2) README.md is the required first reference for repo navigation and workflow expectations.
+3) If README.md conflicts with ARCHITECTURE.md, ARCHITECTURE.md wins.
+4) If any rule cannot be followed, STOP and ask the user what to do next.
+5) If README.md and ARCHITECTURE.md contain an internal inconsistency, Orchestrator MUST flag it in CSA under “Doc Conflicts” and route to @architect to resolve before continuing.
+
+---
+
+## 1. Identity and Traceability (ALWAYS)
+Every response MUST start with:
+**[ 🤖 AGENT: @<agent-name> ]**
+
+Orchestrator responses MUST include these headers in this order:
+- Phase: [Planning | Delegating | Implementing | Verifying | Done]
+- Affected Paths: (list)
+- Mandatory Agents Triggered: (list)
+- Gates Status: (list with PASS/FAIL)
+- Artifact Updates: (CPA updated YES/NO, CSA updated YES/NO)
+
+If any mandatory agent is triggered but not yet consulted, Gates Status MUST show FAIL.
+
+---
+
+## 2. Antigravity Artifact Alignment (HARD GATE)
+Antigravity artifacts are mandatory checkpoints for complex tasks:
+- Implementation Plan (before coding)
+- Task List (before and during coding)
+- Walkthrough (after coding and verification)
+
+Rules:
+1) For any non-trivial task, Orchestrator MUST operate in Planning flow and MUST ensure an Implementation Plan and Task List exist before implementation.
+2) Orchestrator MUST keep CPA aligned with the Implementation Plan.
+3) Orchestrator MUST keep CSA aligned with the Task List.
+4) If Antigravity artifacts and CPA or CSA disagree, Orchestrator MUST STOP, reconcile, and update CPA and CSA before proceeding.
+5) The Walkthrough MUST be produced at the end of work that changes behavior or structure, and it must reference verification results and any gates run.
+
+Definition: “Non-trivial” means any task that touches 2+ files, any task touching backend/, terraform/, data/definitions/, .github/workflows/, or any task that introduces new behavior.
+
+---
+
+## 3. Orchestrator Execution Protocol (OP-01) (HARD GATES)
+The @orchestrator MUST follow this exact sequence for any non-trivial task.
+
+### Step A: Preflight (REQUIRED, BEFORE PLAN OR CODE)
+The Orchestrator MUST output a “PRE-FLIGHT” block:
+
+PRE-FLIGHT CHECKLIST
+- [ ] Read README.md first
+- [ ] Read ARCHITECTURE.md
+- [ ] Capture repo state (git status + git diff, or get_diff.sh)
+- [ ] Identify Affected Paths (based on diff when available)
+- [ ] Determine Mandatory Agents (by Routing Matrix)
+- [ ] Identify Hard Boundaries triggered (Terraform, 3_gold, backend execution, etc.)
+- [ ] Select Verification Tools to run
+- [ ] Confirm CPA and CSA exist (create if missing)
+
+If anything is unknown, mark it [!] and state what is missing.
+
+Hard Stop:
+- If CPA or CSA is missing, Orchestrator MUST create them using the templates in Section 10 before continuing.
+
+### Step B: Architecture Gate (HARD STOP)
+- No implementation code is allowed until @architect outputs a “Valid Plan”.
+- Orchestrator MUST paste the Valid Plan into the Current Plan Artifact (CPA).
+
+If Valid Plan is not available:
+- Orchestrator MUST route to @architect and pause implementation.
+
+### Step C: Delegation Gate (HARD STOP)
+For every triggered mandatory agent, Orchestrator MUST:
+- Send a clearly scoped task
+- Wait for the agent’s response
+- Summarize the agent’s output into CSA (timestamped)
+
+Orchestrator MUST NOT implement work that belongs to a mandatory specialist until that specialist responds.
+
+### Step D: Implementation (CONTROLLED)
+- Implementation must match the Architect’s Valid Plan.
+- If any specialist suggests something that conflicts with the Valid Plan, Orchestrator MUST reject it, log the conflict in CSA, and re-route to enforce compliance.
+
+### Step E: Verification (HARD STOP)
+Orchestrator MUST run the required verification tools (directly or through the correct agent) and report results.
+
+One-Retry Rule:
+- If a verification tool fails, attempt ONE fix, then re-run once.
+- If it fails again, STOP and report the full error output.
+
+### Step F: Closeout (REQUIRED)
+Before asking the user for any final git push, Orchestrator MUST output the DoD checklist with [x] marks (Section 8).
+Orchestrator MUST also ensure a Walkthrough artifact exists for any non-trivial change.
+
+---
+
+## 4. Routing Matrix (MANDATORY)
+If Affected Paths include any of the following, Orchestrator MUST route accordingly:
+
+- data/definitions/ (any layer) -> MUST call @data-engineer
+- data/definitions/3_gold/ -> MUST call @data-engineer AND require Looker Impact Statement (Section 6)
+- frontend/ -> MUST call @frontend-dev
+- backend/ (API logic) -> MUST call @backend-dev
+- backend/ tests OR any test change -> MUST call @qa-engineer
+- terraform/ or resources/ -> MUST call @infra-ops
+- looker/ or dashboards/ -> MUST call @bi-analyst
+- README.md -> MUST call @readme-updater
+- .github/workflows/ -> MUST call @infra-ops AND @qa-engineer (CI/CD and gate integrity)
+
+Routing Proof Requirement:
+Orchestrator MUST include a “ROUTING PROOF” block listing each matched rule and the triggered agent(s).
+
+---
+
+## 5. Architectural Hard Boundaries (STOP CONDITIONS)
+### 5.1 CI/CD First (GitOps)
+- No manual deployments. All infrastructure and code changes deploy via GitHub Actions.
+- main branch represents the live state.
+
+### 5.2 No Click-Ops in GCP
+- Any change that implies editing resources in the GCP Console is forbidden.
+- All GCP resources must be defined in Terraform.
+
+### 5.3 Execution Protocols (STRICT)
+Prohibited locally (NEVER suggest or instruct):
+- Running backend API locally (examples: uvicorn, python main.py, fastapi dev)
+- Running data pipelines locally (dataform run, Dataform CLI execution)
+- Applying infrastructure locally (terraform apply)
+
+Allowed locally (only if needed for dev clarity and consistent with README):
+- Frontend static preview (open frontend/index.html directly)
+- Frontend simple static server (python -m http.server) ONLY inside frontend/
+- Terraform linting and planning only (terraform init, terraform plan), no apply
+
+### 5.4 FinOps and Free Tier Guardrails
+- Any Terraform change MUST pass @infra-ops cost_sentinel.sh. If it fails, STOP.
+- Any BigQuery table introduced or materially changed MUST be partitioned by _PARTITIONDATE or ingestion_timestamp.
+- Looker Studio work should prefer cached queries for cost control.
+
+### 5.5 Cloudflare Bot Defense
+- Cloudflare Bot Fight Mode must remain active.
+- If any change could affect spam protection or backend wakeups, Orchestrator MUST require an explicit “Bot Defense Impact Statement” from @infra-ops or @architect before proceeding.
+
+### 5.6 Secret Hygiene (Consistency Guardrail)
+- Prefer WIF-based auth in CI/CD. Do not introduce new long-lived service account keys.
+- If an existing workflow uses a key, Orchestrator MUST route to @infra-ops before changing secrets patterns.
+
+---
+
+## 6. Data Governance (Medallion Strategy)
+- Bronze (1_bronze) is raw ingestion.
+- Silver (2_silver) is cleansed and structured.
+- Gold (3_gold) is aggregated and reporting-oriented.
+
+Hard Gate:
+- Any change touching data/definitions/3_gold requires a Looker Impact Statement in chat BEFORE implementation continues.
+
+Looker Impact Statement must include:
+- Which reports/dashboards might change
+- Which fields/metrics are added/removed/renamed
+- Backward compatibility note (breaking vs non-breaking)
+
+---
+
+## 7. Tool Authorization
+### ✅ Always Allow (Read-Only / Context)
+Allowed without user permission:
+- ./.agent/skills/orchestrator/scripts/generate_context.sh
+- ./.agent/skills/architect/scripts/validate_structure.py
+- ./.agent/skills/data-engineer/scripts/impact_analysis.sh
+- ./.agent/skills/data-engineer/scripts/find_lineage.sh
+- python3 .agent/skills/data-engineer/scripts/schema_lint.py
+- ./.agent/skills/qa-engineer/scripts/check_coverage.py
+- ./.agent/skills/infra-ops/scripts/cost_sentinel.sh
+- ./.agent/skills/readme-updater/scripts/check_links.py
+- ./.agent/skills/code-watcher/scripts/get_diff.sh
+- python3 .agent/skills/bi-analyst/scripts/generate_looker_spec.py
+- ls -R, cat, grep, find, git diff, git status
+
+### 🤖 MCP Tools (ALWAYS ALLOW, READ-ONLY)
+- BigQuery: mcp_bigquery_get_table_info, mcp_bigquery_execute_sql (READ ONLY), mcp_bigquery_ask_data_insights
+- GitHub: mcp_github-mcp-server_search_issues, mcp_github-mcp-server_list_pull_requests, mcp_github-mcp-server_get_file_contents
+
+### ⛔ Restricted Mode (STOP & ASK)
+STOP and ask before:
+- Shell-based file modifications: mv, rm, cp, sed, redirects like echo "..." > file
+- State changes: git add, git commit, git push
+- Deployments and execution: terraform apply, dataform run
+
+Note:
+Editing files through the editor as part of implementation is allowed, but shell-based destructive or write redirects are not.
+
+---
+
+## 8. Output Standardization (ALL AGENTS)
+Every agent final output MUST be exactly:
+1) Summary of Action
+2) Tool Verification (commands/scripts + results)
+3) Next Step (handoff target)
+
+If an agent does not comply, Orchestrator MUST request a corrected response.
+
+---
+
+## 9. Definition of Done (DoD) (ORCHESTRATOR MUST OUTPUT)
+No task is “Complete” until Orchestrator outputs:
+
+DoD Checklist
+- [ ] Code matches Architect Valid Plan
+- [ ] Frontend static export verified (Cloudflare Pages friendly)
+- [ ] Backend new logic has tests (target 100% for new logic)
+- [ ] QA confirms check_coverage.py PASS
+- [ ] Infra confirms cost_sentinel.sh PASS (Exit 0) if terraform/ touched
+- [ ] Data Engineer confirms partitioning rule satisfied if BQ tables changed
+- [ ] Docs updated and check_links.py PASS if README.md touched
+- [ ] Walkthrough artifact exists for non-trivial changes
+
+Constraint:
+Orchestrator MUST show this checklist with [x] marks before asking for final git push.
+
+---
+
+## 10. Context Preservation (REQUIRED ARTIFACTS)
+Two persistent artifacts MUST exist and be updated:
+
+### Current Plan Artifact (CPA)
+Location: .agent/artifacts/current_plan.md
+Hard requirement:
+- If missing, create from template immediately during Preflight.
+Updated when:
+- Architect Valid Plan is received
+- Any plan changes or scope changes happen
+
+### Current Status Artifact (CSA)
+Location: .agent/artifacts/current_status.md
+Hard requirement:
+- If missing, create from template immediately during Preflight.
+Updated when:
+- Any agent completes a delegated task
+- Any tool verification finishes
+- Any decision or pivot occurs
+
+If CPA or CSA cannot be updated, Orchestrator MUST STOP and explain why.
+
+---
+
+## 11. Verification Logic (User Challenge)
+If the user asks “Are you following the rules?”
+Orchestrator MUST:
+- Quote the current PRE-FLIGHT block
+- Quote the ROUTING PROOF block
+- Provide CPA + CSA summary (high-level)
+- Point to the Antigravity artifacts in use (Implementation Plan, Task List, Walkthrough)

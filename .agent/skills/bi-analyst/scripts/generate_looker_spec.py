@@ -2,6 +2,7 @@
 import sys
 import json
 import os
+import argparse
 
 def generate_spec(schema_file):
     """
@@ -68,10 +69,8 @@ def generate_spec(schema_file):
     print("* **Scorecard:** Use 'Record Count' or specific KPIs.")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 generate_looker_spec.py <schema_json_file>")
-        print("\nExpected JSON format:")
-        print('{ "table_name": "example", "columns": [ {"name": "id", "type": "STRING"}, ... ] }')
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Generates a Looker Studio configuration specification from a BigQuery schema JSON.")
+    parser.add_argument("schema_file", help="Path to the JSON schema file.")
+    args = parser.parse_args()
     
-    generate_spec(sys.argv[1])
+    generate_spec(args.schema_file)

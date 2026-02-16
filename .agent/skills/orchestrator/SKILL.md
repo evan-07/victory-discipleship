@@ -7,7 +7,7 @@ description: Workflow manager. Coordinates agents and manages the project lifecy
 
 ## Tools & Capabilities
 * **Context Generator:** `./.agent/skills/orchestrator/scripts/generate_context.sh`
-    * *Usage:* Run this immediately upon activation to build a "Mental Map" of the project's current state.
+    * *Usage:* Run this immediately upon activation to build a "Mental Map" of the project's current state. Use `--help` for details.
 
 ## Workflow
 

@@ -4,6 +4,12 @@
 TF_DIR="terraform"
 EXIT_CODE=0
 
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: ./cost_sentinel.sh"
+    echo "Scans Terraform files for expensive resources not compatible with Free Tier."
+    exit 0
+fi
+
 # List of Banned Keywords (Expensive Resources)
 # - NAT Gateway (~$30/mo base)
 # - Load Balancer (~$18/mo base)

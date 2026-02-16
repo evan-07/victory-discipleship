@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+import argparse
 
 def scaffold_feature(feature_name):
     # normalize feature name
@@ -28,8 +29,8 @@ def scaffold_feature(feature_name):
         print(f"Skipped {test_path} (exists)")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 scaffold_feature.py <feature_name>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Scaffolds a new feature (source and test files) for the backend.")
+    parser.add_argument("feature_name", help="Name of the feature to scaffold.")
+    args = parser.parse_args()
     
-    scaffold_feature(sys.argv[1])
+    scaffold_feature(args.feature_name)

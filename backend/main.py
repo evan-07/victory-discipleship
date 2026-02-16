@@ -70,5 +70,88 @@ def submit_form():
         print(f"Server Error: {str(e)}")
         return jsonify({"result": "error", "message": "Internal Server Error"}), 500
 
+@app.route('/api/search', methods=['GET'])
+def search_members():
+    """
+    Search for members by email or name in silver_dataset.members table.
+    Query parameter: query (email or name substring)
+    Returns: JSON array of matching members
+    """
+    try:
+        query = request.args.get('query', '').strip()
+        
+        if not query:
+            return jsonify({"result": "error", "message": "Query parameter required"}), 400
+        
+        # Build BigQuery SQL query
+        # Search by exact email match OR partial first/last name match (case-insensitive)
+        sql_query = f"""
+        SELECT 
+            ingestion_timestamp,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            email,
+            fb_name,
+            gender,
+            birthday,
+            marital_status,
+            anniversary,
+            occupation_type,
+            education_level,
+            school,
+            year_level,
+            course,
+            job_title,
+            company,
+            employer_industry,
+            business_name,
+            business_nature,
+            business_address,
+            discipleship_classes,
+            is_ministry_member,
+            ministry_teams,
+            want_ministry,
+            is_vg_member,
+            vg_leader_name,
+            want_vg,
+            is_vg_leader,
+            vg_count,
+            vg_details,
+            has_intern,
+            intern_names,
+            mobile_number,
+            sec_mobile_number
+        FROM `{DATASET_ID}.members`
+        WHERE 
+            LOWER(email) = LOWER(@query)
+            OR LOWER(first_name) LIKE CONCAT('%', LOWER(@query), '%')
+            OR LOWER(last_name) LIKE CONCAT('%', LOWER(@query), '%')
+        ORDER BY ingestion_timestamp DESC
+        LIMIT 50
+        """
+        
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("query", "STRING", query)
+            ]
+        )
+        
+        query_job = client.query(sql_query, job_config=job_config)
+        results = query_job.result()
+        
+        # Convert results to list of dicts
+        members = []
+        for row in results:
+            member = dict(row.items())
+            members.append(member)
+        
+        return jsonify({"result": "success", "members": members}), 200
+        
+    except Exception as e:
+        print(f"Search Error: {str(e)}")
+        return jsonify({"result": "error", "message": "Search failed"}), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

@@ -10,7 +10,7 @@ Maintain a pristine, accurate, and functional `README.md`.
 
 ## Tools & Capabilities
 * **Link Validator:** `python3 .agent/skills/readme-updater/scripts/check_links.py`
-    * *Usage:* Run this after every edit to ensure you haven't introduced broken links.
+    * *Usage:* Run this after every edit to ensure you haven't introduced broken links. Use `--help` for details.
     * *Trigger:* **ALWAYS** run this as the final step before signing off.
 
 ## Standard Operating Procedure

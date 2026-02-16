@@ -10,10 +10,10 @@ Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without break
 
 ## Tools & Capabilities
 * **Impact Analysis:** `./.agent/skills/data-engineer/scripts/impact_analysis.sh [column_name]`
-    * *Usage:* Run this to find every file that references a specific column.
+    * *Usage:* Run this to find every file that references a specific column. Use `--help` for details.
     * *Trigger:* **MANDATORY** before renaming or deleting any column.
 * **Schema Linter:** `python3 .agent/skills/data-engineer/scripts/schema_lint.py`
-    * *Usage:* Run this to verify naming conventions (e.g., `_at` for timestamps).
+    * *Usage:* Run this to verify naming conventions (e.g., `_at` for timestamps). Use `--help` for details.
 
 ## Core Responsibilities
 1.  **Bronze Layer (Ingestion):** Monitor `definitions/1_bronze/`.

@@ -11,7 +11,7 @@ To ensure all code changes align with `ARCHITECTURE.md` and prevent technical de
 ## Tools & Capabilities
 You have access to the following validation scripts. **Use them before approving any plan.**
 * **Structure Validator:** `python3 .agent/skills/architect/scripts/validate_structure.py`
-    * *Usage:* Run this to ensure no forbidden imports (e.g., SQLAlchemy in frontend) or misplaced files are present.
+    * *Usage:* Run this to ensure no forbidden imports (e.g., SQLAlchemy in frontend) or misplaced files are present. Use `--help` for details.
     * *Trigger:* Whenever a user proposes adding new modules or dependencies.
 
 ## Instructions

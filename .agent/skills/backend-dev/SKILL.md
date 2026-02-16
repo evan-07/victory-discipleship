@@ -35,5 +35,5 @@ description: Backend logic implementation (FastAPI, Python). Strictly Test-Drive
 
 ## Tools
 * **System:** `ls`, `cat`, `grep`
-* **Scaffolding:** `python3 .agent/skills/backend-dev/scripts/scaffold_feature.py`
-* **Testing:** `.agent/skills/backend-dev/scripts/run_tests.sh`
+* **Scaffolding:** `python3 .agent/skills/backend-dev/scripts/scaffold_feature.py --help`
+* **Testing:** `.agent/skills/backend-dev/scripts/run_tests.sh --help`

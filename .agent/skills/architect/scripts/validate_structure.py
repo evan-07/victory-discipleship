@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 # Rules: Forbidden imports or file placements
 RESTRICTIONS = {
@@ -26,4 +27,7 @@ def check_files():
     print("✅ Project structure adheres to ARCHITECTURE.md")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Validates project structure against ARCHITECTURE.md rules.")
+    args = parser.parse_args()
+    
     check_files()

@@ -1,5 +1,6 @@
 import re
 import os
+import argparse
 
 def check_readme_links():
     with open("README.md", "r") as f:
@@ -23,4 +24,7 @@ def check_readme_links():
         print("✅ All local links in README are valid.")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Checks README.md for broken local links.")
+    args = parser.parse_args()
+
     check_readme_links()

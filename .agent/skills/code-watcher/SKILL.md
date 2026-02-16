@@ -9,7 +9,7 @@ description: Continuously monitors /src for file modifications and reports them.
 Detect changes in the codebase that require documentation updates.
 
 ## Triggers
-- **File Save**: Monitor `.ts`, `.js`, `.py`, `.go` files in `/src`.
+- **File Save**: Monitor `.ts`, `.js`, `.py`, `.sqlx` files in `backend/`, `frontend/`, `data/`.
 - **Dependency Change**: Monitor `package.json`, `requirements.txt`.
 
 ## Actions
@@ -17,3 +17,4 @@ Detect changes in the codebase that require documentation updates.
 2. **Analyze**: Identify if the change was logic-based (requires explanation) or style-based (ignore).
 3. **Report**: If logic changed, create a standard "Change Artifact" and ping the `@orchestrator`.
    - *Artifact Format*: "[File Path] modified. [Summary of Change]."
+   - *Tool*: `.agent/skills/code-watcher/scripts/get_diff.sh --help` for usage.
