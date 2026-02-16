@@ -1,92 +1,115 @@
 # Current Plan (CPA)
-Last updated: 2026-02-16T18:10:00+08:00
+Last updated: 2026-02-16T19:40:00+08:00
 
 ## Phase
 **Planning** | Delegating | Implementing | Verifying | Done
 
 ## Goal
-Plan scalable architecture for frontend and backend to support new pages (home, basic reports, Looker reports) with guiding principles for future expansion.
+Remove all existing Gold and Silver analytical views/tables (15 files total) and rebuild from scratch using `silver_dataset.members` as foundation. Create simplified data model for basic demographics Looker dashboards.
 
 ## Non-negotiables
 - README.md read first (completed)
 - ARCHITECTURE.md supremacy (completed)
-- Zero-Cost hosting (Cloudflare Pages for frontend, static-first approach)
-- Static Site mandate (no SSR, no Node.js runtime for final build)
-- CI/CD only deployments via GitHub Actions
-- No local backend execution (Cloud Run only)
-- No local Dataform execution
-- BigQuery partitioning required for all new tables
-- Cloudflare WAF and Bot Fight Mode stays on
-- Medallion Architecture for all data flows (Bronze → Silver → Gold)
+- Medallion Architecture (Bronze → Silver → Gold)
+- No Click-Ops (Terraform only for GCP changes)
+- No local Dataform execution (GitHub Actions only)
+- BigQuery partitioning required (_PARTITIONDATE)
+- Looker Impact Statement required (Section 7, persistence.md)
+- Cost-efficient queries (avoid full table scans)
 
 ## Affected Paths
-**Planning only** - no code changes in this phase. Future implementation will affect:
-- `frontend/` (new pages: home.html, reports.html, looker.html)
-- `frontend/css/` (new: navigation.css)
-- `frontend/js/` (new: navigation.js)
-- `backend/main.py` (API reorganization + new endpoints)
-- `ARCHITECTURE.md` (Section 6: API Endpoints, Section 7: Frontend Components)
-- `README.md` (Section 4: API Documentation)
+**Deletions** (15 files):
+- `data/definitions/2_silver/view_*.sqlx` (8 files: demographics, leadership_summary, marketplace_sector, campus_sector, discipleship_journey, growth_metrics, ministry_involvement, vg_involvement)
+- `data/definitions/3_gold/*.sqlx` (7 files: dim_members, summary, view_stats, rept_*)
+
+**New Files**:
+- `data/definitions/3_gold/dim_members.sqlx` (simplified schema)
+
+**Documentation**:
+- `FUTURE_IMPROVEMENTS.md` (document removed features)
 
 ## Mandatory Agents Triggered
-- `@architect` (REQUIRED for all non-trivial tasks; must validate architecture plan)
-- `@frontend-dev` (frontend/** changes trigger; consulted for patterns)
-- `@backend-dev` (backend/** changes trigger; consulted for API design)
-- `@bi-analyst` (consulted for Looker Studio integration guidance)
-- `@readme-updater` (README.md + ARCHITECTURE.md updates required)
+- `@architect` (REQUIRED for Valid Plan approval)
+- `@data-engineer` (REQUIRED for data/definitions/** changes + Looker Impact Statement)
+- `@bi-analyst` (REQUIRED for Looker dashboard specs)
+- `@readme-updater` (conditional: only if ARCHITECTURE.md/README.md need updates)
 
 ## Documentation Impact
-**ARCHITECTURE.md Changes Required**:
-- Section 6 (API Endpoints & Contracts): Add new REST endpoints table
-- Section 7 (Frontend Components): Add new pages (home.html, reports.html, looker.html, events.html)
-- Section 5 (System Design & Data Flow): Update Mermaid diagram to include Events flow
+**ARCHITECTURE.md**: No changes required (no new API endpoints, frontend pages, or GCP resources)
 
-**README.md Changes Required**:
-- Section 4 (API Documentation): Update endpoints table to match ARCHITECTURE.md
+**README.md**: No changes required (no workflow changes)
+
+**FUTURE_IMPROVEMENTS.md**: Should document removed features for potential re-addition
 
 ## Architect Valid Plan
-**PENDING** - Awaiting @architect review and "Valid Plan" approval
+**APPROVED** - 2026-02-16T19:42:30+08:00
+
+```
+VALID PLAN APPROVED - Data Pipeline Restructure
+
+Scope:
+- DELETE: 8 Silver analytical views (2_silver/view_*.sqlx)
+- DELETE: 7 Gold tables (3_gold/*.sqlx)
+- CREATE: New simplified dim_members.sqlx with demographics focus
+- PLAN: 5 Looker dashboard specifications
+
+Architectural Compliance:
+✅ Medallion Architecture maintained
+✅ No local execution (GitHub Actions only)
+✅ BigQuery partitioning required (_PARTITIONDATE)
+✅ Gold layer only for Looker (no Bronze/Silver exposure)
+✅ No infrastructure changes (no terraform, no cost impact)
+✅ Looker Impact Statement included (BREAKING change documented)
+
+This plan adheres to ARCHITECTURE.md Section 2 (Governance) and Section 3 (Technology Stack).
+```
 
 ## Work Breakdown (Post-Approval)
 
-### Phase 1: Core Infrastructure
-**Owner**: @frontend-dev
-- Create navigation component (navigation.css, navigation.js)
-- Update index.html and admin.html to use shared navigation
+### Step 1: Architect Review
+**Owner**: @architect
+- Review implementation_plan.md
+- Run `validate_structure.py` if needed
+- Issue "Valid Plan" or request revisions
 
-### Phase 2: Home & Reports
-**Owners**: @frontend-dev, @backend-dev, @data-engineer
-- Implement home.html (landing page)
-- Implement /api/reports/* endpoints (backend)
-- Implement reports.html (frontend)
-- Ensure reports query Gold layer only (dim_members, summary, view_stats)
+### Step 2: Data Engineer - Looker Impact Statement
+**Owner**: @data-engineer
+- Confirm Looker Impact Statement in implementation_plan.md is acceptable
+- Verify removal of 15 files won't break undocumented dependencies
+- Run `impact_analysis.sh` on removed columns
 
-### Phase 3: Looker Integration
-**Owners**: @frontend-dev, @bi-analyst
-- Consult @bi-analyst for Looker Studio dashboard URLs
-- Implement looker.html with iFrame embeds
+### Step 3: BI Analyst - Looker Specs
+**Owner**: @bi-analyst
+- Generate Looker configuration specs for 5 dashboards:
+  1. Demographics by Gender
+  2. Demographics by Age Group
+  3. Demographics by Marital Status
+  4. VG Leaders count & people led
+  5. Occupation breakdown
+- Use `generate_looker_spec.py` with new `dim_members` schema
 
-### Phase 4: Events Management
-**Owners**: @frontend-dev, @backend-dev, @data-engineer
-- Implement Bronze/Silver/Gold tables for events (data layer)
-- Implement /api/events/* endpoints (backend)
-- Implement events.html and events/register.html (frontend)
+### Step 4: Implementation (Post-Approval)
+**Owner**: @data-engineer
+- Delete 8 Silver views
+- Delete 7 Gold tables
+- Create new `dim_members.sqlx` with simplified schema
+- Run `schema_lint.py` verification
+- Commit to branch, create PR
 
-### Phase 5: Testing & Documentation
-**Owners**: @qa-engineer, @readme-updater
-- Write backend tests for new endpoints
-- Write frontend Playwright tests
-- Update ARCHITECTURE.md and README.md
-- Run check_links.py to verify documentation
+### Step 5: Verification
+**Owners**: @orchestrator, @data-engineer
+- Verify Dataform compiles via GitHub Actions
+- Verify BigQuery tables created successfully
+- User creates Looker dashboards using @bi-analyst specs
 
 ## Verification Plan
-**Architectural Validation**:
-- Run `validate_structure.py` to ensure no forbidden imports
-- User review of implementation plan (open questions about access control, events data model)
-- @architect approval ("Valid Plan" issued)
+**Pre-Implementation**:
+- @architect "Valid Plan" approval
+- @data-engineer Looker Impact Statement accepted
+- User approval of BREAKING change
 
-**Post-Implementation Verification** (future):
-- Backend tests pass (`check_coverage.py`)
-- Cost sentinel passes (`cost_sentinel.sh`) - no new resources needed
-- Documentation links valid (`check_links.py`)
-- Frontend static export verified
+**Post-Implementation**:
+- Dataform compilation passes (GitHub Actions)
+- `schema_lint.py` PASS
+- `impact_analysis.sh` confirms no unexpected dependencies
+- User successfully creates Looker dashboards

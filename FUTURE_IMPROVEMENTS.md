@@ -518,7 +518,90 @@ const api = new ApiClient();
 
 ---
 
+## Data Pipeline - Removed Tables (2026-02-16)
+
+> [!NOTE]
+> **Removal Reason**: Simplified data model to focus on basic demographics for initial Looker dashboards. These tables can be recreated if needed in the future.
+
+### Removed Gold Layer Tables (7 files)
+
+#### 1. `3_gold/summary.sqlx`
+- **Purpose**: High-level summary statistics
+- **Can be recreated**: Yes, as aggregate query on `dim_members`
+
+#### 2. `3_gold/view_stats.sqlx`
+- **Purpose**: Simple view statistics
+- **Can be recreated**: Yes, as Looker calculated field
+
+#### 3. `3_gold/rept_daily_trends.sqlx`
+- **Purpose**: Daily member registration trends
+- **Can be recreated**: Yes, requires `ingestion_timestamp` tracking
+
+#### 4. `3_gold/rept_discipleship_funnel.sqlx`
+- **Purpose**: Discipleship journey funnel analysis
+- **Can be recreated**: Yes, requires `discipleship_classes` dimension
+
+#### 5. `3_gold/rept_engagement_score.sqlx`
+- **Purpose**: Member engagement scoring
+- **Can be recreated**: Yes, requires multiple dimensions (ministry, VG, discipleship)
+
+#### 6. `3_gold/rept_unified_member_profile.sqlx`
+- **Purpose**: Complete member profile with all dimensions
+- **Can be recreated**: Yes, comprehensive view joining multiple dimensions
+
+#### 7. `3_gold/dim_members.sqlx` (old version)
+- **Purpose**: Full dimension table with ministry, lifecycle, etc.
+- **Replaced by**: Simplified `dim_members.sqlx` focusing on demographics only
+- **Removed fields**: `ministry_teams`, `want_ministry`, `ministry_status`, `life_stage`, `campus`, `leadership_status`, `discipleship_classes`
+
+### Removed Silver Layer Views (8 files)
+
+#### 1. `2_silver/view_demographics.sqlx`
+- **Purpose**: Demographics analysis with age groups
+- **Replaced by**: `dim_members.age_group` in Gold layer
+
+#### 2. `2_silver/view_leadership_summary.sqlx`
+- **Purpose**: VG leader dashboard with group types
+- **Can be recreated**: Yes, requires `vg_details` parsing logic
+
+#### 3. `2_silver/view_marketplace_sector.sqlx`
+- **Purpose**: Professionals and business owners analysis
+- **Can be recreated**: Yes, filter `dim_members` by `occupation_type`
+
+#### 4. `2_silver/view_campus_sector.sqlx`
+- **Purpose**: Campus-based segmentation
+- **Can be recreated**: Yes, requires campus location data
+
+#### 5. `2_silver/view_discipleship_journey.sqlx`
+- **Purpose**: Discipleship class progress tracking
+- **Can be recreated**: Yes, requires `discipleship_classes` dimension
+
+#### 6. `2_silver/view_growth_metrics.sqlx`
+- **Purpose**: Growth tracking over time
+- **Can be recreated**: Yes, requires time-series analysis
+
+#### 7. `2_silver/view_ministry_involvement.sqlx`
+- **Purpose**: Ministry team participation analysis
+- **Can be recreated**: Yes, requires `ministry_teams` array dimension
+
+#### 8. `2_silver/view_vg_involvement.sqlx`
+- **Purpose**: Victory Group participation tracking
+- **Can be recreated**: Yes, requires VG membership dimensions
+
+### How to Restore
+
+If any of these tables are needed in the future:
+
+1. **Locate in Git History**: `git log --all --full-history -- data/definitions/3_gold/[filename].sqlx`
+2. **Restore File**: `git checkout <commit-hash> -- data/definitions/3_gold/[filename].sqlx`
+3. **Update Dependencies**: Ensure referenced columns exist in `dim_members` or `members`
+4. **Test**: Run Dataform compile and deploy via GitHub Actions
+5. **Update Looker**: Update dashboard specs to use restored table
+
+---
+
 ## Completed Improvements
+
 
 _(Items move here after implementation)_
 

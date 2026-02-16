@@ -1,7 +1,10 @@
 config {
   type: "table",
   schema: dataform.projectConfig.vars.gold_dataset,
-  description: "Dimension table for members with derived analytical columns.",
+  description: "Simplified dimension table for Looker dashboards focused on demographics, VG leadership, and occupation.",
+  bigquery: {
+    partitionBy: "_PARTITIONDATE"
+  },
   dependencies: ["members"]
 }
 
@@ -17,42 +20,26 @@ SELECT
   PARSE_DATE('%m/%d/%Y', birthday) AS birth_date,
   DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) AS age,
   
-  -- Life Stage Logic
+  -- Age Group Logic (for Looker dashboards)
   CASE
-    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) < 20 THEN 'Youth'
-    WHEN occupation_type = 'Student' THEN 'Student'
-    WHEN marital_status = 'Single' AND occupation_type = 'Professional' THEN 'Single Professional'
-    WHEN marital_status = 'Single' THEN 'Single' -- Catch-all for other singles
-    WHEN marital_status = 'Married' THEN 'Married'
-    ELSE marital_status
-  END AS life_stage,
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) < 13 THEN 'Kids'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 13 AND 17 THEN 'Youth'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 18 AND 35 THEN 'Young Adult'
+    WHEN DATE_DIFF(CURRENT_DATE(), PARSE_DATE('%m/%d/%Y', birthday), YEAR) BETWEEN 36 AND 59 THEN 'Adult'
+    ELSE 'Senior'
+  END AS age_group,
   
   marital_status,
   
-  -- Location (Placeholder)
-  'Unknown' AS campus,
-  
-  -- Ministry Stats
-  ministry_teams,
-  want_ministry,
-  CASE
-    WHEN ARRAY_LENGTH(ministry_teams) > 0 THEN 'Active'
-    WHEN ARRAY_LENGTH(want_ministry) > 0 THEN 'Interested'
-    ELSE 'None'
-  END AS ministry_status,
-  
-  -- Leadership Stats
-  is_vg_leader,
-  is_vg_member,
-  CASE
-    WHEN is_vg_leader THEN 'Leader'
-    WHEN is_vg_member THEN 'Member'
-    ELSE 'Crowd'
-  END AS leadership_status,
-  
-  -- Other Dimensions
+  -- Occupation (for Students/Professionals/Business Owners breakdown)
   occupation_type,
-  discipleship_classes
+  
+  -- VG Leadership (for VG Leaders count & people led)
+  is_vg_leader,
+  vg_count,
+  vg_leader_name
   
 FROM
   ${ref("members")}
+WHERE
+  birthday IS NOT NULL AND birthday != ''
