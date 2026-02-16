@@ -11,6 +11,17 @@ function adminForm() {
         submitting: false,
         status: { message: '', type: '' },
 
+        // Helper to parse comma-separated strings or arrays into arrays
+        parseListField(value) {
+            if (Array.isArray(value)) {
+                return value;
+            }
+            if (typeof value === 'string' && value.trim()) {
+                return value.split(',').map(s => s.trim()).filter(s => s);
+            }
+            return [];
+        },
+
         form: {
             firstName: '',
             middleName: '',
@@ -212,9 +223,7 @@ function adminForm() {
                 businessNature: member.business_nature || '',
                 businessAddress: member.business_address || '',
                 // Discipleship (parse comma-separated to array)
-                discipleshipList: member.discipleship_classes
-                    ? member.discipleship_classes.split(',').map(s => s.trim()).filter(s => s)
-                    : [],
+                discipleshipList: this.parseListField(member.discipleship_classes),
                 // VG fields
                 isMemberToggle: member.is_vg_member || false,
                 leaderName: member.vg_leader_name || '',
@@ -226,12 +235,8 @@ function adminForm() {
                 internNames: member.intern_names || '',
                 // Ministry fields (parse comma-separated to arrays)
                 isMinistryMemberToggle: member.is_ministry_member || false,
-                ministryList: Array.isArray(member.ministry_teams)
-                    ? member.ministry_teams
-                    : (member.ministry_teams ? member.ministry_teams.split(',').map(s => s.trim()).filter(s => s) : []),
-                wantMinistryList: Array.isArray(member.want_ministry)
-                    ? member.want_ministry
-                    : (member.want_ministry ? member.want_ministry.split(',').map(s => s.trim()).filter(s => s) : [])
+                ministryList: this.parseListField(member.ministry_teams),
+                wantMinistryList: this.parseListField(member.want_ministry)
             };
 
             // Reset status
