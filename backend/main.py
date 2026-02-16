@@ -153,5 +153,45 @@ def search_members():
         print(f"Search Error: {str(e)}")
         return jsonify({"result": "error", "message": "Search failed"}), 500
 
+@app.route('/api/reference-data', methods=['GET'])
+def get_reference_data():
+    """
+    Get reference data for form dropdowns.
+    Returns: JSON object with categories as keys and arrays as values
+    """
+    try:
+        sql_query = """
+        SELECT 
+            category,
+            value,
+            display_order
+        FROM `bronze_dataset.raw_reference_data`
+        WHERE is_active = TRUE
+        ORDER BY category, display_order
+        """
+        
+        query_job = client.query(sql_query)
+        results = query_job.result()
+        
+        # Group by category
+        reference_data = {}
+        for row in results:
+            category = row['category']
+            if category not in reference_data:
+                reference_data[category] = []
+            reference_data[category].append(row['value'])
+        
+        return jsonify({
+            "result": "success",
+            "data": reference_data
+        }), 200
+        
+    except Exception as e:
+        print(f"Reference Data Error: {str(e)}")
+        return jsonify({
+            "result": "error",
+            "message": "Failed to fetch reference data"
+        }), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
