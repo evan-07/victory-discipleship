@@ -17,7 +17,6 @@ SELECT
   
   -- Demographics
   gender,
-  gender,
   COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)) AS birth_date,
   DATE_DIFF(CURRENT_DATE(), COALESCE(SAFE.PARSE_DATE('%Y-%m-%d', birthday), SAFE.PARSE_DATE('%m/%d/%Y', birthday)), YEAR) AS age,
   
