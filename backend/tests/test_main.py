@@ -134,13 +134,14 @@ def test_search_members_by_exact_email(client):
     with patch('main.client.query') as mock_query:
         # Mock BigQuery result
         mock_result = MagicMock()
-        mock_row = {
-            'email': 'john@example.com',
-            'first_name': 'John',
-            'last_name': 'Doe',
-            'mobile_number': '09123456789'
-        }
-        mock_result.result.return_value = [type('Row', (), mock_row)]
+        mock_row = MagicMock()
+        mock_row.items.return_value = [
+            ('email', 'john@example.com'),
+            ('first_name', 'John'),
+            ('last_name', 'Doe'),
+            ('mobile_number', '09123456789')
+        ]
+        mock_result.result.return_value = [mock_row]
         mock_query.return_value = mock_result
         
         response = client.get('/api/search?query=john@example.com')
@@ -155,12 +156,11 @@ def test_search_members_by_partial_name(client):
     """Test search by partial first or last name"""
     with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
-        mock_row1 = {'first_name': 'John', 'last_name': 'Doe', 'email': 'john@example.com'}
-        mock_row2 = {'first_name': 'Johnny', 'last_name': 'Smith', 'email': 'johnny@example.com'}
-        mock_result.result.return_value = [
-            type('Row', (), mock_row1),
-            type('Row', (), mock_row2)
-        ]
+        mock_row1 = MagicMock()
+        mock_row1.items.return_value = [('first_name', 'John'), ('last_name', 'Doe'), ('email', 'john@example.com')]
+        mock_row2 = MagicMock()
+        mock_row2.items.return_value = [('first_name', 'Johnny'), ('last_name', 'Smith'), ('email', 'johnny@example.com')]
+        mock_result.result.return_value = [mock_row1, mock_row2]
         mock_query.return_value = mock_result
         
         response = client.get('/api/search?query=john')

@@ -61,7 +61,7 @@ def submit_form():
         }
 
         row_to_insert = [{
-            "ingestion_timestamp": datetime.datetime.utcnow().isoformat(),
+            "ingestion_timestamp": datetime.utcnow().isoformat(),
             "payload": json.dumps(data),  # Store entire payload as JSON string
             "metadata": json.dumps(metadata) # Store metadata as JSON string
         }]
