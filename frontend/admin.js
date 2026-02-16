@@ -88,41 +88,10 @@ function adminForm() {
         },
 
         async loadReferenceData() {
-            const CACHE_KEY = 'victory_reference_data';
-            const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-            // Check cache
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
-                try {
-                    const { data, timestamp } = JSON.parse(cached);
-                    if (Date.now() - timestamp < CACHE_TTL) {
-                        this.applyReferenceData(data);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Cache parse error:', e);
-                }
-            }
-
-            // Fetch from API
-            try {
-                const response = await fetch('https://member-api-132324496795.asia-southeast1.run.app/api/reference-data');
-                const result = await response.json();
-
-                if (result.result === 'success') {
-                    // Cache the data
-                    localStorage.setItem(CACHE_KEY, JSON.stringify({
-                        data: result.data,
-                        timestamp: Date.now()
-                    }));
-
-                    this.applyReferenceData(result.data);
-                } else {
-                    this.useFallbackData();
-                }
-            } catch (error) {
-                console.error('Failed to load reference data:', error);
+            const data = await VictoryUtils.fetchReferenceData();
+            if (data) {
+                this.applyReferenceData(data);
+            } else {
                 this.useFallbackData();
             }
         },
@@ -137,24 +106,10 @@ function adminForm() {
         },
 
         useFallbackData() {
-            // Fallback to hardcoded values if API fails
-            this.lists.discipleshipClasses = [
-                "One2One",
-                "Victory Weekend",
-                "Spiritual Foundations",
-                "Discipleship Class / Leader's Lab",
-                "Leadership L113"
-            ];
-            this.lists.ministryOptions = [
-                "Kids Church",
-                "Multimedia",
-                "Prayer",
-                "Safety",
-                "Stage Mgmt",
-                "Technical",
-                "Ushering",
-                "Worship"
-            ];
+            // Use shared fallback data
+            const fallbacks = VictoryUtils.getFallbackLists();
+            this.lists.discipleshipClasses = fallbacks.discipleshipClasses;
+            this.lists.ministryOptions = fallbacks.ministryOptions;
         },
 
         async searchMembers() {
