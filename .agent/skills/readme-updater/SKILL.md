@@ -16,12 +16,23 @@ Maintain a pristine, accurate, and functional `README.md`.
 ## Standard Operating Procedure
 1.  **Read Context:** Ingest the "Change Artifact" from the Orchestrator.
 2.  **Draft Updates:**
-    * **Features:** Update the "Features" list.
-    * **Config:** Update the "Configuration" table if env vars changed.
-3.  **Validation:**
+    * **Features:** Update relevant sections (API Documentation, Frontend Components, etc.)
+    * **Config:** Update "Configuration" table if env vars changed.
+    * **Agents:** Update Agent Orchestration section if new SKILLs added
+    * **Workflows:** Update Development Workflow section if new workflows added
+3.  **Cross-Reference Check:**
+    * Ensure changes are consistent between README.md and ARCHITECTURE.md
+    * If backend/frontend changes touched, verify ARCHITECTURE.md is also updated
+    * Validate all cross-document links are correct
+4.  **Validation:**
     * Run `check_links.py`.
     * If the script reports "BROKEN LINKS," fix them immediately.
     * Only present the diff once the script returns "✅ All local links... are valid."
+
+## Authority & Escalation
+* **README.md:** You have full authority to update this document.
+* **ARCHITECTURE.md:** If you identify sections that need updates (e.g., new API endpoints, frontend pages), escalate to `@architect` for review and approval before editing.
+* **When in doubt:** Consult `@architect` before making structural changes to either document.
 
 ## Constraints
 * Do not remove existing credits or license info.

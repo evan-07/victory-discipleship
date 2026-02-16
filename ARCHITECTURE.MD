@@ -40,7 +40,8 @@
 3.  **Backend:** 100% test coverage for new logic.
 4.  **Tests:** `check_coverage.py` passes.
 5.  **Cost:** `cost_sentinel.sh` is clean.
-6.  **Docs:** `@readme-updater` has processed the changes.
+6.  **Docs:** Both ARCHITECTURE.md and README.md updated if triggers met (see Section 8).
+7.  **Docs:** `check_links.py` PASS if README.md touched.
 
 ---
 
@@ -112,3 +113,102 @@ graph LR;
 
     BQ_Gold -->|Cached Query| Looker[Looker Studio];
     Looker -->|View Reports| Admin[Leadership];
+```
+
+---
+
+## 6. API Endpoints & Contracts
+
+### Public Endpoints
+
+| Endpoint | Method | Purpose | Authentication | Request Schema | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/submit` | POST | Submit member data from public or admin forms | None (public) | JSON payload with member fields | `{"message": "Success", "row_id": "..."}`|
+| `/api/search` | GET | Search for existing members by email | None (conceptually admin-only via frontend access control) | Query param: `?email=xxx@example.com` | JSON array of member records or empty array |
+| `/health` | GET | Health check for Cloud Run | None | N/A | `{"status": "healthy"}` |
+
+### Request Schema for `/api/submit`
+
+```json
+{
+  "first_name": "string",
+  "last_name": "string",
+  "email": "string",
+  "phone": "string",
+  "birth_date": "YYYY-MM-DD",
+  "gender": "Male|Female|Other",
+  "address": "string",
+  "city": "string",
+  "occupation": "string",
+  "small_group_leader": "string",
+  "small_group_name": "string",
+  "discipleship_classes": ["string"],
+  "ministry_teams": ["string"],
+  "want_discipleship": "Yes|No",
+  "want_small_group": "Yes|No",
+  "want_ministry": "Yes|No"
+}
+```
+
+### Authentication & Authorization Model
+
+*   **Frontend Protection:** The admin interface (`admin.html`) is protected via **Cloudflare Access**. Only authorized users can access the page.
+*   **Backend API:** Currently publicly accessible. The `/api/search` endpoint does not enforce authentication at the API layer; access control is handled by Cloudflare Access protecting the frontend.
+*   **Future Enhancement:** Implement backend authentication (e.g., API keys, OAuth) for stricter security.
+
+---
+
+## 7. Frontend Components
+
+### `index.html` - Public Member Registration Form
+
+*   **Purpose:** Allows church members to self-register their information.
+*   **Key Features:**
+    *   Collects basic demographics (name, email, phone, birth date, gender, address, city)
+    *   Collects occupation and ministry preferences
+    *   Multi-select for discipleship classes and ministry teams (hardcoded reference lists)
+    *   Submits data to `/api/submit`
+*   **Hosting:** Cloudflare Pages
+*   **Access:** Public (no authentication required)
+
+### `admin.html` - Protected Admin Interface
+
+*   **Purpose:** Allows authorized staff to search for and update existing member records.
+*   **Key Features:**
+    *   **Search:** Query members by email via `/api/search`
+    *   **Update:** Pre-fill form with existing data and submit updates via `/api/submit`
+    *   **Append-Only Architecture:** Updates create new rows in Bronze; Silver layer deduplication logic ensures latest data is used
+*   **Hosting:** Cloudflare Pages
+*   **Access:** Protected via **Cloudflare Access** (configured in Cloudflare Dashboard)
+*   **Latency Note:** Updates are not immediately reflected in search results until the Dataform pipeline runs (typically on next `main` push)
+
+### Reference Data
+
+Hardcoded reference lists are defined in `FUTURE_IMPROVEMENTS.md` and embedded in the frontend JavaScript:
+*   **Discipleship Classes:** 101, 201, 301, 401, Leadership Training, etc.
+*   **Ministry Teams:** Youth Ministry, Worship Team, Logistics, Communications, etc.
+
+---
+
+## 8. Documentation Update Triggers
+
+This section defines what code changes require updates to `ARCHITECTURE.md` to ensure it remains the single source of truth.
+
+### Trigger Rules
+
+| Change Type | Triggers Update To | Responsible Agent | Example |
+| :--- | :--- | :--- | :--- |
+| **New API endpoint** | Section 6 (API Endpoints & Contracts) | `@backend-dev` → `@readme-updater` | Adding `GET /api/stats` |
+| **API schema change** | Section 6 (Request/Response schemas) | `@backend-dev` → `@readme-updater` | Adding new field to `/api/submit` |
+| **New frontend page** | Section 7 (Frontend Components) | `@frontend-dev` → `@readme-updater` | Creating `reports.html` |
+| **New BigQuery table** | Section 5 (System Design & Data Flow) | `@data-engineer` → `@readme-updater` | Adding `3_gold/fact_attendance` |
+| **New GCP resource** | Section 3 (Technology Stack) | `@infra-ops` → `@readme-updater` | Adding Cloud Storage bucket |
+| **Workflow/governance change** | Section 2 (Governance & Workflow Rules) | `@architect` | New hard boundary or DoD item |
+| **Authentication model change** | Section 6 (Authentication & Authorization) | `@infra-ops` + `@backend-dev` | Implementing OAuth |
+
+### Enforcement
+
+*   **Pre-Implementation:** The `@architect` must include a "Documentation Impact" field in the Valid Plan.
+*   **Implementation:** Worker agents must update ARCHITECTURE.md as part of their deliverables if triggers are met.
+*   **Validation:** `check_docs_impact.py` script (owned by `@architect`) analyzes git diff and flags missing documentation updates.
+*   **Definition of Done:** Section 2 DoD explicitly requires documentation updates before task completion.

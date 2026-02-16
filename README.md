@@ -44,6 +44,111 @@ For a detailed file-by-file breakdown, see [ARCHITECTURE.md#4-repository-map--di
 
 ---
 
+## 3. Agent Orchestration
+
+This project uses a multi-agent workflow system coordinated by the `@orchestrator` agent to manage complex tasks while maintaining architectural standards.
+
+### Available Agent SKILLs
+
+All agent definitions are located in `.agent/skills/`. Each agent has specific responsibilities:
+
+| Agent | Responsibility | Key Tools |
+| :--- | :--- | :--- |
+| **@orchestrator** | Workflow manager; coordinates agents and manages lifecycle | `generate_context.sh` |
+| **@architect** | Technical authority; enforces standards and validates structure | `validate_structure.py` |
+| **@frontend-dev** | Frontend implementation (HTML/CSS/JS - Static) | `validate_static_page.sh` |
+| **@backend-dev** | Backend logic implementation (FastAPI, Python); Test-Driven | `run_backend_tests.sh` |
+| **@data-engineer** | Manages Dataform pipelines and Looker compatibility | `impact_analysis.sh`, `find_lineage.sh`, `schema_lint.py` |
+| **@infra-ops** | Manages Terraform and enforces Free Tier constraints | `cost_sentinel.sh` |
+| **@qa-engineer** | Writes and maintains test suite (Pytest/Playwright) | `check_coverage.py` |
+| **@bi-analyst** | Transforms data into Looker Studio visualizations | `generate_looker_spec.py` |
+| **@readme-updater** | Updates README.md and verifies documentation integrity | `check_links.py` |
+| **@code-watcher** | Continuously monitors /src for file modifications | (monitoring only) |
+
+### Standard Workflows
+
+The project includes predefined workflows in `.agent/workflows/`:
+
+*   **`/feature-development`** - Standard instructions for implementing a new feature from idea to production
+*   **`/data-pipeline-evolution`** - Guide for evolving the data warehouse schema
+*   **`/mcp-integration`** - Guide for using Model Context Protocol (MCP) tools for BigQuery and GitHub
+
+### Agent Triggering (Routing Matrix)
+
+Agents are automatically invoked based on file paths being modified. See [ARCHITECTURE.md Section 8](ARCHITECTURE.md#8-documentation-update-triggers) for the complete routing matrix.
+
+**Common triggers:**
+*   `backend/**` → `@backend-dev`
+*   `frontend/**` → `@frontend-dev`
+*   `data/definitions/**` → `@data-engineer`
+*   `terraform/**` OR `resources/**` → `@infra-ops`
+*   `.github/workflows/**` → `@infra-ops` + `@qa-engineer`
+
+### Working with Agents
+
+1.  **For complex tasks:** Invoke `@orchestrator` which will coordinate the necessary agents
+2.  **For feature development:** Use the `/feature-development` workflow for structured guidance
+3.  **For data changes:** Use the `/data-pipeline-evolution` workflow and consult `@data-engineer`
+4.  **Documentation updates:** `@readme-updater` is automatically triggered based on file changes (see routing matrix)
+
+Refer to `.agent/rules/persistence.md` for detailed governance rules and agent protocols.
+
+---
+
+## 4. API Documentation
+
+### Public Web Pages
+
+*   **Member Registration Form:** `https://<your-cloudflare-pages-url>/`
+    *   Purpose: Allows church members to self-register their information
+    *   Access: Public (no authentication required)
+    *   Features: Collects demographics, occupation, ministry preferences, discipleship classes
+
+*   **Admin Member Management:** `https://<your-cloudflare-pages-url>/admin.html`
+    *   Purpose: Search and update existing member records
+    *   Access: **Protected via Cloudflare Access** (authorized staff only)
+    *   Features: Email-based search, pre-filled update forms, append-only architecture
+    *   Note: Updates are not immediately reflected in search until Dataform pipeline runs
+
+### Backend API Endpoints
+
+Backend is hosted on **Google Cloud Run** at `https://<cloud-run-service-url>`.
+
+| Endpoint | Method | Purpose | Authentication | Request | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/submit` | POST | Submit member data | None (public) | JSON payload (see schema below) | `{"message": "Success", "row_id": "..."}` |
+| `/api/search` | GET | Search members by email | None* | Query: `?email=xxx@example.com` | JSON array of member records |
+| `/health` | GET | Health check | None | N/A | `{"status": "healthy"}` |
+
+*Note: `/api/search` is conceptually admin-only, but authentication is enforced at the frontend level via Cloudflare Access, not at the API layer.*
+
+### `/api/submit` Request Schema
+
+```json
+{
+  "first_name": "string",
+  "last_name": "string",
+  "email": "string (required, unique)",
+  "phone": "string",
+  "birth_date": "YYYY-MM-DD",
+  "gender": "Male|Female|Other",
+  "address": "string",
+  "city": "string",
+  "occupation": "string",
+  "small_group_leader": "string",
+  "small_group_name": "string",
+  "discipleship_classes": ["string"],
+  "ministry_teams": ["string"],
+  "want_discipleship": "Yes|No",
+  "want_small_group": "Yes|No",
+  "want_ministry": "Yes|No"
+}
+```
+
+For complete API contracts and authentication model, see [ARCHITECTURE.md Section 6](ARCHITECTURE.md#6-api-endpoints--contracts).
+
+---
+
 ## 5. Development Workflow
 
 ### Prerequisites
@@ -83,6 +188,18 @@ To work on this repository, you must have the following tools installed:
 ---
 
 ## 6. Deployment & Secrets
+
+### Cloudflare Pages (Frontend)
+
+*   **Automatic Deployment:** Cloudflare Pages is configured to auto-deploy from the `main` branch.
+*   **Build Settings:**
+    *   Build command: (None - static files)
+    *   Build output directory: `frontend/`
+    *   Root directory: `/`
+*   **Admin Page Protection:**
+    *   The `admin.html` page is protected using **Cloudflare Access**.
+    *   Configuration: Cloudflare Dashboard → Access → Applications → Create Application
+    *   Policy: Define authorized emails/groups who can access `/admin.html`
 
 ### GitHub Actions Secrets
 The following secrets MUST be configured in the GitHub Repository settings for CI/CD to work:

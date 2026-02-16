@@ -29,6 +29,25 @@ description: Workflow manager. Coordinates agents and manages the project lifecy
     * **BI:** `@bi-analyst`
 * **Documentation:** Call `@readme-updater` once the work is complete.
 
+### 3.1 Documentation Routing (MANDATORY for Non-Trivial)
+
+For non-trivial changes, documentation updates are MANDATORY. Route to documentation agents as follows:
+
+**Call `@readme-updater` if:**
+- New workflows created in `.agent/workflows/`
+- New API endpoints added in `backend/`
+- Deployment process changed in `.github/workflows/` or `terraform/`
+- New agent SKILLs added
+
+**Call `@architect` to review ARCHITECTURE.md if:**
+- System design changed (new components, new data flows)
+- Technology stack additions (new GCP resources)
+- Governance rule changes
+- New API endpoints or schema changes (update Section 6)
+- New frontend pages (update Section 7)
+
+**Timing:** Documentation routing happens during IMPLEMENTATION phase, alongside code changes.
+
 ### 4. Capability Expansion (Meta-Protocol)
 
 #### Trigger

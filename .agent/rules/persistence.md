@@ -31,6 +31,7 @@ Non-trivial = touches backend/ OR terraform/ OR data/definitions/ OR .github/wor
 Required artifacts:
 - Implementation Plan + Task List BEFORE coding.
 - Walkthrough AFTER verification for non-trivial changes.
+- Implementation Plan MUST include "Documentation Impact" field during planning.
 Consistency gate: CPA must match Implementation Plan; CSA must match Task List. If mismatch -> STOP and reconcile.
 If any artifact says “User Review Required” -> STOP until user responds.
 
@@ -59,12 +60,17 @@ F) CLOSEOUT
 - data/definitions/** -> @data-engineer
 - data/definitions/3_gold/** -> @data-engineer + Looker Impact Statement (Section 7)
 - frontend/** -> @frontend-dev
+- frontend/** (new pages) -> @frontend-dev + ARCHITECTURE.md Section 7 update
 - backend/** (logic) -> @backend-dev
+- backend/** (new endpoints) -> @backend-dev + ARCHITECTURE.md Section 6 update
 - tests/** OR backend tests changes -> @qa-engineer
 - terraform/** OR resources/** -> @infra-ops
-- .github/workflows/** -> @infra-ops + @qa-engineer
+- terraform/** (new resources) -> @infra-ops + ARCHITECTURE.md Section 3 update
+- .github/workflows/** -> @infra-ops + @qa-engineer + README.md Section 7 update
 - looker/** OR dashboards/** -> @bi-analyst
 - README.md -> @readme-updater
+- ARCHITECTURE.md -> @architect (review) + @readme-updater (link validation)
+- .agent/workflows/** (new workflows) -> @readme-updater (README.md Section 3 update)
 Routing Proof block REQUIRED in chat.
 
 ## 6. Architectural Hard Boundaries (STOP CONDITIONS)
@@ -96,7 +102,7 @@ Files MUST exist and be updated:
 - .agent/artifacts/current_status.md (CSA)
 If missing, create during Pre-flight.
 
-CPA must contain: Phase | Goal | Non-negotiables | Affected Paths | Mandatory Agents | Architect Valid Plan (verbatim) | Steps+Owners | Verification plan.
+CPA must contain: Phase | Goal | Non-negotiables | Affected Paths | Mandatory Agents | Documentation Impact (which docs need updates) | Architect Valid Plan (verbatim) | Steps+Owners | Verification plan.
 CSA must contain: Phase | Active Agent | Gates PASS/FAIL list | Receipts log | Tool log | Decisions | Next actions | Blocks.
 
 ## 10. Definition of Done (DoD)
@@ -107,8 +113,10 @@ Orchestrator must output:
 - [ ] QA confirms check_coverage.py PASS
 - [ ] Infra confirms cost_sentinel.sh PASS if terraform touched
 - [ ] Data Engineer confirms partitioning + cost-safe query if BQ tables changed
+- [ ] ARCHITECTURE.md and README.md updated if triggers met (see ARCHITECTURE.md Section 8)
 - [ ] Docs check_links.py PASS if README.md touched
 - [ ] Walkthrough artifact exists for non-trivial changes
+- [ ] Walkthrough includes "Documentation Updates" section if docs were modified
 
 ## 11. Challenge Response
 If user asks “Are you following the rules?” @orchestrator MUST output:
