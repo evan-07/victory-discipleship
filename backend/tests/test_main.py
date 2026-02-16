@@ -189,3 +189,63 @@ def test_search_members_bigquery_error(client):
         assert response.status_code == 500
         assert response.json['result'] == 'error'
         assert 'Search failed' in response.json['message']
+
+
+def test_get_api_version(client):
+    """Test get_api_version function returns correct version"""
+    from main import get_api_version
+    
+    version = get_api_version()
+    
+    assert version == "1.0.0"
+    assert isinstance(version, str)
+
+
+def test_get_reference_data(client):
+    """Test /api/reference-data endpoint"""
+    with patch('main.client.query') as mock_query:
+        # Mock BigQuery result
+        mock_result = MagicMock()
+        mock_row1 = MagicMock()
+        mock_row1.__getitem__ = lambda self, key: {
+            'category': 'discipleship_classes',
+            'value': 'ONE 2 ONE',
+            'display_order': 1
+        }[key]
+        mock_row2 = MagicMock()
+        mock_row2.__getitem__ = lambda self, key: {
+            'category': 'discipleship_classes',
+            'value': 'Victory Weekend',
+            'display_order': 2
+        }[key]
+        mock_row3 = MagicMock()
+        mock_row3.__getitem__ = lambda self, key: {
+            'category': 'ministry_teams',
+            'value': 'Kids Ministry',
+            'display_order': 1
+        }[key]
+        
+        mock_result.result.return_value = [mock_row1, mock_row2, mock_row3]
+        mock_query.return_value = mock_result
+        
+        response = client.get('/api/reference-data')
+        
+        assert response.status_code == 200
+        assert response.json['result'] == 'success'
+        assert 'data' in response.json
+        assert 'discipleship_classes' in response.json['data']
+        assert 'ministry_teams' in response.json['data']
+        assert len(response.json['data']['discipleship_classes']) == 2
+        assert len(response.json['data']['ministry_teams']) == 1
+
+
+def test_get_reference_data_error(client):
+    """Test /api/reference-data handles BigQuery errors gracefully"""
+    with patch('main.client.query') as mock_query:
+        mock_query.side_effect = Exception("BigQuery connection failed")
+        
+        response = client.get('/api/reference-data')
+        
+        assert response.status_code == 500
+        assert response.json['result'] == 'error'
+        assert 'Failed to fetch reference data' in response.json['message']
