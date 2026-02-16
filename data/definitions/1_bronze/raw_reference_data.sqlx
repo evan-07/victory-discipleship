@@ -4,7 +4,6 @@ config {
   description: "Reference data for form dropdowns and selections. Contains discipleship classes, ministry teams, and other configurable options."
 }
 
-CREATE OR REPLACE TABLE ${self()} AS
 SELECT * FROM (
   -- Discipleship Classes
   SELECT 'discipleship_classes' AS category, 'One2One' AS value, 1 AS display_order, TRUE AS is_active, CURRENT_TIMESTAMP() AS created_at, CURRENT_TIMESTAMP() AS updated_at
