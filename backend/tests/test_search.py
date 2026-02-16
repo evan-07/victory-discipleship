@@ -4,7 +4,7 @@ Tests for the /api/search endpoint.
 import sys
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 import json
 
 # Add parent directory to path for imports

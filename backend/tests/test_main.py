@@ -29,7 +29,7 @@ def client():
 
 def test_submit_form_valid_payload(client):
     """Test successful form submission with valid data"""
-    with patch('backend.main.client.insert_rows_json') as mock_insert:
+    with patch('main.client.insert_rows_json') as mock_insert:
         mock_insert.return_value = []  # No errors from BigQuery
         
         response = client.post('/api/submit', json={
@@ -46,7 +46,7 @@ def test_submit_form_valid_payload(client):
 
 def test_submit_form_honeypot_spam_detection(client):
     """Test honeypot field detects and silently rejects spam"""
-    with patch('backend.main.client.insert_rows_json') as mock_insert:
+    with patch('main.client.insert_rows_json') as mock_insert:
         response = client.post('/api/submit', json={
             "firstName": "Spammer",
             "lastName": "Bot",
@@ -82,7 +82,7 @@ def test_submit_form_non_json_request(client):
 
 def test_submit_form_bigquery_error(client):
     """Test handling of BigQuery insertion errors"""
-    with patch('backend.main.client.insert_rows_json') as mock_insert:
+    with patch('main.client.insert_rows_json') as mock_insert:
         mock_insert.return_value = [{'errors': ['Database error']}]
         
         response = client.post('/api/submit', json={
@@ -98,7 +98,7 @@ def test_submit_form_bigquery_error(client):
 
 def test_submit_form_includes_metadata(client):
     """Test that submission includes IP and user agent metadata"""
-    with patch('backend.main.client.insert_rows_json') as mock_insert:
+    with patch('main.client.insert_rows_json') as mock_insert:
         mock_insert.return_value = []
         
         response = client.post('/api/submit',
@@ -113,7 +113,7 @@ def test_submit_form_includes_metadata(client):
 
 def test_submit_form(client):
     """Base test for submit_form function - validates basic functionality"""
-    with patch('backend.main.client.insert_rows_json') as mock_insert:
+    with patch('main.client.insert_rows_json') as mock_insert:
         mock_insert.return_value = []
         response = client.post('/api/submit', json={"firstName": "Test", "lastName": "User", "email": "test@example.com"})
         assert response.status_code == 200
@@ -121,7 +121,7 @@ def test_submit_form(client):
 
 def test_search_members(client):
     """Base test for search_members function - validates basic functionality"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
         mock_result.result.return_value = []
         mock_query.return_value = mock_result
@@ -131,7 +131,7 @@ def test_search_members(client):
 
 def test_search_members_by_exact_email(client):
     """Test search by exact email match"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         # Mock BigQuery result
         mock_result = MagicMock()
         mock_row = {
@@ -153,7 +153,7 @@ def test_search_members_by_exact_email(client):
 
 def test_search_members_by_partial_name(client):
     """Test search by partial first or last name"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
         mock_row1 = {'first_name': 'John', 'last_name': 'Doe', 'email': 'john@example.com'}
         mock_row2 = {'first_name': 'Johnny', 'last_name': 'Smith', 'email': 'johnny@example.com'}
@@ -181,7 +181,7 @@ def test_search_members_empty_query_parameter(client):
 
 def test_search_members_bigquery_error(client):
     """Test handling of BigQuery query errors"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_query.side_effect = Exception("BigQuery connection failed")
         
         response = client.get('/api/search?query=test@example.com')
