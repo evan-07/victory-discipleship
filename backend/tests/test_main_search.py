@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Tests for the /api/search endpoint in backend/main.py
-Validates member search by email and name
+Tests for the /api/search endpoint (comprehensive).
 """
-
 import pytest
-from unittest.mock import patch, MagicMock
 import sys
 import os
+import unittest
+from unittest.mock import patch, MagicMock
+import json
 
-# Add backend directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.main import app
+# Mock BigQuery client before importing main
+with patch('google.cloud.bigquery.Client'):
+    from main import app
 
 
 @pytest.fixture
@@ -25,16 +27,17 @@ def client():
 
 def test_search_members_by_exact_email(client):
     """Test search by exact email match"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         # Mock BigQuery result
         mock_result = MagicMock()
-        mock_row = {
-            'email': 'john@example.com',
-            'first_name': 'John',
-            'last_name': 'Doe',
-            'mobile_number': '09123456789'
-        }
-        mock_result.result.return_value = [type('Row', (), mock_row)]
+        mock_row = MagicMock()
+        mock_row.items.return_value = [
+            ('email', 'john@example.com'),
+            ('first_name', 'John'),
+            ('last_name', 'Doe'),
+            ('mobile_number', '09123456789')
+        ]
+        mock_result.result.return_value = [mock_row]
         mock_query.return_value = mock_result
         
         response = client.get('/api/search?query=john@example.com')
@@ -47,14 +50,13 @@ def test_search_members_by_exact_email(client):
 
 def test_search_members_by_partial_name(client):
     """Test search by partial first or last name"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
-        mock_row1 = {'first_name': 'John', 'last_name': 'Doe', 'email': 'john@example.com'}
-        mock_row2 = {'first_name': 'Johnny', 'last_name': 'Smith', 'email': 'johnny@example.com'}
-        mock_result.result.return_value = [
-            type('Row', (), mock_row1),
-            type('Row', (), mock_row2)
-        ]
+        mock_row1 = MagicMock()
+        mock_row1.items.return_value = [('first_name', 'John'), ('last_name', 'Doe'), ('email', 'john@example.com')]
+        mock_row2 = MagicMock()
+        mock_row2.items.return_value = [('first_name', 'Johnny'), ('last_name', 'Smith'), ('email', 'johnny@example.com')]
+        mock_result.result.return_value = [mock_row1, mock_row2]
         mock_query.return_value = mock_result
         
         response = client.get('/api/search?query=john')
@@ -66,7 +68,7 @@ def test_search_members_by_partial_name(client):
 
 def test_search_members_no_results(client):
     """Test search returning no results"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
         mock_result.result.return_value = []
         mock_query.return_value = mock_result
@@ -97,7 +99,7 @@ def test_search_members_missing_query_parameter(client):
 
 def test_search_members_bigquery_error(client):
     """Test handling of BigQuery query errors"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_query.side_effect = Exception("BigQuery connection failed")
         
         response = client.get('/api/search?query=test@example.com')
@@ -109,7 +111,7 @@ def test_search_members_bigquery_error(client):
 
 def test_search_members_uses_parameterized_query(client):
     """Test that search uses parameterized queries (SQL injection protection)"""
-    with patch('backend.main.client.query') as mock_query:
+    with patch('main.client.query') as mock_query:
         mock_result = MagicMock()
         mock_result.result.return_value = []
         mock_query.return_value = mock_result
