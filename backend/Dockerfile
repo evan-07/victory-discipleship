@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Run the web service on container startup using gunicorn
 # Workers: 1, Threads: 8 (Good for I/O bound tasks like BigQuery inserts)
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+CMD exec gunicorn --bind :"$PORT" --workers 1 --threads 8 --timeout 0 main:app
