@@ -3,7 +3,7 @@ config {
   schema: dataform.projectConfig.vars.gold_dataset,
   description: "Simplified dimension table for Looker dashboards focused on demographics, VG leadership, and occupation.",
   bigquery: {
-    partitionBy: "_PARTITIONDATE"
+    partitionBy: "birth_date"
   },
   dependencies: ["stg_members"]
 }
