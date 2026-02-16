@@ -4,7 +4,7 @@ import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS  # <--- CRITICAL IMPORT
 from google.cloud import bigquery
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 
@@ -61,7 +61,7 @@ def submit_form():
         }
 
         row_to_insert = [{
-            "ingestion_timestamp": datetime.utcnow().isoformat(),
+            "ingestion_timestamp": datetime.now(timezone.utc).isoformat(),
             "payload": json.dumps(data),  # Store entire payload as JSON string
             "metadata": json.dumps(metadata) # Store metadata as JSON string
         }]

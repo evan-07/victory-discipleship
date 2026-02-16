@@ -6,7 +6,7 @@
 import json
 import random
 from faker import Faker
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 fake = Faker()
 
@@ -324,7 +324,7 @@ def main():
     raw_records = []
     for profile in all_profiles:
         record = {
-            "ingestion_timestamp": datetime.utcnow().isoformat(),
+            "ingestion_timestamp": datetime.now(timezone.utc).isoformat(),
             "payload": profile,
             "metadata": {
                 "ip_address": fake.ipv4(),
