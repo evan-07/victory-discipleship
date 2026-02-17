@@ -22,16 +22,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       
-      - name: Install dependencies
+      - name: Install dependencies (Backend)
         run: |
           cd backend
           pip install -r requirements.txt
       
-      - name: Run tests with coverage
+      - name: Install dependencies (Frontend)
+        run: npm ci
+
+      - name: Run Backend tests
         run: |
           cd backend
           pytest --cov=. --cov-report=xml --cov-report=term
+      
+      - name: Run Frontend tests
+        run: npm test
       
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@master
@@ -43,6 +54,7 @@ jobs:
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.python.coverage.reportPaths=backend/coverage.xml
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.sources=backend,frontend
             -Dsonar.exclusions=**/tests/**,**/__pycache__/**,**/node_modules/**
             -Dsonar.python.version=3.11
