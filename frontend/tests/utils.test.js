@@ -46,6 +46,11 @@ describe('VictoryUtils', () => {
             expect(VictoryUtils.validateEmail('')).toBe(false);
         });
 
+        test('validateEmail rejects emails longer than 254 chars (ReDoS protection)', () => {
+            const longEmail = 'a'.repeat(250) + '@example.com';
+            expect(VictoryUtils.validateEmail(longEmail)).toBe(false);
+        });
+
         test('validateDate returns true for valid MM/DD/YYYY dates', () => {
             expect(VictoryUtils.validateDate('12/31/2023')).toBe(true);
             expect(VictoryUtils.validateDate('01/01/1990')).toBe(true);
