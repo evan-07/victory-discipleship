@@ -37,6 +37,7 @@ describe('VictoryUtils', () => {
         test('validateEmail returns true for valid emails', () => {
             expect(VictoryUtils.validateEmail('test@example.com')).toBe(true);
             expect(VictoryUtils.validateEmail('user.name+tag@domain.co.uk')).toBe(true);
+            expect(VictoryUtils.validateEmail('user@sub.domain.com')).toBe(true);
         });
 
         test('validateEmail returns false for invalid emails', () => {
