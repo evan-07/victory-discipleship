@@ -42,17 +42,18 @@ const VictoryUtils = {
 
     formatPhone(value) {
         if (!value) return '';
-        return value.replace(/\D/g, '').slice(0, 9);
+        const v = String(value).replace(/\D/g, '');
+        return v.slice(0, 11);
     },
 
     formatNumber(value) {
         if (!value) return '';
-        return value.replace(/\D/g, '');
+        return String(value).replace(/\D/g, '');
     },
 
     formatDate(value) {
         if (!value) return '';
-        let v = value.replace(/\D/g, '').slice(0, 8);
+        let v = String(value).replace(/\D/g, '').slice(0, 8);
         if (v.length >= 5) {
             return `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
         } else if (v.length >= 3) {
@@ -137,3 +138,7 @@ const VictoryUtils = {
         };
     }
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = VictoryUtils;
+}
