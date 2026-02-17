@@ -56,6 +56,11 @@ describe('VictoryUtils', () => {
             expect(VictoryUtils.validateDate('2023/12/31')).toBe(false); // Wrong format
             expect(VictoryUtils.validateDate('invalid')).toBe(false);
             expect(VictoryUtils.validateDate('')).toBe(false);
+            expect(VictoryUtils.validateDate('02/30/2023')).toBe(false); // Invalid day
+            const futureDate = new Date();
+            futureDate.setFullYear(futureDate.getFullYear() + 1);
+            const futureString = `01/01/${futureDate.getFullYear()}`;
+            expect(VictoryUtils.validateDate(futureString)).toBe(false); // Future date
         });
     });
 
@@ -74,6 +79,12 @@ describe('VictoryUtils', () => {
             const input = '10252023';
             const formatted = VictoryUtils.formatDate(input);
             expect(formatted).toBe('10/25/2023');
+        });
+
+        test('formatDate handles partial inputs', () => {
+            expect(VictoryUtils.formatDate('10')).toBe('10');
+            expect(VictoryUtils.formatDate('102')).toBe('10/2');
+            expect(VictoryUtils.formatDate('1025')).toBe('10/25');
         });
 
         test('formatNumber strips non-digits', () => {
