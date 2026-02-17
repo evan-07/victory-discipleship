@@ -38,6 +38,7 @@ describe('VictoryUtils', () => {
             expect(VictoryUtils.validateEmail('test@example.com')).toBe(true);
             expect(VictoryUtils.validateEmail('user.name+tag@domain.co.uk')).toBe(true);
             expect(VictoryUtils.validateEmail('user@sub.domain.com')).toBe(true);
+            expect(VictoryUtils.validateEmail('user@sub.sub.domain.com')).toBe(true); // Valid subdomain
         });
 
         test('validateEmail returns false for invalid emails', () => {
@@ -50,6 +51,8 @@ describe('VictoryUtils', () => {
         test('validateEmail rejects emails longer than 254 chars (ReDoS protection)', () => {
             const longEmail = 'a'.repeat(250) + '@example.com';
             expect(VictoryUtils.validateEmail(longEmail)).toBe(false);
+            const veryLongEmail = 'a'.repeat(200) + '@' + 'b'.repeat(50) + '.com'; // Total length > 254
+            expect(VictoryUtils.validateEmail(veryLongEmail)).toBe(false);
         });
 
         test('validateDate returns true for valid MM/DD/YYYY dates', () => {
