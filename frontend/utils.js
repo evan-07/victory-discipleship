@@ -11,7 +11,8 @@ const VictoryUtils = {
     validateEmail(email) {
         if (!email) return false;
         if (email.length > 254) return false; // RFC 5321 limit to prevent ReDoS
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // Use a safe regex that avoids backtracking on dots within the domain
+        const regex = /^[^\s@]+@([^\s@.]+\.)+[^\s@.]+$/;
         return regex.test(email);
     },
 
