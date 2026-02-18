@@ -1,7 +1,8 @@
 // Admin form logic for searching and updating member details
 function adminForm() {
     return {
-        isDarkMode: false,
+        ...VictoryFormMixin, // Use shared logic
+
         searchQuery: '',
         searching: false,
         searched: false,
@@ -10,17 +11,6 @@ function adminForm() {
         selectedMember: null,
         submitting: false,
         status: { message: '', type: '' },
-
-        // Helper to parse comma-separated strings or arrays into arrays
-        parseListField(value) {
-            if (Array.isArray(value)) {
-                return value;
-            }
-            if (typeof value === 'string' && value.trim()) {
-                return value.split(',').map(s => s.trim()).filter(s => s);
-            }
-            return [];
-        },
 
         form: {
             firstName: '',
@@ -70,32 +60,7 @@ function adminForm() {
             ministryOptions: []      // Populated from API
         },
 
-        async init() {
-            // Load dark mode preference
-            const savedTheme = localStorage.getItem('darkMode');
-            if (savedTheme !== null) {
-                this.isDarkMode = JSON.parse(savedTheme);
-            } else {
-                this.isDarkMode = false;
-            }
-
-            this.$watch('darkMode', val => {
-                localStorage.setItem('darkMode', JSON.stringify(val));
-            });
-
-            // Load reference data from API
-            await this.loadReferenceData();
-        },
-
-        async loadReferenceData() {
-            const data = await VictoryUtils.fetchReferenceData();
-            if (data) {
-                this.applyReferenceData(data);
-            } else {
-                this.useFallbackData();
-            }
-        },
-
+        // Overrides or specific implementation for template methods from Mixin
         applyReferenceData(data) {
             if (data.discipleship_classes) {
                 this.lists.discipleshipClasses = data.discipleship_classes;

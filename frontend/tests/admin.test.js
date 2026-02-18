@@ -7,14 +7,22 @@ global.localStorage = {
     setItem: jest.fn()
 };
 
-// Mock VictoryUtils since admin.js relies on it
+// Mock VictoryUtils since admin.js relies// Mock utils
 global.VictoryUtils = {
     fetchReferenceData: jest.fn(),
-    getFallbackLists: jest.fn().mockReturnValue({
-        discipleshipClasses: ['Class A'],
-        ministryOptions: ['Ministry B']
-    })
+    getFallbackLists: jest.fn(() => ({
+        discipleshipClasses: ["One2One", "Victory Weekend"],
+        ministryOptions: ["Music", "Kids"]
+    })),
+    formatPhone: jest.fn(val => val),
+    validateEmail: jest.fn(() => true),
+    validateDate: jest.fn(() => true),
+    formatDate: jest.fn(val => val),
+    formatNumber: jest.fn(val => val)
 };
+
+// Use real Mixin
+global.VictoryFormMixin = require('../form-shared.js');
 
 describe('Admin Form', () => {
     let component;
@@ -34,6 +42,10 @@ describe('Admin Form', () => {
 
         test('uses fallback data if API fails', async () => {
             VictoryUtils.fetchReferenceData.mockResolvedValue(null);
+            VictoryUtils.getFallbackLists.mockReturnValue({
+                discipleshipClasses: ['Class A'],
+                ministryOptions: ['Ministry B']
+            });
             await component.init();
             expect(VictoryUtils.getFallbackLists).toHaveBeenCalled();
             expect(component.lists.discipleshipClasses).toEqual(['Class A']);
