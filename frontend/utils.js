@@ -20,32 +20,54 @@ const VictoryUtils = {
         if (!dateString) return false;
         // Check format MM/DD/YYYY
         const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/(19|20)\d{2}$/;
-        if (!regex.test(dateString)) return false;
+        if (!regex.test(dateString)) return false; // Keep the regex test from original
 
-        // Check logical validity
+        // Parse the date components
         const parts = dateString.split('/');
-        const m = parseInt(parts[0], 10);
-        const d = parseInt(parts[1], 10);
-        const y = parseInt(parts[2], 10);
+        if (parts.length !== 3) return false;
 
-        const inputDate = new Date(y, m - 1, d);
+        const month = Number.parseInt(parts[0], 10);
+        const day = Number.parseInt(parts[1], 10);
+        const year = Number.parseInt(parts[2], 10);
+
+        // Check if the date is valid
+        if (isNaN(month) || isNaN(day) || isNaN(year)) return false;
+
+        // Basic range check
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        if (year < 1900 || year > 2100) return false;
+
+        const date = new Date(year, month - 1, day);
+        // Check if the date object created is valid and matches the input components
+        // Also ensure the date is not in the future (original logic)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        return inputDate.getFullYear() === y &&
-            inputDate.getMonth() === m - 1 &&
-            inputDate.getDate() === d &&
-            inputDate <= today;
+        return date && (date.getMonth() + 1) === month && date.getDate() === day && date <= today;
     },
 
     // ==========================================
     // FORMATTING
     // ==========================================
 
-    formatPhone(value) {
-        if (!value) return '';
-        const v = String(value).replace(/\D/g, '');
-        return v.slice(0, 11);
+    formatPhone(phone) {
+        if (!phone) return '';
+        // Remove non-numeric characters
+        const cleaned = phone.toString().replace(/\D/g, ''); // Still use replace regex for global
+        // Return only the last 10 digits/characters max (0917-123-4567 -> 9171234567 or last 11)
+        // Adjusting logic to match typical 11 digit format but storing without prefix if needed
+        return cleaned.substring(0, 11);
+    },
+
+    escapeHtml(unsafe) {
+        if (!unsafe) return "";
+        return unsafe
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll("\"", "&quot;")
+            .replaceAll("'", "&#039;");
     },
 
     formatNumber(value) {

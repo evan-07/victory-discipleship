@@ -294,7 +294,7 @@
           <div class="section-title">Discipleship Journey</div>
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label mb-2">Check the classes completed:</label>
+              <div class="form-label mb-2">Check the classes completed:</div>
               <div class="conditional-section">
                 <template x-for="classOption in lists.discipleshipClasses" :key="classOption">
                   <div class="form-check mb-2">
@@ -310,10 +310,10 @@
           <div class="section-title">Small Group Involvement</div>
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label d-block">Are you a member of a Victory Group?</label>
+              <div class="form-label d-block">Are you a member of a Victory Group?</div>
               <div class="form-check form-switch mt-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="memberSwitch"
-                  x-model="form.isMemberToggle" aria-checked="false">
+                  x-model="form.isMemberToggle" :aria-checked="form.isMemberToggle.toString()">
                 <label class="form-check-label brand-text fw-bold ms-2" for="memberSwitch"
                   x-text="form.isMemberToggle ? 'Yes' : 'No'"></label>
               </div>
@@ -329,10 +329,10 @@
 
             <div class="col-12" x-show="!form.isMemberToggle" x-transition>
               <div class="conditional-section">
-                <label class="form-label d-block">Would you like to be part of a Victory Group?</label>
+                <div class="form-label d-block">Would you like to be part of a Victory Group?</div>
                 <div class="form-check form-switch mt-2">
                   <input class="form-check-input" type="checkbox" role="switch" id="wantVgSwitch"
-                    x-model="form.wantVgToggle" aria-checked="false">
+                    x-model="form.wantVgToggle" :aria-checked="form.wantVgToggle.toString()">
                   <label class="form-check-label brand-text fw-bold ms-2" for="wantVgSwitch"
                     x-text="form.wantVgToggle ? 'Yes' : 'No'"></label>
                 </div>
@@ -340,10 +340,10 @@
             </div>
 
             <div class="col-12 mt-4">
-              <label class="form-label d-block">Are you leading a Victory Group?</label>
+              <div class="form-label d-block">Are you leading a Victory Group?</div>
               <div class="form-check form-switch mt-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="leaderSwitch"
-                  x-model="form.isLeaderToggle" aria-checked="false">
+                  x-model="form.isLeaderToggle" :aria-checked="form.isLeaderToggle.toString()">
                 <label class="form-check-label brand-text fw-bold ms-2" for="leaderSwitch"
                   x-text="form.isLeaderToggle ? 'Yes' : 'No'"></label>
               </div>
@@ -364,10 +364,10 @@
                 </div>
 
                 <div class="mt-4 border-top pt-3">
-                  <label class="form-label d-block">Do you have a Victory Group Intern?</label>
+                  <div class="form-label d-block">Do you have a Victory Group Intern?</div>
                   <div class="form-check form-switch mt-2">
                     <input class="form-check-input" type="checkbox" role="switch" id="internSwitch"
-                      x-model="form.hasInternToggle" aria-checked="false">
+                      x-model="form.hasInternToggle" :aria-checked="form.hasInternToggle.toString()">
                     <label class="form-check-label brand-text fw-bold ms-2" for="internSwitch"
                       x-text="form.hasInternToggle ? 'Yes' : 'No'"></label>
                   </div>
@@ -385,10 +385,10 @@
           <div class="section-title">Ministry Involvement</div>
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label d-block">Are you a member of a Ministry Team?</label>
+              <div class="form-label d-block">Are you a member of a Ministry Team?</div>
               <div class="form-check form-switch mt-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="ministrySwitch"
-                  x-model="form.isMinistryMemberToggle" aria-checked="false">
+                  x-model="form.isMinistryMemberToggle" :aria-checked="form.isMinistryMemberToggle.toString()">
                 <label class="form-check-label brand-text fw-bold ms-2" for="ministrySwitch"
                   x-text="form.isMinistryMemberToggle ? 'Yes' : 'No'"></label>
               </div>
@@ -396,7 +396,7 @@
 
             <div class="col-12" x-show="form.isMinistryMemberToggle" x-transition>
               <div class="conditional-section">
-                <label class="form-label mb-2">Check all Ministry Teams:</label>
+                <div class="form-label mb-2">Check all Ministry Teams:</div>
                 <div class="row">
                   <template x-for="ministry in lists.ministryOptions" :key="ministry">
                     <div class="col-md-6">
@@ -413,7 +413,7 @@
 
             <div class="col-12" x-show="!form.isMinistryMemberToggle" x-transition>
               <div class="conditional-section">
-                <label class="form-label mb-2">Which Ministry would you like to join? (Check up to 2):</label>
+                <div class="form-label mb-2">Which Ministry would you like to join? (Check up to 2):</div>
                 <div class="row">
                   <template x-for="ministry in lists.ministryOptions" :key="ministry">
                     <div class="col-md-6">
