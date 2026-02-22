@@ -3,16 +3,17 @@
 | Field | Value |
 | :--- | :--- |
 | **Phase** | Done |
-| **Goal** | Update `.agent/workflows/mcp-integration.md` to align with `mcp_config.json`. |
-| **Non-negotiables** | Must accurately reflect disabled tools and add SonarQube/TestSprite. |
-| **Affected Paths** | `.agent/workflows/mcp-integration.md` |
-| **Mandatory Agents** | `@orchestrator` |
-| **Documentation Impact** | The MCP integration workflow document was updated. |
+| **Goal** | Update `ARCHITECTURE.md` to include TestSprite and SonarQube MCP details. |
+| **Non-negotiables** | Must accurately describe the testing and coverage workflow using TestSprite to satisfy SonarCloud Quality Gates. |
+| **Affected Paths** | `ARCHITECTURE.md` |
+| **Mandatory Agents** | `@architect` |
+| **Documentation Impact** | `ARCHITECTURE.md` was updated with TestSprite and SonarQube MCP information. |
 | **Architect Valid Plan** | Valid Plan |
 
 ## Steps + Owners
-1. [x] @orchestrator: PRE-FLIGHT (Analyze `mcp_config.json` and workflow)
+1. [x] @orchestrator: PRE-FLIGHT (Analyze `ARCHITECTURE.md` references to Sonar/testing)
 2. [x] @orchestrator: Outline Alignment Plan
-3. [x] @orchestrator: Execute updates
-4. [x] @orchestrator: VERIFY
-5. [x] @orchestrator: CLOSEOUT
+3. [x] @architect: Approve plan -> Output "Valid Plan"
+4. [x] @orchestrator: Execute updates
+5. [x] @orchestrator: VERIFY (Run `check_links.py`)
+6. [x] @orchestrator: CLOSEOUT

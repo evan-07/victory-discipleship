@@ -56,6 +56,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 | **Source Control** | GitHub | Monorepo: frontend + backend + infra + Dataform SQL | Free |
 | **CI/CD** | GitHub Actions | Automated build, test, quality gate, and deploy | Free (2K min/mo) |
 | **Code Quality** | SonarCloud | SAST, code smells, security scan on every PR | Free (public repo) |
+| **Testing Automation** | TestSprite | LLM-based autonomous test generation and execution | Included (via MCP) |
 | **Infrastructure as Code** | Terraform OSS | All GCP resources defined, versioned, and deployed as code | Free (OSS) |
 | **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development | Included |
 | **Secrets** | Secret Manager | API keys and credentials — never in code or env vars | Free (≤ 6 secrets) |
@@ -777,6 +778,8 @@ victory-discipleship/
 - Duplication < 3%.
 - Security Hotspots: 0.
 - Maintainability Rating: A.
+
+**Testing Workflow:** The 80% coverage requirement is supported by the `@qa-engineer` agent utilizing **TestSprite**, an automated testing MCP tool. TestSprite autonomously generates, executes, and fixes tests to ensure backend APIs and frontend logic meet the rigorous SonarCloud gates prior to merging.
 
 SonarCloud (hosted SonarQube) is free for public GitHub repos. It eliminates the need for a self-hosted SonarQube server.
 
@@ -1518,6 +1521,8 @@ Why AntiGravity for This Project
 | Looker Studio | BigQuery | BigQuery connector (native, official) | Yes — First-party Google product integration |
 | AntiGravity | GitHub | Native integration via GitHub MCP Server — clone, push, PR from IDE | Yes — MCP extension |
 | AntiGravity | BigQuery | Execute SQL and analyze datasets natively via MCP | Yes — MCP extension |
+| AntiGravity | SonarQube/SonarCloud | Analyze code logic, quality gates, and specific issues natively | Yes — MCP extension |
+| AntiGravity | TestSprite | Generate tests autonomously to fulfill Sonar coverage thresholds | Yes — MCP extension |
 
 ## 17. Implementation Phases
 
