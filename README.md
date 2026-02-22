@@ -40,7 +40,7 @@ graph TD;
     terraform --> main_tf[main.tf];
 ```
 
-For a detailed file-by-file breakdown, see [ARCHITECTURE.md#4-repository-map--directory-structure](ARCHITECTURE.md#4-repository-map--directory-structure).
+For a detailed file-by-file breakdown, see [ARCHITECTURE.md Section 10 (Repository Structure)](#10-cicd-pipeline--github-actions--terraform).
 
 ---
 
@@ -77,7 +77,7 @@ The project includes predefined workflows in `.agent/workflows/`:
 
 ### Agent Triggering (Routing Matrix)
 
-Agents are automatically invoked based on file paths being modified. See [ARCHITECTURE.md Section 8](ARCHITECTURE.md#8-documentation-update-triggers) for the complete routing matrix.
+Agents are automatically invoked based on file paths being modified. See [`.agent/rules/persistence.md` Section 5](.agent/rules/persistence.md#5-routing-matrix-mandatory) for the complete routing matrix.
 
 **Common triggers:**
 *   `backend/**` → `@backend-dev`
@@ -175,30 +175,7 @@ Backend is hosted on **Google Cloud Run** at `https://<cloud-run-service-url>`.
 
 *Note: `/api/search` is conceptually admin-only, but authentication is enforced at the frontend level via Cloudflare Access, not at the API layer.*
 
-### `/api/submit` Request Schema
-
-```json
-{
-  "first_name": "string",
-  "last_name": "string",
-  "email": "string (required, unique)",
-  "phone": "string",
-  "birth_date": "YYYY-MM-DD",
-  "gender": "Male|Female|Other",
-  "address": "string",
-  "city": "string",
-  "occupation": "string",
-  "small_group_leader": "string",
-  "small_group_name": "string",
-  "discipleship_classes": ["string"],
-  "ministry_teams": ["string"],
-  "want_discipleship": "Yes|No",
-  "want_small_group": "Yes|No",
-  "want_ministry": "Yes|No"
-}
-```
-
-For complete API contracts and authentication model, see [ARCHITECTURE.md Section 6](ARCHITECTURE.md#6-api-endpoints--contracts).
+For complete API contracts and authentication model, see [ARCHITECTURE.md Section 7](ARCHITECTURE.md#7-backend--cloud-run--fastapi).
 
 ---
 

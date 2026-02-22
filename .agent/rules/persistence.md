@@ -58,15 +58,15 @@ F) CLOSEOUT
 
 ## 5. Routing Matrix (MANDATORY)
 - data/definitions/** -> @data-engineer
-- data/definitions/3_gold/** -> @data-engineer + Looker Impact Statement (Section 7)
+- data/definitions/3_gold/** -> @data-engineer + Looker Impact Statement (Section 14)
 - frontend/** -> @frontend-dev
-- frontend/** (new pages) -> @frontend-dev + ARCHITECTURE.md Section 7 update
+- frontend/** (new pages) -> @frontend-dev + ARCHITECTURE.md Section 6 update
 - backend/** (logic) -> @backend-dev
-- backend/** (new endpoints) -> @backend-dev + ARCHITECTURE.md Section 6 update
+- backend/** (new endpoints) -> @backend-dev + ARCHITECTURE.md Section 7 update
 - tests/** OR backend tests changes -> @qa-engineer
 - terraform/** OR resources/** -> @infra-ops
-- terraform/** (new resources) -> @infra-ops + ARCHITECTURE.md Section 3 update
-- .github/workflows/** -> @infra-ops + @qa-engineer + README.md Section 7 update
+- terraform/** (new resources) -> @infra-ops + ARCHITECTURE.md Section 10 update
+- .github/workflows/** -> @infra-ops + @qa-engineer + README.md Section 6 update
 - looker/** OR dashboards/** -> @bi-analyst
 - README.md -> @readme-updater
 - ARCHITECTURE.md -> @architect (review) + @readme-updater (link validation)
@@ -113,7 +113,7 @@ Orchestrator must output:
 - [ ] QA confirms check_coverage.py PASS
 - [ ] Infra confirms cost_sentinel.sh PASS if terraform touched
 - [ ] Data Engineer confirms partitioning + cost-safe query if BQ tables changed
-- [ ] ARCHITECTURE.md and README.md updated if triggers met (see ARCHITECTURE.md Section 8)
+- [ ] ARCHITECTURE.md and README.md updated if triggers met (see README.md Section 3)
 - [ ] Docs check_links.py PASS if README.md touched
 - [ ] Walkthrough artifact exists for non-trivial changes
 - [ ] Walkthrough includes "Documentation Updates" section if docs were modified

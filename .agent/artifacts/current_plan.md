@@ -1,13 +1,19 @@
 # Current Plan (CPA)
 
-| Field | Content |
-|---|---|
-| Phase | Done |
-| Goal | Integrate TestSprite AI automated testing and coverage generation into the existing SonarQube Quality Gate pipeline for `feature/v2-architecture`. |
-| Non-negotiables | `ARCHITECTURE.md` is supreme. Frontend must output `lcov.info` compatible with SonarQube. Backend test execution must continue logging correctly. |
-| Affected Paths | `.github/workflows/sonarqube-analysis.yaml`, `frontend/package.json`, `.agent/workflows/sonarqube-quality-gate.md`, `.agent/skills/qa-engineer/SKILL.md`, `check_coverage.py` |
-| Mandatory Agents | `@architect`, `@qa-engineer` |
-| Documentation Impact | Agent workflows and qa-engineer skills updated to mandate TestSprite for resolving test coverage gaps dynamically. |
-| Architect Valid Plan | **Valid Plan:** User approved plan and execution is complete. |
-| Steps+Owners | 1. Draft Implementation Plan (`@architect`) [DONE], 2. Architect Review (`@architect`) [DONE], 3. Implementation (`@qa-engineer`, `@orchestrator`) [DONE]. |
-| Verification Plan | Verified CI/CD YAML syntax. The ultimate test will be pushing code triggering GitHub Actions. [VERIFIED] |
+| Field | Value |
+| :--- | :--- |
+| **Phase** | Done |
+| **Goal** | Update `README.md` to align with `ARCHITECTURE.md` V4.0, removing unnecessary duplicated info and fixing broken section links. |
+| **Non-negotiables** | Must maintain project onboarding structure while adhering to the single source of truth principle. |
+| **Affected Paths** | `README.md` |
+| **Mandatory Agents** | `@readme-updater` |
+| **Documentation Impact** | `README.md` itself will be updated to accurately reflect V4.0 structure. |
+| **Architect Valid Plan** | Validated and executed. |
+
+## Steps + Owners
+1. [x] @orchestrator: PRE-FLIGHT (Analyze README and ARCHITECTURE)
+2. [x] @orchestrator: Outline Alignment Plan
+3. [x] @readme-updater: Approve plan -> Output "Valid Plan"
+4. [x] @orchestrator: Execute updates
+5. [x] @orchestrator: VERIFY (Run `check_links.py`)
+6. [x] @orchestrator: CLOSEOUT

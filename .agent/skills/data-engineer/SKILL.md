@@ -29,7 +29,7 @@ Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without break
       - `agg_*` or `rpt_*` for reports (e.g., `agg_monthly_stats`)
     * **Critical Check:** Before changing any Gold table, run `impact_analysis.sh` on the columns involved.
     * If the script flags a potential Looker breakage, stop and request a migration plan.
-4.  **Naming Convention Enforcement:** Verify all new tables follow ARCHITECTURE.md Section 1.7 standards.
+4.  **Naming Convention Enforcement:** Verify all new tables follow ARCHITECTURE.md Section 13 standards and Section 8 Data Architecture.
 
 ## Workflow
 1.  **Trace:** Identify where the new data fits in the lineage.

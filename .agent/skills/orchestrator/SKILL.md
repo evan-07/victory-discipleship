@@ -43,8 +43,8 @@ For non-trivial changes, documentation updates are MANDATORY. Route to documenta
 - System design changed (new components, new data flows)
 - Technology stack additions (new GCP resources)
 - Governance rule changes
-- New API endpoints or schema changes (update Section 6)
-- New frontend pages (update Section 7)
+- New API endpoints or schema changes (update Section 7)
+- New frontend pages (update Section 6)
 
 **Timing:** Documentation routing happens during IMPLEMENTATION phase, alongside code changes.
 

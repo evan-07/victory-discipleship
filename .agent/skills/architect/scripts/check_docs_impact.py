@@ -3,7 +3,7 @@
 Documentation Impact Checker
 
 Analyzes git diff to determine if ARCHITECTURE.md or README.md need updates based on
-the routing matrix defined in .agent/rules/persistence.md and ARCHITECTURE.md Section 8.
+the routing matrix defined in .agent/rules/persistence.md and README.md Section 3.
 
 Usage:
     python3 check_docs_impact.py [--base BASE_REF] [--head HEAD_REF]
@@ -31,24 +31,24 @@ class DocumentationImpactChecker:
 
     # Trigger rules based on file paths
     TRIGGERS = {
-        "ARCHITECTURE.md#6": {
-            "description": "API Endpoints & Contracts",
+        "ARCHITECTURE.md#7": {
+            "description": "Backend API Routes",
             "paths": ["backend/"],
             "keywords": ["@app.post", "@app.get", "@app.put", "@app.delete", "router.post", "router.get"],
         },
-        "ARCHITECTURE.md#7": {
+        "ARCHITECTURE.md#6": {
             "description": "Frontend Components",
             "paths": ["frontend/"],
             "extensions": [".html"],
             "exclude": ["index.html"],  # Only new pages, not modifications to existing
         },
-        "ARCHITECTURE.md#5": {
-            "description": "System Design & Data Flow",
+        "ARCHITECTURE.md#8": {
+            "description": "Data Architecture",
             "paths": ["data/definitions/"],
             "extensions": [".sqlx"],
         },
-        "ARCHITECTURE.md#3": {
-            "description": "Technology Stack",
+        "ARCHITECTURE.md#10": {
+            "description": "Terraform Infrastructure",
             "paths": ["terraform/"],
             "extensions": [".tf"],
             "keywords": ["resource"],
