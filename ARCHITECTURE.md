@@ -21,7 +21,7 @@
 - [UX Flows](#12-ux-flows)
 - [Schema Reference — All Tables](#13-schema-reference--all-tables)
 - [Gold Views — Reporting Layer](#14-gold-views--reporting-layer)
-- [Development IDE — Google Project IDX](#15-development-ide--google-project-idx)
+- [Development IDE — Google AntiGravity](#15-development-ide--google-antigravity)
 - [Component Compatibility Matrix](#16-component-compatibility-matrix)
 - [Implementation Phases](#17-implementation-phases)
 - [Decision Log](#18-decision-log)
@@ -57,7 +57,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 | **CI/CD** | GitHub Actions | Automated build, test, quality gate, and deploy | Free (2K min/mo) |
 | **Code Quality** | SonarCloud | SAST, code smells, security scan on every PR | Free (public repo) |
 | **Infrastructure as Code** | Terraform OSS | All GCP resources defined, versioned, and deployed as code | Free (OSS) |
-| **IDE** | Google Project IDX | Browser-based VS Code IDE with Gemini AI and GCP integration | Free beta |
+| **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development | Included |
 | **Secrets** | Secret Manager | API keys and credentials — never in code or env vars | Free (≤ 6 secrets) |
 
 ## 3. Person Lifecycle & Journey Stages
@@ -313,7 +313,7 @@ GitHub repo → (OAuth) → Cloudflare Pages
 
 - Bootstrap 5 grid provides mobile-first responsiveness for the existing member form.
 - Build with Bootstrap breakpoints: `xs` (320px+), `sm` (576px+), `md` (768px+), `lg` (992px+).
-- Test on real devices using Project IDX's built-in mobile preview or BrowserStack free tier.
+- Test on real devices using Google AntiGravity's preview capabilities or BrowserStack free tier.
 - Touch targets: minimum 44×44px for all interactive elements per WCAG 2.1.
 - Font sizes: minimum 16px body text to prevent iOS auto-zoom on form fields.
 - Viewport meta tag enforced: `width=device-width, initial-scale=1.0`.
@@ -1482,32 +1482,20 @@ All Gold views are read-only SQL views on BigQuery. Row access policies are enfo
 | `gold.vw_pastoral_events` | Admin only | All pastoral events including sensitive ones. Family contacts created. Follow-up status. Excluded from executive Looker Studio entirely. |
 | `gold.vw_admin_full` | Admin only | Denormalized join of all silver entities. Includes journey_stage, review_status, duplicate_flag, equipping completion flags, engagement score, employment info, VG membership, and group leadership details. |
 
-## 15. Development IDE — Google Project IDX
-Platform: Browser-based | Base: Code OSS (VS Code)
-Google Project IDX is Google's browser-based integrated development environment. It runs a full development workspace in the cloud — no local software installation required.
-Why Project IDX for This Project
+## 15. Development IDE — Google AntiGravity
+Platform: Local / Agentic Workspace
+Google AntiGravity is the primary IDE and agentic AI collaborator used to build, maintain, and iterate on this system.
 
-Zero setup: Contributors open the repo URL in a browser and get a fully configured dev environment instantly
-Nix-based environment: .idx/dev.nix in the repo specifies exact Python version, Node.js, Terraform, and all tools — reproducible for every contributor
-Built-in web preview: Test the HTML frontend and FastAPI backend side-by-side without leaving the browser
-Mobile device preview: Simulate iOS and Android viewport directly in the IDE — critical for testing mobile responsiveness
-Gemini AI assist: Code completion and generation integrated — useful for writing BigQuery SQL and Terraform configs
-GitHub integration: Clone, branch, commit, and open pull requests directly from the IDE
+Why AntiGravity for This Project
 
-IDE Configuration (.idx/dev.nix)
-```nix
-# Runtime
-python312 + pip + virtualenv     # FastAPI backend
-nodejs-20-lts                    # Build tooling
+- **Agentic coding**: Executes complex, multi-step requests autonomously within safe boundaries.
+- **Deep workspace context**: Understands the entire monorepo automatically without requiring manual context building.
+- **Rules enforcement**: Adheres strictly to the `ARCHITECTURE.md` and `.agent/rules/persistence.md` guidelines automatically.
+- **Artifact tracking**: Maintains planning and execution state across sessions via `.gemini` artifacts and task files.
+- **Extensible integrations**: Leverages the Model Context Protocol (MCP) to interact directly with BigQuery, SonarQube, and GitHub directly from the IDE.
 
-# Infrastructure tools
-terraform-cli                    # Infra previewing and local plans
-gcloud-sdk                       # BigQuery and Cloud Run direct access
-dataform-cli                     # Local .sqlx validation before pushing
+(Note: Prior versions of this project used Google Project IDX and Nix environments. This is fully deprecated in favor of AntiGravity.)
 
-# VS Code Extensions
-Python · Pylance · Terraform · GitLens · SonarLint · REST Client
-```
 
 ## 16. Component Compatibility Matrix
 | Component A | Component B | Integration Method | Compatible? |
@@ -1528,8 +1516,8 @@ Python · Pylance · Terraform · GitLens · SonarLint · REST Client
 | Dataform | BigQuery | Native — Dataform is a BigQuery-native feature | Yes — Same Google product family |
 | Dataform | GitHub Actions | gcloud dataform compilationResults + workflowInvocations | Yes — Dataform CLI and REST API |
 | Looker Studio | BigQuery | BigQuery connector (native, official) | Yes — First-party Google product integration |
-| Project IDX | GitHub | OAuth + Git protocol — clone, push, PR from IDE | Yes — Native GitHub integration in IDX |
-| Project IDX | Cloud Run | gcloud CLI in Nix environment — deploy from IDE terminal | Yes — Standard gcloud CLI |
+| AntiGravity | GitHub | Native integration via GitHub MCP Server — clone, push, PR from IDE | Yes — MCP extension |
+| AntiGravity | BigQuery | Execute SQL and analyze datasets natively via MCP | Yes — MCP extension |
 
 ## 17. Implementation Phases
 

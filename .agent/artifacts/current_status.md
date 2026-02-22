@@ -7,15 +7,15 @@
 
 ## Gates PASS/FAIL List
 - Pre-flight Validation: PASS
-- Readme-Updater Gate: PASS
+- Architect Gate: PASS
 - Execution Gate: PASS
 - Verification Gate: PASS
 
 ## Receipts Log
-- `timestamp`: 2026-02-22T18:35:52+08:00
-- `agent`: @readme-updater
-- `ask`: Review README alignment plan
-- `reply summary`: User approved the implementation plan removing duplicates and fixing anchors.
+- `timestamp`: 2026-02-22T20:41:00+08:00
+- `agent`: @architect
+- `ask`: Review ARCHITECTURE.md IDE references updates
+- `reply summary`: User approved the implementation plan to replace IDX with AntiGravity.
 - `tools + PASS/FAIL`: `check_links.py` / PASS
 - `decision`: ACCEPT
 

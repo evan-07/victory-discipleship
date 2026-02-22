@@ -3,17 +3,17 @@
 | Field | Value |
 | :--- | :--- |
 | **Phase** | Done |
-| **Goal** | Update `README.md` to align with `ARCHITECTURE.md` V4.0, removing unnecessary duplicated info and fixing broken section links. |
-| **Non-negotiables** | Must maintain project onboarding structure while adhering to the single source of truth principle. |
-| **Affected Paths** | `README.md` |
-| **Mandatory Agents** | `@readme-updater` |
-| **Documentation Impact** | `README.md` itself will be updated to accurately reflect V4.0 structure. |
-| **Architect Valid Plan** | Validated and executed. |
+| **Goal** | Update `ARCHITECTURE.md` to align with the new IDE "Google AntiGravity", removing old IDX references. |
+| **Non-negotiables** | Must accurately describe the architecture while removing .idx dependencies. |
+| **Affected Paths** | `ARCHITECTURE.md` |
+| **Mandatory Agents** | `@architect`, `@readme-updater` |
+| **Documentation Impact** | `ARCHITECTURE.md` Section 15 and various tables were updated to reflect IDE change. |
+| **Architect Valid Plan** | Valid Plan |
 
 ## Steps + Owners
-1. [x] @orchestrator: PRE-FLIGHT (Analyze README and ARCHITECTURE)
+1. [x] @orchestrator: PRE-FLIGHT (Analyze ARCHITECTURE.md)
 2. [x] @orchestrator: Outline Alignment Plan
-3. [x] @readme-updater: Approve plan -> Output "Valid Plan"
+3. [x] @architect: Approve plan -> Output "Valid Plan"
 4. [x] @orchestrator: Execute updates
 5. [x] @orchestrator: VERIFY (Run `check_links.py`)
 6. [x] @orchestrator: CLOSEOUT
