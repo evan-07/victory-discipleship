@@ -41,8 +41,15 @@ jobs:
           cd backend
           pytest --cov=. --cov-report=xml --cov-report=term
       
+      - name: Install Playwright Browsers
+        run: |
+          cd frontend
+          npx playwright install --with-deps
+
       - name: Run Frontend tests
-        run: npm test
+        run: |
+          cd frontend
+          npx playwright test --coverage
       
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@master

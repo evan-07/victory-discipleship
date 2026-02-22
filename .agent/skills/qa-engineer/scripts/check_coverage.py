@@ -3,6 +3,10 @@ import os
 import sys
 import argparse
 
+# Note: This script validates BACKEND pytest coverage ONLY.
+# Frontend coverage is validated separately via Playwright + SonarQube.
+# If this script fails, use TestSprite (testsprite_generate_code_and_execute) to auto-generate the missing tests.
+
 # Configuration
 SOURCE_DIR = "backend"
 TEST_DIR = "backend/tests"
@@ -48,9 +52,10 @@ def scan_coverage():
                         missing_tests.append(f"{file} :: {func} (Expected: {expected_test_name})")
 
     if missing_tests:
-        print("❌ [QA FAIL] The following functions are missing tests:")
+        print("❌ [QA FAIL] The following backend functions are missing tests:")
         for item in missing_tests:
             print(f"   - {item}")
+        print("\n💡 Tip: Use TestSprite to automatically generate the missing tests in seconds.")
         sys.exit(1)
     else:
         print("✅ [QA PASS] All functions have corresponding test definitions.")

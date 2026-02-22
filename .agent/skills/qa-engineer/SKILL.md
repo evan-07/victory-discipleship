@@ -28,7 +28,8 @@ Prevent "CI/CD Rejection" by ensuring 100% test coverage for new logic and zero-
 2.  **Analyze:** Identify the new functions and edge cases.
 3.  **Draft:** 
     * Initiate `testsprite_generate_code_and_execute` for targeted file/diff.
-    * **Constraint:** MUST manually review generated code to ensure it uses `unittest.mock` for all Cloud calls.
+    * **Constraint (Backend):** MUST manually review generated code to ensure it uses `unittest.mock` for all Cloud calls.
+    * **Constraint (Frontend):** MUST verify `frontend/package.json` has `playwright` dependencies. Output must be `lcov.info` compatible for SonarQube to ingest.
     * Supplement with manual `backend/tests/test_api.py` updates if TestSprite misses complex logic.
 4.  **Verify:** 
     * Run `check_coverage.py` to confirm 100% logic coverage.
