@@ -57,6 +57,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 | **CI/CD** | GitHub Actions | Automated build, test, quality gate, and deploy | Free (2K min/mo) |
 | **Code Quality** | SonarCloud | SAST, code smells, security scan on every PR | Free (public repo) |
 | **Testing Automation** | TestSprite | LLM-based autonomous test generation and execution | Included (via MCP) |
+| **Data Integrity Testing** | Dataform Assertions | SQL-based automated assertions executed during CI/CD and routine loads | Free |
 | **Infrastructure as Code** | Terraform OSS | All GCP resources defined, versioned, and deployed as code | Free (OSS) |
 | **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development | Included |
 | **Secrets** | Secret Manager | API keys and credentials — never in code or env vars | Free (≤ 6 secrets) |
@@ -780,6 +781,8 @@ victory-discipleship/
 - Maintainability Rating: A.
 
 **Testing Workflow:** The 80% coverage requirement is supported by the `@qa-engineer` agent utilizing **TestSprite**, an automated testing MCP tool. TestSprite autonomously generates, executes, and fixes tests to ensure backend APIs and frontend logic meet the rigorous SonarCloud gates prior to merging.
+
+**Data Testing Workflow:** To ensure the integrity of the data pipeline, the `@data-engineer` agent writes **Dataform Assertions** for every `.sqlx` file. These assertions run automatically during compilation in standard CI/CD and serve as data quality gates before any data is loaded into the `silver` layer or beyond. They enforce hard rules, such as `is_current` validations or schema mapping constraints.
 
 SonarCloud (hosted SonarQube) is free for public GitHub repos. It eliminates the need for a self-hosted SonarQube server.
 

@@ -12,10 +12,10 @@
 - Verification Gate: PASS
 
 ## Receipts Log
-- `timestamp`: 2026-02-23T00:54:00+08:00
+- `timestamp`: 2026-02-23T00:58:00+08:00
 - `agent`: @architect
-- `ask`: Review ARCHITECTURE.md TestSprite/Sonar updates
-- `reply summary`: User approved the implementation plan to add TestSprite.
+- `ask`: Review ARCHITECTURE.md Dataform Assertion updates
+- `reply summary`: User approved the implementation plan to add Dataform Assertions.
 - `tools + PASS/FAIL`: `check_links.py` / PASS
 - `decision`: ACCEPT
 
