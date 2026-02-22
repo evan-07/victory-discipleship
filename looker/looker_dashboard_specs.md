@@ -137,6 +137,31 @@ Create 2 scorecards using the same filtered data source:
 
 ---
 
+## Dashboard 6: Attendance Headcounts over Time
+
+### Data Source Setup
+- **Connection Type**: BigQuery native connector
+- **Table**: `victory_gold.vw_attendance_headcounts`
+- **No custom SQL**
+
+### Chart Configuration
+- **Chart Type**: Time Series Line Chart
+- **Dimension**: `date` (Granularity: Week or Month)
+- **Breakdown Dimension**: `event_type` (e.g., Sunday Service, General Event)
+- **Metric**: `SUM(attendee_count)`
+- **Style**:
+  - Show data labels: Optional
+  - Show points: Yes
+  - X-Axis Title: "Date"
+  - Y-Axis Title: "Total Attendees"
+  - Colors: Distinct colors for different event types
+
+### Filters
+- **Date Range Control**: Default to Last 3 Months
+- **Event Type Filter**: Dropdown allowing users to isolate 'Sunday Service' vs 'Event'
+
+---
+
 ## General Best Practices
 
 1. **Caching**: Looker Studio will cache results automatically. No custom SQL needed.

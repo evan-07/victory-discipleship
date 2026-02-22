@@ -378,6 +378,7 @@ Cloud Run hosts a containerized Python FastAPI application. It scales automatica
 | `POST /api/events/{slug}/self-register` | POST | authenticated | Self-register for a public event. Returns 409 if already registered. |
 | `POST /api/events/{id}/register` | POST | admin | Admin registers a person for an event |
 | `POST /api/events/{id}/attend` | POST | admin | Mark attendance (triggers discipleship pipeline) |
+| `POST /api/headcounts` | POST | admin | Submit anonymous headcount for an event or Sunday Service |
 | `GET /api/leaders/me` | GET | `vg_leader` | VG Leader's own profile, groups, and member list |
 | `GET /api/health` | GET | public | Health check endpoint (for Cloud Run uptime) |
 ### Authentication Flow
@@ -573,7 +574,7 @@ DATA SOURCES
 │  Source of truth for all raw data.                        │
 │                                                          │
 │  raw_form_submissions · raw_event_actions                 │
-│  raw_bulk_imports                                        │
+│  raw_bulk_imports · raw_headcounts                        │
 └──────────────────────────────────────────────────────────┘
                               │
                     Dataform — SCD2 upsert
@@ -591,6 +592,7 @@ DATA SOURCES
 │  equipping_classes · equipping_enrollments               │
 │  event_type_catalog · events                             │
 │  event_registrations · event_attendances                 │
+│  headcounts                                              │
 │  victory_groups · victory_group_members                  │
 │  intern_relationships · ministry_catalog · ministry_memberships
 │  person_relationships (Phase 2) · data_change_log        │
@@ -610,6 +612,7 @@ DATA SOURCES
 │  vw_equipping_completion · vw_equipping_cohorts          │
 │  vw_event_participation · vw_person_engagement           │
 │  vw_person_event_history · vw_victory_group_summary      │
+│  vw_attendance_headcounts                                │
 │  vw_leader_dashboard · vw_ministry_participation         │
 │  vw_pastoral_events · vw_admin_full                      │
 └──────────────────────────────────────────────────────────┘
@@ -642,9 +645,11 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `stg_events.sqlx` | `bronze.raw_event_actions` | `silver.events` + `silver.event_type_catalog` | Scheduled (15 min) |
 | `stg_registrations.sqlx` | `bronze.raw_event_actions` | `silver.event_registrations` | Scheduled (15 min) |
 | `stg_attendances.sqlx` | `bronze.raw_event_actions` | `silver.event_attendances` | Pub/Sub (immediate) |
+| `stg_headcounts.sqlx` | `bronze.raw_headcounts` | `silver.headcounts` | Scheduled (15 min) |
 | `discipleship_pipeline.sqlx` | `silver.event_attendances` + `silver.event_type_catalog` | `silver.equipping_enrollments` | Pub/Sub (immediate) |
 | `gold_demographics.sqlx` | `silver.persons` | `gold.vw_member_demographics` | On silver table update |
 | `gold_events.sqlx` | `silver.events` + `silver.event_attendances` | `gold.vw_event_participation` | On silver table update |
+| `gold_headcounts.sqlx` | `silver.headcounts` + `silver.events` | `gold.vw_attendance_headcounts` | On silver table update |
 | `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.events` | `gold.vw_equipping_funnel` | On silver table update |
 | `gold_vg_summary.sqlx` | `silver.victory_groups` + `silver.victory_group_members` | `gold.vw_victory_group_summary` | On silver table update |
 
@@ -671,14 +676,15 @@ Google Sign-In       Google Sign-In        Data migration        Event / Class m
 
 Copy
 ```plaintext
-bronze.raw_form_submissions        bronze.raw_event_actions         bronze.raw_bulk_imports
-───────────────────────────        ─────────────────────────        ──────────────────────────
-submission_id    UUID              action_id        UUID            import_id       UUID
-google_uid       STRING            action_type      STRING          imported_by     FK person_id
-submitted_at     TIMESTAMP         performed_by     FK person_id    imported_at     TIMESTAMP
-raw_payload      JSON              payload          JSON            row_count       INT64
-source_page      STRING            event_id         FK              raw_csv_payload JSON array
-ip_hash          STRING                                             error_rows      JSON array
+bronze.raw_form_submissions        bronze.raw_event_actions         bronze.raw_bulk_imports         bronze.raw_headcounts
+───────────────────────────        ─────────────────────────        ──────────────────────────      ───────────────────────
+submission_id    UUID              action_id        UUID            import_id       UUID            headcount_id  UUID
+google_uid       STRING            action_type      STRING          imported_by     FK person_id    date          DATE
+submitted_at     TIMESTAMP         performed_by     FK person_id    imported_at     TIMESTAMP       event_type    STRING
+raw_payload      JSON              payload          JSON            row_count       INT64           event_id      FK / NULL
+source_page      STRING            event_id         FK              raw_csv_payload JSON array      attendee_count INT64
+ip_hash          STRING                                             error_rows      JSON array      submitted_by  FK person_id
+                                                                                                    submitted_at  TIMESTAMP
 ```
 
 ### Silver Tables (normalized, versioned)
@@ -709,11 +715,11 @@ group_name · group_type                   step_name_as_completed
 is_active                                 enrolled_at · completed_at · dropped_at
 valid_from · valid_to · is_current
 
-silver.victory_group_members              silver.event_registrations
-──────────────────────────────────────    ──────────────────────────────────────
-membership_id · group_id · person_id      registration_id · event_id · person_id
-member_first_name · member_last_name      status: registered|attended|no_show|cancelled
-is_active · added_at · removed_at        payment_status · amount_paid · payment_ref
+silver.victory_group_members              silver.event_registrations                silver.headcounts
+──────────────────────────────────────    ──────────────────────────────────────    ──────────────────────────────────────
+membership_id · group_id · person_id      registration_id · event_id · person_id    headcount_id · date · event_type
+member_first_name · member_last_name      status: registered|attended|no_show|cancelled event_id · attendee_count
+is_active · added_at · removed_at        payment_status · amount_paid · payment_ref submitted_by · submitted_at
                                           registered_at · registration_source
 ```
 
@@ -726,6 +732,7 @@ is_active · added_at · removed_at        payment_status · amount_paid · paym
 | `gold.vw_equipping_completion` | Admin |
 | `gold.vw_equipping_cohorts` | Admin |
 | `gold.vw_event_participation` | Executive + Admin |
+| `gold.vw_attendance_headcounts`| Executive + Admin |
 | `gold.vw_person_engagement` | Executive + Admin |
 | `gold.vw_person_event_history` | Admin + Leader (filtered) |
 | `gold.vw_victory_group_summary` | Executive + Admin |
@@ -1462,6 +1469,7 @@ Table Inventory Summary
 | `victory_silver` | `events` | Admin-managed | Phase 1 |
 | `victory_silver` | `event_registrations` | Self-register + admin | Phase 1 |
 | `victory_silver` | `event_attendances` | Admin check-in | Phase 1 |
+| `victory_silver` | `headcounts` | Admin-managed | Phase 1 |
 | `victory_silver` | `victory_groups` | SCD2 | Phase 1 |
 | `victory_silver` | `victory_group_members` | Leader form capture | Phase 1 |
 | `victory_silver` | `intern_relationships` | Admin-managed | Phase 1 |
@@ -1480,6 +1488,7 @@ All Gold views are read-only SQL views on BigQuery. Row access policies are enfo
 | `gold.vw_equipping_completion` | Admin | One row per person. Boolean flags for each canonical step. Completion status for old pathway, new pathway, and combined. encouraged_to_add_sf flag. Used for follow-up targeting. |
 | `gold.vw_equipping_cohorts` | Admin | Per-batch: enrolled vs. completed vs. dropped, completion rate, facilitator, batch dates. Cohort tracking — who went through a class together. |
 | `gold.vw_event_participation` | Executive + Admin | Per-event: registered, attended, no-show, attendance rate, revenue collected vs. expected. Filters out is_sensitive events from executive view. |
+| `gold.vw_attendance_headcounts`| Executive + Admin | Overall anonymous headcount tracking for Sunday Services and general events over time. |
 | `gold.vw_person_engagement` | Executive + Admin | Per person: total events attended, events in last 12 months, unique event types, first event date, most recent event date, engagement consistency score. |
 | `gold.vw_person_event_history` | Admin + Leader (filtered) | Full chronological event timeline per person. Equipping classes shown separately from general events. Sensitive events excluded for non-admin. |
 | `gold.vw_victory_group_summary` | Executive + Admin | Group count by type (single, wives, husbands, students, young_pro). Leader leaderboard. Member count per group. Intern counts. Groups with zero members flagged. |
