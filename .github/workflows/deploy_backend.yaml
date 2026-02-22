@@ -3,7 +3,7 @@ name: Deploy Backend to Cloud Run
 on:
   push:
     branches:
-      - main
+      - feature/v2-architecture
     paths:
       - 'backend/**'
   pull_request:
@@ -44,7 +44,7 @@ jobs:
 
   deploy:
     name: Deploy to Cloud Run
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/v2-architecture'
     runs-on: ubuntu-latest
 
     permissions:

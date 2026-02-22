@@ -13,17 +13,17 @@ This workflow guides you through creating a feature branch, making changes, and 
 - Git installed and configured
 - Repository cloned locally
 - GitHub account with repository access
-- Branch protection rules configured on `main`
+- Branch protection rules configured on `feature/v2-architecture`
 
 ## Step-by-Step Workflow
 
 ### 1. Start from Main
 
-Always start from an up-to-date `main` branch:
+Always start from an up-to-date `feature/v2-architecture` branch:
 
 ```bash
-git checkout main
-git pull origin main
+git checkout feature/v2-architecture
+git pull origin feature/v2-architecture
 ```
 
 ### 2. Create Feature Branch
@@ -85,7 +85,7 @@ git push origin <your-branch-name>
 **Option B: Using MCP (via Antigravity)**
 Ask Antigravity to create a PR:
 ```
-"Create a PR from my feature branch to main with title 'Add member export' and description 'Implements CSV export for member data'"
+"Create a PR from my feature branch to feature/v2-architecture with title 'Add member export' and description 'Implements CSV export for member data'"
 ```
 
 ### 7. Wait for Quality Gates
@@ -142,10 +142,10 @@ Once all checks pass:
 
 ### 10. Production Deployment
 
-After merging to `main`, GitHub Actions will automatically:
+After merging to `feature/v2-architecture`, GitHub Actions will automatically:
 - Deploy backend to Cloud Run (if `backend/**` changed)
 - Run Dataform pipeline (if `data/**` changed)
-- Run SonarQube analysis on `main`
+- Run SonarQube analysis on `feature/v2-architecture`
 
 **Monitor deployment:**
 - Check GitHub Actions for deployment status
@@ -155,8 +155,8 @@ After merging to `main`, GitHub Actions will automatically:
 ### 11. Clean Up Local Branch
 
 ```bash
-git checkout main
-git pull origin main
+git checkout feature/v2-architecture
+git pull origin feature/v2-architecture
 git branch -d <your-branch-name>
 ```
 
@@ -189,7 +189,7 @@ All PRs must pass the following automated checks:
 
 ## Troubleshooting
 
-### "Branch protection rules prevent direct push to main"
+### "Branch protection rules prevent direct push to feature/v2-architecture"
 ✅ **Expected behavior.** Create a feature branch and PR instead.
 
 ### "Quality gate failed - coverage below 80%"
@@ -223,7 +223,7 @@ git push origin --delete <branch-name>
 3. **Add Context in Description:** Explain why the change is needed
 4. **Link Related Issues:** Reference GitHub issues in PR description
 5. **Respond to Feedback:** Address review comments promptly
-6. **Keep Branch Updated:** Merge `main` into your branch if it's behind
+6. **Keep Branch Updated:** Merge `feature/v2-architecture` into your branch if it's behind
 7. **Delete Merged Branches:** Keep repository clean
 8. **Test Locally First:** Run tests before pushing
 9. **Follow Naming Convention:** Use proper branch type prefixes
@@ -231,7 +231,7 @@ git push origin --delete <branch-name>
 
 ## Branch Protection Rules
 
-The `main` branch has the following protection rules:
+The `feature/v2-architecture` branch has the following protection rules:
 
 - ✅ Require a pull request before merging
 - ✅ Require status checks to pass before merging:
@@ -240,7 +240,7 @@ The `main` branch has the following protection rules:
   - Run Tests (backend)
   - Compile Dataform (data)
 - ✅ Require conversation resolution before merging
-- ❌ Direct pushes to `main` are blocked
+- ❌ Direct pushes to `feature/v2-architecture` are blocked
 
 ## Related Workflows
 

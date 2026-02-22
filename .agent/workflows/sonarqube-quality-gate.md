@@ -20,7 +20,7 @@ description: How to run SonarQube analysis and check quality gates
 ### 1. Trigger SonarQube Analysis (GitHub Actions)
 SonarQube analysis runs automatically in GitHub Actions when:
 - A Pull Request is created or updated
-- Code is pushed to `main` branch
+- Code is pushed to `feature/v2-architecture` branch
 
 **Manual trigger:** Use GitHub Actions "Run workflow" button on the `SonarQube Analysis` workflow.
 
@@ -29,7 +29,7 @@ SonarQube analysis runs automatically in GitHub Actions when:
 Use: mcp_sonarqube_get_project_quality_gate_status
 Parameters:
   - projectKey: "evan-07_victory-discipleship"
-  - branch: "main" (or PR branch name)
+  - branch: "feature/v2-architecture" (or PR branch name)
 ```
 
 **Interpretation:**
@@ -69,7 +69,7 @@ Use: mcp_sonarqube_get_component_measures
 Parameters:
   - projectKey: "evan-07_victory-discipleship"
   - metricKeys: ["coverage", "code_smells", "security_hotspots", "bugs", "vulnerabilities"]
-  - branch: "main"
+  - branch: "feature/v2-architecture"
 ```
 
 ### 6. Fix Issues

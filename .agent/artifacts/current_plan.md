@@ -2,12 +2,12 @@
 
 | Field | Content |
 |---|---|
-| Phase | Planning |
-| Goal | Finalize implementation plans for Phase 1 (Foundations & Core CRM) of the V2 Architecture. No code will be written during this phase. |
-| Non-negotiables | `ARCHITECTURE.md` is supreme. Retain CI/CD pipelines, terraform configurations. Follow `architecture_test.md` as the target state. Only output documentation and plans. |
-| Affected Paths | `ARCHITECTURE.md`, `.agent/artifacts/` |
-| Mandatory Agents | `@architect` |
-| Documentation Impact | `ARCHITECTURE.md` will be directly overwritten with `architecture_test.md`. New design docs will be added. |
-| Architect Valid Plan | **Valid Plan:** User has requested to ONLY build plans. We will draft design specs for backend, frontend, and data, update ARCHITECTURE.md, commit, and push. |
-| Steps+Owners | 1. Update Plans (`@orchestrator`), 2. Draft Design Specs (`@orchestrator` & `@architect`), 3. Commit and Push (`@orchestrator`) |
-| Verification Plan | Verify all new markdown plans are pushed to branch. |
+| Phase | Done |
+| Goal | Plan and implement updates in `.agent/workflows` and `.github/workflows` to align with `ARCHITECTURE.md` and the usage of the new branch `feature/v2-architecture` as the development branch. |
+| Non-negotiables | `ARCHITECTURE.md` is supreme. Workflows must be updated to use the new development branch, `feature/v2-architecture`. Wait for Architect Valid Plan. |
+| Affected Paths | `.github/workflows/*.yaml`, `.agent/workflows/*.md` |
+| Mandatory Agents | `@architect`, `@infra-ops` |
+| Documentation Impact | Multiple `.agent/workflows/` files updated to direct users to pull from and PR to `feature/v2-architecture`. |
+| Architect Valid Plan | **Valid Plan:** User approved the implementation. |
+| Steps+Owners | 1. Identify `main` branch usages in workflows (`@orchestrator`) [DONE], 2. Draft Implementation Plan (`@orchestrator`) [DONE], 3. Architect Review (`@architect`) [DONE], 4. Implementation (`@infra-ops`, `@orchestrator`) [DONE]. |
+| Verification Plan | Verify all references to `main` branch have been safely replaced without affecting `main.py` or `main.tf`. [VERIFIED] |

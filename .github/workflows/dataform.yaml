@@ -3,7 +3,7 @@ name: Dataform Pipeline
 on:
   push:
     branches:
-      - main
+      - feature/v2-architecture
     paths:
       - 'data/**'
   pull_request:
@@ -18,7 +18,7 @@ permissions:
 jobs:
   compile:
     name: Compile Dataform
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/feature/v2-architecture'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,7 +38,7 @@ jobs:
 
   run:
     name: Run Dataform (Production)
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/feature/v2-architecture'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

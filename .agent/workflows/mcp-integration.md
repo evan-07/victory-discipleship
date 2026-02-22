@@ -44,7 +44,7 @@ Before creating a new task or issue, the **Orchestrator** MUST check for existin
 "Search for open issues related to 'dark mode fixes'"
 
 ### **Context Gathering**
-To read file contents from the remote repository (useful for checking state on `main` branch vs local).
+To read file contents from the remote repository (useful for checking state on `feature/v2-architecture` branch vs local).
 
 **Tool:** `mcp_github-mcp-server_get_file_contents`
 **Usage:**
