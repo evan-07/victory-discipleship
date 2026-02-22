@@ -3,17 +3,16 @@
 | Field | Value |
 | :--- | :--- |
 | **Phase** | Done |
-| **Goal** | Update `ARCHITECTURE.md` to align with the new IDE "Google AntiGravity", removing old IDX references. |
-| **Non-negotiables** | Must accurately describe the architecture while removing .idx dependencies. |
-| **Affected Paths** | `ARCHITECTURE.md` |
-| **Mandatory Agents** | `@architect`, `@readme-updater` |
-| **Documentation Impact** | `ARCHITECTURE.md` Section 15 and various tables were updated to reflect IDE change. |
+| **Goal** | Update `.agent/workflows/mcp-integration.md` to align with `mcp_config.json`. |
+| **Non-negotiables** | Must accurately reflect disabled tools and add SonarQube/TestSprite. |
+| **Affected Paths** | `.agent/workflows/mcp-integration.md` |
+| **Mandatory Agents** | `@orchestrator` |
+| **Documentation Impact** | The MCP integration workflow document was updated. |
 | **Architect Valid Plan** | Valid Plan |
 
 ## Steps + Owners
-1. [x] @orchestrator: PRE-FLIGHT (Analyze ARCHITECTURE.md)
+1. [x] @orchestrator: PRE-FLIGHT (Analyze `mcp_config.json` and workflow)
 2. [x] @orchestrator: Outline Alignment Plan
-3. [x] @architect: Approve plan -> Output "Valid Plan"
-4. [x] @orchestrator: Execute updates
-5. [x] @orchestrator: VERIFY (Run `check_links.py`)
-6. [x] @orchestrator: CLOSEOUT
+3. [x] @orchestrator: Execute updates
+4. [x] @orchestrator: VERIFY
+5. [x] @orchestrator: CLOSEOUT

@@ -1,10 +1,10 @@
 ---
-description: Guide for using Model Context Protocol (MCP) tools for BigQuery and GitHub
+description: Guide for using Model Context Protocol (MCP) tools for BigQuery, GitHub, SonarQube, and TestSprite
 ---
 
 # MCP Integration Workflow
 
-This guide prescribes how agents (`@data-engineer`, `@bi-analyst`, `@orchestrator`) should utilize the available MCP servers to enhance automation and context gathering.
+This guide prescribes how agents should utilize the available MCP servers to enhance automation and context gathering.
 
 ## 1. BigQuery MCP (`@data-engineer`, `@bi-analyst`)
 
@@ -19,11 +19,13 @@ get_table_info(project="your-project-id", dataset="bronze_dataset", table="membe
 ```
 
 ### **Data Impact Analysis**
-When investigating anomalies or validating data loads (e.g., after `generate_test_data.py`), use the analysis tools.
+When investigating anomalies or validating data loads (e.g., after `generate_test_data.py`), use read-only analytical `SELECT` queries. **Do not use `ask_data_insights` or `forecast` tools as they are explicitly disabled in the workspace configuration.**
 
-**Tool:** `mcp_bigquery_ask_data_insights`
+**Tool:** `mcp_bigquery_execute_sql`
 **Usage:**
-"Analyze the distribution of 'ministry' values in the silver.members table."
+```sql
+SELECT category, COUNT(*) FROM `project.dataset.ministry_catalog` GROUP BY category
+```
 
 ### **Read-Only Queries**
 Agents are authorized to run `SELECT` queries to verify data states. **DROP/DELETE/UPDATE/INSERT are strictly prohibited via MCP.**
@@ -56,3 +58,28 @@ Automating the handover process.
 **Tool:** `mcp_github-mcp-server_list_pull_requests`
 **Usage:**
 Check status of recently created PRs to update the user.
+
+## 3. SonarQube MCP (`@qa-engineer`, `@backend-dev`, `@frontend-dev`)
+
+### **Quality Gate Validation**
+Before submitting a Pull Request, agents MUST ensure the codebase meets the Quality Gate.
+
+**Tool:** `mcp_sonarqube_get_project_quality_gate_status`
+**Usage:**
+Check if the project passes code coverage and maintainability metrics.
+
+### **Issue Remediation**
+When a Quality Gate fails, investigate specific code smells or security hot spots.
+
+**Tool:** `mcp_sonarqube_search_sonar_issues_in_projects`
+**Usage:**
+Search for issues in the project to identify files requiring fixes.
+
+## 4. TestSprite MCP (`@qa-engineer`)
+
+### **Automated Test Generation**
+Enhance backend and frontend test coverage autonomously.
+
+**Tool:** `mcp_TestSprite_testsprite_generate_code_and_execute`
+**Usage:**
+Generate tests for specific components and execute them to verify logic correctness and increase SonarQube coverage metrics.
