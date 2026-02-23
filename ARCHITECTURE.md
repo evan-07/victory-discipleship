@@ -527,13 +527,15 @@ def self_register(slug, jwt_user):
 Copy
 ```plaintext
 1. Admin POSTs to /api/events/{id}/attend with person_id
-2. Cloud Run writes attendance to bronze.raw_event_actions (immediate, streaming)
-3. Cloud Run writes to silver.event_attendances
-4. Cloud Run fetches event_type from silver.event_type_catalog
-5. If event_type.equipping_step IS NOT NULL → upsert silver.equipping_enrollments
-6. Cloud Run publishes a Pub/Sub message for async Dataform refresh trigger
-7. Gold views update automatically — Looker Studio reflects the change on next data refresh
+2. Cloud Run writes attendance to bronze.raw_event_actions (immediate, streaming insert)
+3. Cloud Run publishes a Pub/Sub message to trigger an immediate Dataform run
+4. Dataform stg_attendances.sqlx reads from bronze → MERGE-upserts to silver.event_attendances
+5. Dataform discipleship_pipeline.sqlx reads from silver.event_attendances + silver.event_type_catalog
+   → upserts silver.equipping_enrollments (only when equipping_step IS NOT NULL; short-circuits otherwise)
+6. Gold views update automatically — Looker Studio reflects the change on next data refresh
 ```
+
+> **Write-path rule:** Cloud Run writes attendance data to `bronze` only. `silver.event_attendances` and `silver.equipping_enrollments` are owned exclusively by Dataform. Admin corrections to existing silver records are permitted directly via the admin portal (PATCH endpoints on Cloud Run), but initial attendance records always originate from bronze via the Dataform pipeline.
 
 ### Primary Terraform Resources
 
@@ -624,6 +626,7 @@ DATA SOURCES
 │  vw_attendance_headcounts                                │
 │  vw_leader_dashboard · vw_ministry_participation         │
 │  vw_pastoral_events · vw_admin_full                      │
+│  vw_business_network                                     │
 └──────────────────────────────────────────────────────────┘
 ```
                               │
@@ -651,7 +654,7 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `stg_occupations.sqlx` | `bronze.raw_form_submissions` | `silver.person_occupations` | Scheduled (15 min) |
 | `stg_victory_groups.sqlx` | `bronze.raw_form_submissions` | `silver.victory_groups` | Scheduled (15 min) |
 | `stg_vg_members.sqlx` | `bronze.raw_form_submissions` | `silver.victory_group_members` | Scheduled (15 min) |
-| `stg_events.sqlx` | `bronze.raw_event_actions` | `silver.events` + `silver.event_type_catalog` | Scheduled (15 min) |
+| `stg_events.sqlx` | `bronze.raw_event_actions` | `silver.events` | Scheduled (15 min) |
 | `stg_registrations.sqlx` | `bronze.raw_event_actions` | `silver.event_registrations` | Scheduled (15 min) |
 | `stg_attendances.sqlx` | `bronze.raw_event_actions` | `silver.event_attendances` | Pub/Sub (immediate) |
 | `stg_headcounts.sqlx` | `bronze.raw_headcounts` | `silver.headcounts` | Scheduled (15 min) |
@@ -659,7 +662,7 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `gold_demographics.sqlx` | `silver.persons` | `gold.vw_member_demographics` | On silver table update |
 | `gold_events.sqlx` | `silver.events` + `silver.event_attendances` | `gold.vw_event_participation` | On silver table update |
 | `gold_headcounts.sqlx` | `silver.headcounts` + `silver.events` | `gold.vw_attendance_headcounts` | On silver table update |
-| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.events` | `gold.vw_equipping_funnel` | On silver table update |
+| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.equipping_classes` + `silver.persons` | `gold.vw_equipping_funnel` | On silver table update |
 | `gold_vg_summary.sqlx` | `silver.victory_groups` + `silver.victory_group_members` | `gold.vw_victory_group_summary` | On silver table update |
 | `gold_engagement.sqlx` | `silver.event_attendances` + `silver.event_registrations` | `gold.vw_person_engagement` | On silver table update |
 | `gold_event_history.sqlx` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` | `gold.vw_person_event_history` | On silver table update |
@@ -692,7 +695,7 @@ Gold views must be processed in dependency order during Dataform compilation. Al
 | `gold_events.sqlx` | `silver.events` + `silver.event_attendances` |
 | `gold_engagement.sqlx` | `silver.event_attendances` + `silver.event_registrations` |
 | `gold_event_history.sqlx` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` |
-| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.events` |
+| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.equipping_classes` + `silver.persons` |
 | `gold_leader_dashboard.sqlx` | `silver.victory_groups` + `silver.victory_group_members` + `silver.equipping_enrollments` + `silver.event_attendances` + `silver.ministry_memberships` |
 | `gold_admin_full.sqlx` | `silver.persons` + `silver.person_occupations` + `silver.person_contacts` + `silver.equipping_enrollments` + `silver.victory_groups` + `silver.ministry_memberships` |
 
@@ -1488,9 +1491,9 @@ contact_id      STRING     NOT NULL  -- UUID
 person_id       STRING     NOT NULL  -- FK → silver.persons
 contact_type    STRING     NOT NULL  -- mobile|home|work|email|facebook|instagram
 contact_value   STRING     NOT NULL
-valid_from      TIMESTAMP
-valid_to        TIMESTAMP
-is_current      BOOL
+valid_from      TIMESTAMP  NOT NULL
+valid_to        TIMESTAMP            -- NULL = current record
+is_current      BOOL       NOT NULL  DEFAULT TRUE
 ```
 silver.person_occupations (SCD2)
 ```sql
@@ -1574,7 +1577,7 @@ created_at              TIMESTAMP  NOT NULL
 ```
 silver.event_type_catalog (admin-managed)
 ```sql
-type_id         STRING   NOT NULL  -- UUID
+event_type_id   STRING   NOT NULL  -- UUID
 type_name       STRING   NOT NULL  -- e.g. "Date Talk"
 category        STRING   NOT NULL  -- equipping|event|pastoral_self|pastoral_admin|...
 equipping_step  STRING             -- Canonical step name or NULL
@@ -1637,9 +1640,9 @@ leader_person_id      STRING     NOT NULL  -- FK → silver.persons
 group_name            STRING
 group_type            STRING               -- single|wives|husbands|students|young_pro
 is_active             BOOL       NOT NULL  DEFAULT TRUE
-valid_from            TIMESTAMP
-valid_to              TIMESTAMP
-is_current            BOOL
+valid_from            TIMESTAMP  NOT NULL
+valid_to              TIMESTAMP            -- NULL = current record
+is_current            BOOL       NOT NULL  DEFAULT TRUE
 ```
 silver.victory_group_members
 ```sql
@@ -1663,6 +1666,7 @@ removed_at            TIMESTAMP            -- NULL = currently active
 
 silver.intern_relationships
 ```sql
+relationship_id     STRING     NOT NULL  -- UUID, primary key
 intern_person_id    STRING     NOT NULL  -- FK → silver.persons
 leader_person_id    STRING     NOT NULL  -- FK → silver.persons (the supervising VG Leader — must be a registered person)
 start_date          DATE       NOT NULL
