@@ -17,9 +17,10 @@ This workflow ensures the safe evolution of the Medallion Architecture, preventi
 *   **Actor:** `@data-engineer`
 *   **Input:** Bronze Table
 *   **Action:**
-    1.  Create SQLX file in `data/definitions/2_silver/`.
-    2.  Cleanse data (cast types, handle nulls).
-    3.  **Linting:** Run `python3 .agent/skills/data-engineer/scripts/schema_lint.py` to enforce naming conventions.
+    1.  **Validation:** Use **BigQuery MCP** (`mcp_bigquery_get_table_info` / `mcp_bigquery_execute_sql` in read-only mode) to inspect the shape of raw remote data.
+    2.  Create SQLX file in `data/definitions/2_silver/`.
+    3.  Cleanse data (cast types, handle nulls).
+    4.  **Linting:** Run `python3 .agent/skills/data-engineer/scripts/schema_lint.py` to enforce naming conventions.
 
 ## 3. Aggregation (Gold Layer) & Safety Check
 *   **Actor:** `@data-engineer`

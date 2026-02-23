@@ -63,7 +63,7 @@ python3 .agent/skills/readme-updater/scripts/check_links.py
 python3 .agent/skills/readme-updater/scripts/check_docs_impact.py
 
 # Schema validation (if exists)
-python3 data/scripts/schema_lint.py 2>/dev/null || echo "schema_lint.py not found"
+python3 .agent/skills/data-engineer/scripts/schema_lint.py 2>/dev/null || echo "schema_lint.py not found"
 ```
 
 **Record Results**: Note any PASS/FAIL for each script

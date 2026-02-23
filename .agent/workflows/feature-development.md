@@ -39,8 +39,9 @@ This workflow guides the implementation of a new feature, ensuring strict adhere
 *   **Actor:** `@qa-engineer`
 *   **Action:**
     1.  Run `python3 .agent/skills/qa-engineer/scripts/check_coverage.py`.
-    2.  Verify that all new backend functions have associated tests.
-    3.  Verify that no "Real World" API calls are made in tests (must use `@mock`).
+    2.  Use **SonarQube MCP** (`mcp_sonarqube_get_project_quality_gate_status`) to verify pre-merge code quality.
+    3.  Use **TestSprite MCP** (`testsprite_generate_code_and_execute`) to automatically backfill missing test coverage or fix flaky tests.
+    4.  Verify that no "Real World" API calls are made in tests (must use `@mock`).
 
 ## 5. Infrastructure Check (FinOps)
 *   **Actor:** `@infra-ops`
