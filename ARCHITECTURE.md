@@ -25,7 +25,7 @@
 - [Component Compatibility Matrix](#16-component-compatibility-matrix)
 - [Implementation Phases](#17-implementation-phases)
 - [Decision Log](#18-decision-log)
-- [Naming Conventions & Consistency Standards](#20-naming-conventions--consistency-standards)
+- [Naming Conventions & Consistency Standards](#19-naming-conventions--consistency-standards)
 
 
 ## 1. Architecture Overview
@@ -41,6 +41,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 - **Stateless backend.** Cloud Run scales to zero; all session state is in Firebase Auth JWTs.
 - **Completion logic lives in Gold views.** When business rules change, only SQL views are updated — no Silver schema migration required.
 - **Duplicate-safe event registration.** The system prevents duplicate event registrations at the API layer and informs returning registrants of their existing status.
+- **Data sovereignty.** All data resides strictly within GCP Philippines/Taiwan regions. No member data is processed or stored by external SaaS providers (Cloudflare handles only edge traffic — no member PII passes through it).
 
 
 ## 2. Technology Stack Summary
@@ -61,6 +62,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 | **Data Integrity Testing** | Dataform Assertions | SQL-based automated assertions executed during CI/CD and routine loads | Free |
 | **Infrastructure as Code** | Terraform OSS | All GCP resources defined, versioned, and deployed as code | Free (OSS) |
 | **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development ([AGENTS.md](AGENTS.md)) | Included |
+| **Container Registry** | Artifact Registry | Docker image storage for Cloud Run backend | Free (≤ 0.5 GB — enforced by `:latest`-only cleanup policy in Terraform) |
 | **Secrets** | Secret Manager | API keys and credentials — never in code or env vars | Free (≤ 6 secrets) |
 
 ## 3. Person Lifecycle & Journey Stages
@@ -122,7 +124,12 @@ Each stage has required information that must be collected and maintained. Field
 - **Characteristics:** Active intern under a VG Leader. Listed in `silver.intern_relationships` linked to their supervising leader.
 - **Next step:** Lead their own group → becomes a VG Leader.
 
-**Required fields:** Same as Member. The intern is still under a VG Leader and has the same data requirements. The `intern_relationships` table records their supervising leader separately from the `vg_leader_first_name` / `vg_leader_last_name` fields.
+**Required fields:** Same as Member. The intern is still under a VG Leader and has the same data requirements.
+
+**Leader linkage — two layers:**
+- `vg_leader_first_name` / `vg_leader_last_name` on `silver.persons` — display cache. Pre-populated when the person was at member stage and may reference a leader not yet in the system. Present at all stages.
+- `silver.intern_relationships.leader_person_id` — canonical FK for the intern-leader data relationship. Requires the supervising leader to be a registered `silver.persons` record. This is the authoritative relational link for interns.
+- The Silver pipeline (`stg_persons.sqlx`) derives and keeps `vg_leader_first_name/last_name` in sync from the linked leader's `first_name`/`last_name` when a valid `leader_person_id` exists in `intern_relationships`.
 
 ### Stage 04 — VG Leader
 
@@ -793,7 +800,7 @@ silver.persons (SCD2 · core)              silver.person_occupations (SCD2)
 person_id · google_uid                    occupation_id · person_id
 first_name · middle_name                  employment_type (employed|self_employed)
 last_name · suffix · full_name            nature_of_work · company_name
-email · phone · address                   nature_of_business · business_name
+email · address                   nature_of_business · business_name
 is_in_victory_group                       valid_from · valid_to · is_current
 vg_leader_first_name · vg_leader_last_name
 journey_stage · review_status · source    silver.equipping_classes
@@ -856,7 +863,10 @@ victory-discipleship/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── data/                    # Dataform definition
-│   ├── definitions/         # .sqlx files (Bronze -> Silver -> Gold)
+│   ├── definitions/
+│   │   ├── 1_bronze/        # Bronze staging transforms (stg_*.sqlx)
+│   │   ├── 2_silver/        # Silver normalized transforms (stg_*.sqlx)
+│   │   └── 3_gold/          # Gold reporting views (gold_*.sqlx)
 │   ├── dataform.json        # Dataform config
 │   └── package.json
 ├── terraform/               # Infrastructure as Code
@@ -873,7 +883,7 @@ victory-discipleship/
 ### GitHub Actions Workflows
 
 - **Frontend:** On push to `main` → Sync `/frontend` to Cloudflare Pages.
-- **Backend:** On push to `main` → Build Docker image → Push to Artifact Registry → Deploy to Cloud Run.
+- **Backend:** On push to `main` → Build Docker image → Push as `:latest` tag only to Artifact Registry (prior versions pruned by cleanup policy) → Deploy to Cloud Run.
 - **Dataform:** On push to `main` → Compile Dataform → Test assertions → Deploy to Dataform service.
 - **Terraform:** On pull request → `terraform plan`. On merge to `main` → `terraform apply`.
 - **SonarCloud:** Every PR runs SonarCloud analysis. Quality Gate failure blocks merge.
@@ -911,7 +921,8 @@ IAM
   └── Role bindings for each
 
 Artifact Registry
-  └── Docker container registry for Cloud Run images
+  ├── Docker container registry for Cloud Run images
+  └── Cleanup policy: retain `:latest` tag only — prior versions auto-pruned to stay within 0.5 GB free tier
 
 Secret Manager
   └── Secret placeholders (values set manually or via CI)
@@ -1330,9 +1341,9 @@ Copy
 
 Copy
 ```plaintext
-1. Person registers online → status = 'registered', paid = FALSE
-2. Success message includes payment instructions (GCash/Bank/Physical)
-3. Person pays externally
+1. Person registers online → status = 'registered', payment_status = 'pending'
+2. Registration success screen shows clean confirmation only — no payment instructions displayed (see Decision Log 2025-02-09)
+3. Payment details are communicated through existing church channels (social media, announcements). Person pays externally.
 4. Person brings receipt to physical counter OR sends to admin email
 5. Admin looks up person in /events portal → clicks [ Mark Paid ] → enters Reference #
 6. Status remains 'registered' but paid column = TRUE
@@ -1347,21 +1358,23 @@ No payment gateway in Phase 1. All payment confirmation is manual. Payment instr
 Bronze Layer — victory_bronze
 bronze.raw_form_submissions
 ```sql
-submission_id   STRING     NOT NULL  -- UUID, primary key
-google_uid      STRING               -- Firebase Auth UID
-submitted_at    TIMESTAMP  NOT NULL  -- Server-side timestamp
-raw_payload     JSON       NOT NULL  -- Full form submission as JSON
-source_page     STRING               -- Which page submitted (leader, event, profile, etc.)
-ip_hash         STRING               -- SHA-256 hash of submitter IP (privacy-safe)
+submission_id       STRING     NOT NULL  -- UUID, primary key
+google_uid          STRING               -- Firebase Auth UID
+submitted_at        TIMESTAMP  NOT NULL  -- Server-side timestamp
+raw_payload         JSON       NOT NULL  -- Full form submission as JSON
+source_page         STRING               -- Which page submitted (leader, event, profile, etc.)
+ip_hash             STRING               -- SHA-256 hash of submitter IP (privacy-safe)
+ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
 ```
 bronze.raw_event_actions
 ```sql
-action_id       STRING     NOT NULL  -- UUID, primary key
-action_type     STRING     NOT NULL  -- created|registered|attended|cancelled
-performed_by    STRING     NOT NULL  -- FK → silver.persons.person_id
-performed_at    TIMESTAMP  NOT NULL  -- Server-side timestamp
-payload         JSON                 -- Action-specific data
-event_id        STRING               -- FK → silver.events.event_id
+action_id           STRING     NOT NULL  -- UUID, primary key
+action_type         STRING     NOT NULL  -- created|registered|attended|cancelled
+performed_by        STRING     NOT NULL  -- FK → silver.persons.person_id
+performed_at        TIMESTAMP  NOT NULL  -- Server-side timestamp
+payload             JSON                 -- Action-specific data
+event_id            STRING               -- FK → silver.events.event_id
+ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
 ```
 bronze.raw_bulk_imports
 ```sql
@@ -1371,6 +1384,7 @@ imported_at         TIMESTAMP  NOT NULL  -- Server-side timestamp
 row_count           INT64      NOT NULL  -- Total rows in CSV
 raw_csv_payload     JSON       NOT NULL  -- Full CSV as JSON array
 error_rows          JSON                 -- Rows that failed validation
+ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
 ```
 
 **Bulk Import — Error Handling Specification:**
@@ -1400,6 +1414,18 @@ error_rows          JSON                 -- Rows that failed validation
 
 **Admin notification:** No outbound email notifications (Phase 1). The admin portal surfaces import status in the admin review queue. If `error_rows` is non-empty, the import record shows a "Partial Import — X errors" badge. Admin clicks to view the error detail.
 
+bronze.raw_headcounts
+```sql
+headcount_id        STRING     NOT NULL  -- UUID, primary key
+date                DATE       NOT NULL  -- Date of the headcount
+event_type          STRING     NOT NULL  -- e.g. "sunday_service", or the event category
+event_id            STRING               -- FK → silver.events.event_id (NULL for Sunday Service headcounts)
+attendee_count      INT64      NOT NULL  -- Anonymous total; no per-person records
+submitted_by        STRING     NOT NULL  -- FK → silver.persons.person_id (admin)
+submitted_at        TIMESTAMP  NOT NULL  -- Server-side timestamp
+ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
+```
+
 Silver Layer — victory_silver
 silver.persons (SCD2 — core table)
 ```sql
@@ -1414,9 +1440,8 @@ last_name                   STRING     NOT NULL
 suffix                      STRING               -- Jr., Sr., III, etc. NULL if not applicable
 full_name                   STRING     NOT NULL  -- Computed: "first middle last suffix"
 
--- Contact (core — additional via person_contacts)
-email                       STRING
-phone                       STRING
+-- Contact (core — additional contacts via silver.person_contacts)
+email                       STRING               -- Firebase Auth email. Retained here for auth-email matching during bulk migration (Decision Log 2026-02-24). Canonical contact store is silver.person_contacts.
 address                     STRING               -- Full address, single text field
 
 -- Victory Group membership (person-level attribute)
@@ -1639,11 +1664,13 @@ removed_at            TIMESTAMP            -- NULL = currently active
 silver.intern_relationships
 ```sql
 intern_person_id    STRING     NOT NULL  -- FK → silver.persons
-leader_person_id    STRING     NOT NULL  -- FK → silver.persons
+leader_person_id    STRING     NOT NULL  -- FK → silver.persons (the supervising VG Leader — must be a registered person)
 start_date          DATE       NOT NULL
 end_date            DATE                 -- NULL = currently active
 is_active           BOOL       NOT NULL  DEFAULT TRUE
 ```
+
+**Relationship note:** This table is the canonical FK for the intern-leader data relationship. Both `intern_person_id` and `leader_person_id` must be registered `silver.persons` records. The `vg_leader_first_name/last_name` on `silver.persons` serves as a display cache derived from this relationship by the Silver pipeline. See Stage 03 and Decision Log 2026-02-24.
 silver.ministry_catalog + silver.ministry_memberships
 ```sql
 -- ministry_catalog
@@ -1664,6 +1691,17 @@ person_id_a           STRING  NOT NULL  -- FK → silver.persons
 person_id_b           STRING  NOT NULL  -- FK → silver.persons
 relationship_type     STRING  NOT NULL  -- spouse|parent_child|referred_by
 ```
+silver.headcounts (admin-managed)
+```sql
+headcount_id    STRING     NOT NULL  -- UUID, primary key
+date            DATE       NOT NULL  -- Date of the headcount
+event_type      STRING     NOT NULL  -- e.g. "sunday_service", or the event category
+event_id        STRING               -- FK → silver.events.event_id (NULL for Sunday Service headcounts)
+attendee_count  INT64      NOT NULL  -- Anonymous total; no per-person records
+submitted_by    STRING     NOT NULL  -- FK → silver.persons.person_id (admin)
+submitted_at    TIMESTAMP  NOT NULL
+```
+
 silver.data_change_log (audit)
 ```sql
 log_id       STRING     NOT NULL  -- UUID
@@ -1682,6 +1720,7 @@ Table Inventory Summary
 | `victory_bronze` | `raw_form_submissions` | Append-only | Phase 1 |
 | `victory_bronze` | `raw_event_actions` | Append-only | Phase 1 |
 | `victory_bronze` | `raw_bulk_imports` | Append-only | Phase 1 |
+| `victory_bronze` | `raw_headcounts` | Append-only | Phase 1 |
 | `victory_silver` | `persons` | SCD2 | Phase 1 |
 | `victory_silver` | `person_contacts` | SCD2 | Phase 1 |
 | `victory_silver` | `person_occupations` | SCD2 | Phase 1 |
@@ -1764,8 +1803,8 @@ Why AntiGravity for This Project
 
 | Phase | Focus | Scope |
 | :--- | :--- | :--- |
-| **Phase 1** | **Foundations & Core CRM** | Monorepo setup, Cloud Run container, BigQuery Bronze/Silver, Dataform pipeline, VG Leader Form (HTML/Alpine.js), Admin Review Queue, Google Sign-In, Role-based access. |
-| **Phase 2** | **Event Management** | Event Type Catalog, Public Landing Pages (`/e/[slug]`), Self-registration logic, Duplicate checking, Admin Event Management UI, Attendance tracking. |
+| **Phase 1** | **Foundations & Core CRM + Event Registration** | Monorepo setup, Cloud Run container, BigQuery Bronze/Silver/Gold, Dataform pipeline, VG Leader Form (HTML/Alpine.js), Admin Review Queue, Google Sign-In, Role-based access. Event Type Catalog, Public Landing Pages (`/e/[slug]`), Self-registration logic, Duplicate registration checking. |
+| **Phase 2** | **Event Operations & Reporting** | Admin Event Management UI (create, edit, close events), Attendance tracking and check-in, Looker Studio executive dashboards. |
 | **Phase 3** | **Discipleship Pipeline** | Equipping class cohorts, Enrollment logic, Discipleship milestones (SF, LW, LF), Looker Studio executives dashboards, Discipleship pipeline drill-downs. |
 | **Phase 4** | **Automation & Scale** | Bulk import tool, Person merging logic, Audit logging (SCD2 data_change_log), Advanced engagement scoring (recency/frequency), Performance tuning. |
 | **Phase 5** | **Member Self-Service** | `/profile` page for members to view results, digital badge collection, event history, ministry involvement summary. |
@@ -1819,24 +1858,16 @@ All phases deploy through the same GitHub Actions pipeline. New features go thro
 | 2025-02-28 | Pastoral events — who gets captured | The person being celebrated (baby at dedication, couple at wedding). Created as contact stage records if no existing match by email. | ✅ Final |
 | 2025-03-01 | Person journey stages | Four admin-managed stages: contact → member → intern → leader. Never auto-computed. | ✅ Final |
 | 2025-03-02 | journey_stage computation | Admin-managed field only. System surfaces data to inform pastoral judgment; it never replaces it. | ✅ Final |
-
-## 19. Appendix
-
-- **Canva Integration:** No API needed. Just standard image uploads.
-- **Reporting:** Looker Studio using BigQuery native connector. One Data Source per view in `victory_gold`.
-- **Legacy Support:** Both old and new pathway steps are permanently valid and reportable.
-- **Data Sovereignty:** All data strictly within GCP Philippines/Taiwan regions. No external SaaS (except Cloudflare edge).
-
-No open questions remain. This document represents the complete agreed-upon design.
-Next steps: Begin Phase 1 build — Terraform resource definitions → BigQuery dataset and table creation → FastAPI skeleton with pre-check and self-register endpoints → Cloudflare Pages deploy → Dataform pipeline implementation.
-
-
+| 2026-02-24 | Remove `phone` from `silver.persons` | `phone` is canonically stored in `silver.person_contacts (type: mobile)`. Denormalization removed to eliminate dual-write ambiguity. `email` is retained on `silver.persons` exclusively for Firebase Auth account-matching during bulk migration (migrated records claim their Google account on first sign-in by email match). All other contact channels live in `silver.person_contacts`. | ✅ Final |
+| 2026-02-24 | Intern-leader data relationship | `vg_leader_first_name/last_name` on `silver.persons` is a display cache valid for all stages and may reference a leader not yet registered in the system. `silver.intern_relationships.leader_person_id` is the canonical FK for the intern-leader relational link — both parties must be registered persons. The Silver pipeline keeps the display cache in sync from the linked leader record when `leader_person_id` is populated. | ✅ Final |
+| 2026-02-24 | Artifact Registry latest-only retention | Artifact Registry stores only the `:latest` Docker image tag for Cloud Run. Prior versions are pruned automatically via Terraform-managed cleanup policy. This keeps storage perpetually under the 0.5 GB free-tier limit. Rollback is achieved via git revert + redeploy, not image version management in the registry. | ✅ Final |
+| 2026-02-24 | Event landing pages in Phase 1 | Public landing pages (`/e/[slug]`), self-registration logic, and duplicate registration checking are Phase 1 scope — they are required to capture new contacts at the earliest stage. Admin Event Management UI and attendance tracking move to Phase 2. | ✅ Final |
 
 Victory Church · Master Architecture Plan · v4.0 · Confidential — Internal Use Only
 
 ---
 
-## 20. Naming Conventions & Consistency Standards
+## 19. Naming Conventions & Consistency Standards
 
 This section is the **authoritative and binding** source for all naming conventions across the Victory Discipleship system. All agents, engineers, and contributors MUST follow these rules. Any deviation requires an `@architect` review and a documented decision in Section 18 (Decision Log).
 
@@ -1844,7 +1875,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.1 Data Architecture (BigQuery & Dataform)
+### 19.1 Data Architecture (BigQuery & Dataform)
 
 | Element | Convention | Example | Rule |
 | :--- | :--- | :--- | :--- |
@@ -1877,7 +1908,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.2 Backend (Python / FastAPI)
+### 19.2 Backend (Python / FastAPI)
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
@@ -1893,7 +1924,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.3 Frontend (HTML / CSS / JS)
+### 19.3 Frontend (HTML / CSS / JS)
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
@@ -1909,7 +1940,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.4 Infrastructure (Terraform & GCP)
+### 19.4 Infrastructure (Terraform & GCP)
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
@@ -1924,7 +1955,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.5 Git & CI/CD
+### 19.5 Git & CI/CD
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
@@ -1942,7 +1973,7 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-### 20.6 Agent & Script Naming
+### 19.6 Agent & Script Naming
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
@@ -1956,4 +1987,4 @@ This section is the **authoritative and binding** source for all naming conventi
 
 ---
 
-*Section added: 2026-02-23. Owner: @architect.*
+*Section added: 2026-02-23. Last updated: 2026-02-24. Owner: @architect.*
