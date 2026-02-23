@@ -13,6 +13,7 @@ description: Frontend implementation (HTML/CSS/JS - Static). Locked to Static Si
 * **NO** Server-Side Rendering (SSR).
 * **NO** Dynamic server requirements.
 * **Output:** Pure HTML/CSS/JS.
+* **Test package.json location:** If Playwright frontend tests are required, the `package.json` for the test runner MUST be placed in a dedicated `tests/` directory — NEVER inside `frontend/`. The `frontend/` directory MUST contain only `.html`, `.css`, and `.js` files. This is enforced by `validate_structure.py`. See `@qa-engineer` SKILL.md for the full test isolation specification.
 
 ## Workflow
 

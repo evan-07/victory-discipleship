@@ -68,6 +68,32 @@ python3 .agent/skills/data-engineer/scripts/schema_lint.py 2>/dev/null || echo "
 
 **Record Results**: Note any PASS/FAIL for each script
 
+### 5. Check BigQuery Dataform Assertion Status (via BigQuery MCP)
+
+**Actor:** `@data-engineer`
+**Tool:** `mcp_bigquery_execute_sql` (read-only)
+
+```sql
+-- Check for recently failed Dataform assertions (last 24 hours)
+SELECT
+  job_id,
+  state,
+  error_result.reason AS error_reason,
+  error_result.message AS error_message,
+  creation_time,
+  user_email
+FROM `region-us`.INFORMATION_SCHEMA.JOBS
+WHERE job_type = 'QUERY'
+  AND state = 'DONE'
+  AND error_result IS NOT NULL
+  AND creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+  AND (statement_type = 'ASSERT' OR LOWER(query) LIKE '%assert%')
+ORDER BY creation_time DESC
+LIMIT 20
+```
+
+**Record Results:** Any failing assertions are HIGH priority findings. A failing assertion means bad data may be present in Silver or Gold layers and the pipeline is blocked. Document in the audit report under "Critical Priority."
+
 ---
 
 ## Phase 3: Search for Prohibited Patterns

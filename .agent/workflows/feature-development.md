@@ -43,6 +43,24 @@ This workflow guides the implementation of a new feature, ensuring strict adhere
     3.  Use **TestSprite MCP** (`testsprite_generate_code_and_execute`) to automatically backfill missing test coverage or fix flaky tests.
     4.  Verify that no "Real World" API calls are made in tests (must use `@mock`).
 
+### Phase 4 Failure Protocol
+
+If `@qa-engineer` returns FAIL from Phase 4, apply the following recovery paths:
+
+**Coverage failure (< 80%):**
+1. `@qa-engineer` runs `testsprite_generate_code_and_execute` with `additionalInstruction` specifying mock targets (BigQuery, Firebase Admin, Pub/Sub).
+2. If TestSprite still cannot reach 80%, `@qa-engineer` writes manual pytest tests for the uncovered paths.
+3. Loop back to Phase 4 (re-run `check_coverage.py`) — maximum **2 retry cycles** before escalating to the user.
+
+**SonarQube gate failure (security hotspot / code smell / maintainability):**
+1. `@qa-engineer` identifies the specific failing rule via `mcp_sonarqube_search_sonar_issues_in_projects`.
+2. Routes the fix back to the appropriate agent: `@backend-dev` for Python issues, `@frontend-dev` for JS issues.
+3. The implementation agent applies the fix and calls `run_tests.sh` to confirm tests still pass.
+4. **Loop back to Phase 2 (Backend) or Phase 3 (Frontend)** — NOT back to Phase 1. The Architect Valid Plan does not require re-approval for a QA-fix loop.
+5. `@orchestrator` logs each fix cycle in CSA as a "QA Retry Receipt."
+
+**Maximum retries:** After **3 failed QA cycles** total, `@orchestrator` MUST stop and escalate to the user with the full failure log (coverage report + SonarQube gate status + what was attempted).
+
 ## 5. Infrastructure Check (FinOps)
 *   **Actor:** `@infra-ops`
 *   **Action:**

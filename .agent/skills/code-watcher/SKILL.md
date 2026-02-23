@@ -9,8 +9,10 @@ description: Invoked on demand to analyze git diffs for documentation impact.
 Analyze the current git diff on demand and report any changes that require documentation updates to `README.md` or `ARCHITECTURE.md`.
 
 ## Triggers
-- **On-Demand Invocation**: Triggered explicitly by the `@orchestrator`, a CI hook, or the user before documentation reviews or commits. This agent does NOT run as a continuous background process.
-- **Diff Analysis**: Uses git diff or script output covering `backend/`, `frontend/`, and `data/`.
+- **On-Demand Invocation (primary):** Triggered explicitly by the `@orchestrator`, a CI hook, or the user before documentation reviews or commits.
+- **Automated Invocation (secondary):** The `/architecture-audit` workflow Phase 2 (automated checks) calls `check_docs_impact.py` directly as a validation step. In this context, the output is captured as part of the audit report, not as a standalone Change Artifact.
+- **This agent does NOT run as a continuous background process.** Every invocation is explicit — either on-demand or as a named step in a workflow.
+- **Diff scope:** `backend/`, `frontend/`, and `data/` directories.
 
 ## Actions
 1. **Analyze Impact**: Execute `python3 .agent/skills/code-watcher/scripts/check_docs_impact.py` to analyze changes.

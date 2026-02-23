@@ -57,6 +57,8 @@ F) CLOSEOUT
 - Output DoD checklist with [x] marks before asking for git push; ensure Walkthrough exists
 
 ## 5. Routing Matrix (MANDATORY)
+> **Canonical source:** [AGENTS.md §2](../../AGENTS.md) is the authoritative routing matrix. The list below is a simplified enforcement summary. In case of conflict, AGENTS.md governs.
+
 - data/definitions/** -> @data-engineer
 - data/definitions/3_gold/** -> @data-engineer + Looker Impact Statement (Section 14)
 - frontend/** -> @frontend-dev
@@ -85,11 +87,12 @@ Routing Proof block REQUIRED in chat.
 - Manual verification: curl/Postman is allowed only against deployed endpoints (never as local backend testing).
 
 ## 7. Data Governance (Medallion)
-- Bronze=1_bronze raw ingestion; Silver=2_silver cleaned; Gold=3_gold reporting.
-Hard gate: touching 3_gold requires Looker Impact Statement BEFORE implementation:
+- Bronze=`victory_bronze` raw ingestion; Silver=`victory_silver` cleaned; Gold=`victory_gold` reporting. (Note: `1_bronze`, `2_silver`, `3_gold` are Dataform directory prefixes only — see ARCHITECTURE.md §20.1.)
+Hard gate: touching `data/definitions/3_gold/**` requires a **Looker Impact Statement** BEFORE implementation. Full template and required fields defined in [AGENTS.md §3 — Looker Impact Statement Template](../../AGENTS.md). Minimum required fields:
 - dashboards/reports impacted
 - fields/metrics add/remove/rename
 - compatibility: breaking vs non-breaking
+- @bi-analyst approval status (must be "Approved" before merge)
 
 ## 8. Tool Authorization
 Always allow (read-only/context): generate_context.sh, validate_structure.py, impact_analysis.sh, schema_lint.py, check_coverage.py, cost_sentinel.sh, check_links.py, check_docs_impact.py, generate_looker_spec.py, ls/cat/grep/find/git diff/git status.

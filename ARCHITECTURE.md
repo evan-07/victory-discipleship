@@ -381,6 +381,7 @@ Cloud Run hosts a containerized Python FastAPI application. It scales automatica
 | `POST /api/events/{id}/attend` | POST | admin | Mark attendance (triggers discipleship pipeline) |
 | `POST /api/headcounts` | POST | admin | Submit anonymous headcount for an event or Sunday Service |
 | `GET /api/leaders/me` | GET | `vg_leader` | VG Leader's own profile, groups, and member list |
+| `PATCH /api/vg-members/{id}/link` | PATCH | admin | Link a VG member name record to an existing `person_id` |
 | `GET /api/health` | GET | public | Health check endpoint (for Cloud Run uptime) |
 ### Authentication Flow
 
@@ -665,6 +666,92 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 
 **Dataform assertions:** Each `.sqlx` file includes assertions that verify data quality before writing to the next layer (e.g. `assert person_id IS NOT NULL`, `assert email matches regex pattern`). A failing assertion stops the pipeline and sends an alert — bad data never reaches Gold.
 
+### Gold View Dependency DAG
+
+Gold views must be processed in dependency order during Dataform compilation. All Gold views in this system read exclusively from Silver tables — there are **zero Gold-on-Gold view dependencies**. Any future Gold-on-Gold chain MUST be reviewed by `@architect` and documented here before implementation.
+
+**All Gold views — Tier 1 (direct Silver dependencies only):**
+
+| Gold SQLX File | Silver Sources |
+| :--- | :--- |
+| `gold_demographics.sqlx` | `silver.persons` |
+| `gold_headcounts.sqlx` | `silver.headcounts` + `silver.events` |
+| `gold_vg_summary.sqlx` | `silver.victory_groups` + `silver.victory_group_members` |
+| `gold_ministry_participation.sqlx` | `silver.ministry_memberships` + `silver.ministry_catalog` |
+| `gold_pastoral_events.sqlx` | `silver.events` + `silver.event_registrations` + `silver.persons` |
+| `gold_business_network.sqlx` | `silver.persons` + `silver.person_occupations` |
+| `gold_equipping_completion.sqlx` | `silver.equipping_enrollments` + `silver.persons` |
+| `gold_equipping_cohorts.sqlx` | `silver.equipping_classes` + `silver.equipping_enrollments` |
+| `gold_events.sqlx` | `silver.events` + `silver.event_attendances` |
+| `gold_engagement.sqlx` | `silver.event_attendances` + `silver.event_registrations` |
+| `gold_event_history.sqlx` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` |
+| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.events` |
+| `gold_leader_dashboard.sqlx` | `silver.victory_groups` + `silver.victory_group_members` + `silver.equipping_enrollments` + `silver.event_attendances` + `silver.ministry_memberships` |
+| `gold_admin_full.sqlx` | `silver.persons` + `silver.person_occupations` + `silver.person_contacts` + `silver.equipping_enrollments` + `silver.victory_groups` + `silver.ministry_memberships` |
+
+> **Rule:** If a future Gold view needs to reference another Gold view, that dependency MUST be declared in this table and reviewed by `@architect` before implementation. Gold-on-Gold chains increase compilation complexity and latency — they are currently forbidden without explicit approval.
+
+### Pub/Sub Message Payload (Attendance → Dataform Trigger)
+
+When `POST /api/events/{id}/attend` writes an attendance record, Cloud Run publishes a Pub/Sub message to `attendance-events-topic`. This triggers an immediate Dataform run for the discipleship pipeline (near real-time), bypassing the 15-minute Cloud Scheduler window.
+
+**Publisher:** Cloud Run backend (`google-cloud-pubsub` client)
+**Topic:** `attendance-events-topic` (Terraform resource: `google_pubsub_topic.attendance_events`)
+**Subscriber:** Dataform push subscription → invokes `workflowInvocations` API
+
+**Message envelope (Google Pub/Sub JSON):**
+```json
+{
+  "messageId": "string",
+  "publishTime": "ISO-8601 timestamp",
+  "attributes": {
+    "event_type": "attendance",
+    "event_id": "<silver.events.event_id UUID>",
+    "person_id": "<silver.persons.person_id UUID>",
+    "attendance_id": "<silver.event_attendances.attendance_id UUID>"
+  },
+  "data": "<base64-encoded JSON payload>"
+}
+```
+
+**Decoded `data` payload:**
+```json
+{
+  "action": "attendance_recorded",
+  "event_id": "uuid-string",
+  "person_id": "uuid-string",
+  "attendance_id": "uuid-string",
+  "equipping_step": "spiritual_foundations | null",
+  "triggered_at": "2025-02-15T14:00:00Z"
+}
+```
+
+**Rules:**
+- `equipping_step` MUST be included. Set to `null` if the event is not an equipping event — this short-circuits `discipleship_pipeline.sqlx` and avoids unnecessary pipeline execution.
+- The Dataform invocation targets only `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` (not a full warehouse run), bounded by `event_id` to minimize BigQuery slot usage.
+
+### Dataform Cloud Scheduler Invocation
+
+The Cloud Scheduler job that triggers Dataform every 15 minutes uses the Dataform REST API via an HTTP target.
+
+```json
+{
+  "schedule": "*/15 * * * *",
+  "timeZone": "Asia/Manila",
+  "httpTarget": {
+    "uri": "https://dataform.googleapis.com/v1beta1/projects/<project>/locations/us-central1/repositories/<repo>/compilationResults",
+    "httpMethod": "POST",
+    "headers": { "Content-Type": "application/json" },
+    "body": "{ \"gitCommitish\": \"main\" }",
+    "oauthToken": {
+      "serviceAccountEmail": "dataform-runner-sa@<project>.iam.gserviceaccount.com"
+    }
+  }
+}
+```
+
+**Terraform resource:** `google_cloud_scheduler_job.dataform_15min` (managed in `terraform/main.tf`).
+
 
 ## 9. Data Flow Diagram
 
@@ -871,9 +958,69 @@ LAYER 4: Database      BigQuery Row-Level Security
 | 5 — Data | BigQuery Row Access Policies | Data leakage between personas | Leader can only query their own rows — enforced at DB engine, not app layer |
 | 6 — Secrets | Google Secret Manager | Credential exposure in code, logs, or env vars | Secrets accessed at runtime only via IAM-scoped service account |
 | 7 — Code | SonarCloud SAST + pip-audit | Vulnerable dependencies, insecure code patterns | Blocks merges with OWASP-classified vulnerabilities |
+### BigQuery Row Access Policy — SQL Reference
+
+Row access policies are defined in Terraform using `google_bigquery_row_access_policy` resources. The policies use `SESSION_USER()` to match the authenticated caller's email at query time.
+
+> **Critical Looker Studio constraint:** Looker Studio connects to BigQuery using the **Looker Studio service account** (`looker-studio-sa`), NOT the individual viewer's Google identity. This means `SESSION_USER()` in a standard row access policy resolves to the service account email, NOT the viewer's email — breaking per-leader row filtering.
+>
+> **Approved solution for `vw_leader_dashboard`:** Configure the Looker Studio data source with **"Viewer's credentials"** mode (Zero Trust → Data Credentials → Viewer's credentials). In this mode, BigQuery receives queries under the viewer's own Google account identity, so `SESSION_USER()` resolves correctly. Each VG Leader MUST have `bigquery.filteredDataViewer` IAM role on the `victory_gold` dataset.
+>
+> **For executive/admin views** that do NOT need per-viewer filtering: use "Owner's credentials" (service account). Standard IAM dataset-level access applies.
+
+#### Policy: VG Leader Dashboard (leader sees only their own rows)
+
+```sql
+-- Applied to: victory_gold.vw_leader_dashboard
+-- Requires: Looker Studio data source configured with "Viewer's credentials"
+CREATE OR REPLACE ROW ACCESS POLICY leader_row_filter
+ON `victory_gold.vw_leader_dashboard`
+GRANT TO ("domain:victorychurch.ph")
+FILTER USING (leader_email = SESSION_USER());
+```
+
+#### Policy: Sensitive Events (admin-only for is_sensitive = TRUE rows)
+
+```sql
+-- Admins see all rows (no filter)
+CREATE OR REPLACE ROW ACCESS POLICY admin_all_rows
+ON `victory_gold.vw_pastoral_events`
+GRANT TO ("group:admins@victorychurch.ph")
+FILTER USING (TRUE);
+
+-- Non-admin viewers see only non-sensitive rows
+CREATE OR REPLACE ROW ACCESS POLICY non_sensitive_only
+ON `victory_gold.vw_pastoral_events`
+GRANT TO ("domain:victorychurch.ph")
+FILTER USING (is_sensitive = FALSE);
+```
+
+**Terraform resource pattern:**
+```hcl
+resource "google_bigquery_row_access_policy" "leader_filter" {
+  project      = var.project_id
+  dataset_id   = "victory_gold"
+  table_id     = "vw_leader_dashboard"
+  policy_id    = "leader_row_filter"
+  filter_predicate = "leader_email = SESSION_USER()"
+  grantees     = ["domain:victorychurch.ph"]
+}
+```
+
+> **Action for `@infra-ops`:** Add `bigquery.filteredDataViewer` role bindings for VG Leader Google accounts in Terraform via `google_bigquery_dataset_iam_member`. This is required before any VG Leader can view their filtered dashboard.
+
 ### Cloudflare Access (Admin Gate)
 
 The /admin and /events pages are additionally protected by Cloudflare Access (free for up to 50 users). This adds a zero-trust authentication layer at the CDN edge — before the page even loads. Only email addresses in the approved list can access these paths. A valid Firebase Auth token is then also required to make any API calls.
+
+**Email whitelist management procedure:**
+
+The Cloudflare Access policy for `/admin` and `/events` is managed via the Cloudflare dashboard (Zero Trust → Access → Applications). The process:
+1. Admin adds a new staff member's Google email to the Access policy "Allow" rule.
+2. Admin removes departed staff members' emails from the "Allow" rule.
+
+> **Click-Ops Exception (documented):** Cloudflare Access email whitelist management is the **only** permitted manual Cloudflare dashboard action. All other Cloudflare configuration (DNS, WAF rules, Pages project) remains Terraform-managed. This exception exists because storing email addresses in Terraform/Git raises privacy concerns. Capacity: free tier supports up to 50 unique users — sufficient for current admin team scale.
+
 ### Principle of Least Privilege — IAM Roles
 
 | Service Account | BigQuery Role | Other Roles |
@@ -1226,6 +1373,33 @@ raw_csv_payload     JSON       NOT NULL  -- Full CSV as JSON array
 error_rows          JSON                 -- Rows that failed validation
 ```
 
+**Bulk Import — Error Handling Specification:**
+
+`error_rows` is a JSON array where each element represents a CSV row that failed validation:
+```json
+[
+  {
+    "row_number": 5,
+    "raw_row": {"first_name": "Juan", "last_name": "", "birthdate": "not-a-date"},
+    "errors": [
+      {"field": "last_name", "rule": "required", "message": "last_name cannot be empty"},
+      {"field": "birthdate", "rule": "date_format", "message": "Expected YYYY-MM-DD, got 'not-a-date'"}
+    ]
+  }
+]
+```
+
+**Validation rules applied at Bronze ingestion:**
+- `first_name`: required, non-empty string
+- `last_name`: required, non-empty string
+- `birthdate`: optional; if present, must match `YYYY-MM-DD` format
+- `email`: optional; if present, must match standard email regex
+- All other fields validated downstream by Silver pipeline assertions
+
+**Retry logic:** No automatic retry. Admin downloads the error report from the admin portal, corrects the CSV manually, and re-uploads. Each upload creates a new `raw_bulk_imports` record with a new `import_id`.
+
+**Admin notification:** No outbound email notifications (Phase 1). The admin portal surfaces import status in the admin review queue. If `error_rows` is non-empty, the import record shows a "Partial Import — X errors" badge. Admin clicks to view the error detail.
+
 Silver Layer — victory_silver
 silver.persons (SCD2 — core table)
 ```sql
@@ -1270,6 +1444,19 @@ valid_from                  TIMESTAMP  NOT NULL
 valid_to                    TIMESTAMP            -- NULL = current record
 is_current                  BOOL       NOT NULL  DEFAULT TRUE
 ```
+**Deduplication Algorithm (`stg_persons.sqlx`):**
+
+Exact-match only — no fuzzy matching. A duplicate is flagged when ALL conditions are true:
+- `first_name` (case-insensitive, trimmed) matches
+- `last_name` (case-insensitive, trimmed) matches
+- `birthdate` matches exactly
+- `google_uid` values are **different** (same UID = same person, not a duplicate)
+- Both records have `is_current = TRUE`
+
+The canonical record is the older `person_id` (lower `valid_from`). Middle name is intentionally excluded from the match key — middle name capture is inconsistent during early data migration.
+
+**Pipeline behavior:** Sets `duplicate_flag = TRUE` and `duplicate_of_person_id = <canonical_id>`. The pipeline never auto-merges. Admin reviews in the pending queue and manually resolves.
+
 silver.person_contacts (SCD2)
 ```sql
 contact_id      STRING     NOT NULL  -- UUID
@@ -1299,6 +1486,25 @@ valid_from          TIMESTAMP  NOT NULL
 valid_to            TIMESTAMP            -- NULL = current record
 is_current          BOOL       NOT NULL  DEFAULT TRUE
 ```
+
+**Employment Conditional Enforcement (three layers):**
+1. **Frontend:** Alpine.js `x-show` directives hide/clear the inapplicable field pair when `employment_type` is selected. Both field pairs cannot be visible simultaneously.
+2. **Backend:** The `PersonOccupation` Pydantic model uses `@model_validator` to enforce: if `employment_type == 'employed'`, then `nature_of_business` and `business_name` must be `None`; if `employment_type == 'self_employed'`, then `nature_of_work` and `company_name` must be `None`. Returns HTTP 422 on violation.
+3. **Dataform assertion** in `stg_occupations.sqlx`:
+```sql
+assert employed_fields_exclusive as (
+  SELECT * FROM ${ref("person_occupations")}
+  WHERE is_current = TRUE
+  AND (
+    (employment_type = 'employed'
+      AND (nature_of_business IS NOT NULL OR business_name IS NOT NULL))
+    OR
+    (employment_type = 'self_employed'
+      AND (nature_of_work IS NOT NULL OR company_name IS NOT NULL))
+  )
+)
+```
+A non-empty result from this assertion halts the pipeline.
 
 Conditional fields: When employment_type = 'employed', nature_of_work and company_name are populated; nature_of_business and business_name are NULL. When employment_type = 'self_employed', the reverse applies. The Silver pipeline enforces this via assertions.
 
@@ -1422,7 +1628,13 @@ added_at              TIMESTAMP  NOT NULL
 removed_at            TIMESTAMP            -- NULL = currently active
 ```
 
-Linking strategy: person_id is NULL when the VG member has not yet been registered in the system. When a matching person record is found (via name + other identifiers), admin can link the records. This allows leaders to submit member names immediately without requiring every member to have a system account first.
+**Linking strategy:** `person_id` is NULL when the VG member has not yet been registered in the system. This allows leaders to submit member names immediately without requiring every member to have a system account first.
+
+**Admin linking procedure:** The admin portal surfaces unlinked members (where `person_id IS NULL`) in a dedicated "Unlinked VG Members" queue accessible from `/admin`. For each unlinked member, the admin can:
+1. **Search for existing person** — Admin types the member's name; system calls `GET /api/persons?q=<name>` to search `silver.persons`.
+2. **Link** — Admin selects the matching person; calls `PATCH /api/vg-members/{membership_id}/link` with `{ "person_id": "<uuid>" }` (admin role required).
+3. **Create new person** — If no match found, admin creates a new Contact-stage record; system auto-links after creation.
+4. **Leave unlinked** — Admin can dismiss; `person_id` remains NULL and member name is captured but not linked.
 
 silver.intern_relationships
 ```sql
@@ -1636,9 +1848,12 @@ This section is the **authoritative and binding** source for all naming conventi
 
 | Element | Convention | Example | Rule |
 | :--- | :--- | :--- | :--- |
-| **BigQuery Dataset — Bronze** | `1_bronze` | `victory_bronze` | Fixed. Never rename datasets. |
-| **BigQuery Dataset — Silver** | `2_silver` | `victory_silver` | Fixed. Never rename datasets. |
-| **BigQuery Dataset — Gold** | `3_gold` | `victory_gold` | Fixed. Never rename datasets. |
+| **BigQuery Dataset — Bronze** | `victory_bronze` | `victory_bronze` | Actual GCP dataset identifier. Fixed. Never rename. |
+| **BigQuery Dataset — Silver** | `victory_silver` | `victory_silver` | Actual GCP dataset identifier. Fixed. Never rename. |
+| **BigQuery Dataset — Gold** | `victory_gold` | `victory_gold` | Actual GCP dataset identifier. Fixed. Never rename. |
+| **Dataform definitions dir — Bronze** | `data/definitions/1_bronze/` | `data/definitions/1_bronze/stg_persons.sqlx` | Directory prefix in repo only. NOT a BigQuery dataset name. |
+| **Dataform definitions dir — Silver** | `data/definitions/2_silver/` | `data/definitions/2_silver/stg_events.sqlx` | Directory prefix in repo only. NOT a BigQuery dataset name. |
+| **Dataform definitions dir — Gold** | `data/definitions/3_gold/` | `data/definitions/3_gold/gold_demographics.sqlx` | Directory prefix in repo only. NOT a BigQuery dataset name. |
 | **Bronze Table** | `raw_<entity_plural>` | `raw_form_submissions`, `raw_events` | All bronze tables start with `raw_`. |
 | **Silver Table** | `<entity_plural>` | `persons`, `events`, `intern_relationships` | Plain, normalized plural nouns. |
 | **Silver SQLX File** | `stg_<entity>.sqlx` | `stg_persons.sqlx`, `stg_events.sqlx` | `stg_` prefix distinguishes the transform file from the table it produces. |
@@ -1646,6 +1861,8 @@ This section is the **authoritative and binding** source for all naming conventi
 | **Gold Dimension Table** | `dim_<entity>` | `dim_members`, `dim_ministry_teams` | OLAP-style dimension prefix. |
 | **Gold Fact Table** | `fact_<event>` | `fact_attendance`, `fact_event_registrations` | OLAP-style fact prefix. |
 | **Gold Aggregate/Report** | `agg_<topic>` or `rpt_<topic>` | `agg_monthly_stats`, `rpt_leader_headcounts` | For pre-aggregated reporting tables. |
+
+> **Disambiguation:** `1_bronze`, `2_silver`, `3_gold` are **directory prefixes** inside `data/definitions/` for Dataform source file organization only. The actual BigQuery dataset identifiers are `victory_bronze`, `victory_silver`, and `victory_gold`. These are two separate naming conventions that co-exist and MUST NOT be confused. Every reference to a BigQuery dataset (in Terraform, SQLX files, Python code, and API routes) MUST use `victory_bronze`, `victory_silver`, or `victory_gold`.
 
 **SQL Column Conventions:**
 
@@ -1719,6 +1936,10 @@ This section is the **authoritative and binding** source for all naming conventi
 
 > **Commit Message Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci` — following the [Conventional Commits](https://www.conventionalcommits.org/) specification.
 
+> **Commit Scopes (examples):** `api`, `frontend`, `data`, `infra`, `auth`, `ci`, `arch`, `docs`. Scope is free-form but should match the affected system area. The scope `arch` is valid for architecture documentation changes.
+
+> **Branch description:** The description after the type prefix (`feature/`, `fix/`, etc.) is free-form kebab-case. For example, `feature/v2-architecture` is valid under `feature/` — no separate `architecture/` branch type is needed.
+
 ---
 
 ### 20.6 Agent & Script Naming
@@ -1728,7 +1949,10 @@ This section is the **authoritative and binding** source for all naming conventi
 | **Agent Slash Command** | `/<kebab-case>` | `/feature-development`, `/data-pipeline-evolution` |
 | **Shell Script** | `<verb>_<noun>.sh` | `cost_sentinel.sh`, `get_diff.sh`, `check_links.sh` |
 | **Python Script** | `<verb>_<noun>.py` | `validate_structure.py`, `generate_looker_spec.py` |
+| **Agent SKILL file** | `SKILL.md` (uppercase, fixed filename) | `.agent/skills/backend-dev/SKILL.md` |
 | **SKILL.md `name` field** | `kebab-case` | `backend-dev`, `data-engineer`, `bi-analyst` |
+
+> **SKILL.md file naming disambiguation:** The agent configuration file is always named `SKILL.md` (all-caps). This is intentional — the uppercase filename signals that it is an agent-loaded configuration artifact, not a generic markdown document. The `kebab-case` convention in the row above applies exclusively to the `name:` field in the YAML front-matter of each `SKILL.md`, not the filename itself.
 
 ---
 

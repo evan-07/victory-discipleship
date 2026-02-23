@@ -77,6 +77,22 @@ Search for issues in the project to identify files requiring fixes.
 
 ## 4. TestSprite MCP (`@qa-engineer`)
 
+### **Authentication & Configuration**
+
+TestSprite MCP is configured as a local MCP server in the AntiGravity IDE workspace. It uses the workspace-level TestSprite account linked during AntiGravity setup — no per-request API token is required.
+
+**Prerequisites:**
+- TestSprite account linked to the AntiGravity workspace (one-time setup via AntiGravity IDE settings).
+- If the `.testsprite/` directory does not exist in the repo root, `@qa-engineer` runs `testsprite_bootstrap` once to initialize it.
+
+**Constraints (enforced by `@qa-engineer`):**
+- TestSprite MUST be configured for **mock-only** pytest generation (backend) or Playwright (frontend).
+- No live HTTP endpoint testing against a local server is permitted.
+- The `additionalInstruction` parameter MUST include mock directives for BigQuery, Firebase Admin SDK, and Cloud Run Pub/Sub calls.
+- Do NOT pre-write test stubs before calling TestSprite — it will overwrite them, causing conflicts.
+
+**Cost:** TestSprite is included in the AntiGravity workspace subscription. No per-execution billing.
+
 ### **Automated Test Generation**
 Enhance backend and frontend test coverage autonomously.
 

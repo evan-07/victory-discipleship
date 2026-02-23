@@ -31,7 +31,8 @@ description: Backend logic implementation (FastAPI, Python). Strictly Test-Drive
 ### 4. Refactor & Verify
 * Refactor code if necessary.
 * Ensure all tests pass.
-* **Handoff:** Call `@qa-engineer` to verify full suite coverage.
+* **Handoff:** Call `@qa-engineer` to verify full suite coverage. When handing off, include: (a) the list of new functions/endpoints added, (b) external dependencies used (BigQuery client, Firebase Admin SDK, Cloud Run Pub/Sub client). This allows `@qa-engineer` to configure TestSprite with the correct `additionalInstruction` mock targets.
+* **Do NOT pre-write test stubs** that TestSprite will overwrite. Leave test file creation entirely to `@qa-engineer`. TestSprite will generate and execute mock-only tests — pre-written stubs cause conflicts.
 
 ## Tools
 * **System:** `ls`, `cat`, `grep`
