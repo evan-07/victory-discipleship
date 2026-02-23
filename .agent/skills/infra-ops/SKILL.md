@@ -12,6 +12,8 @@ Maintain Infrastructure-as-Code (IaC) while strictly adhering to the "Zero Cost"
 * **Cost Sentinel:** `bash .agent/skills/infra-ops/scripts/cost_sentinel.sh`
     * *Action:* Scans `.tf` files for banned keywords (e.g., `n1-standard-1`, `Cloud NAT`, `Load Balancer`). Use `--help` for details.
 * **Format Check:** `terraform fmt -check -recursive` (Read-only)
+* **GitHub MCP:**
+    * *Usage:* Use `mcp_github-mcp-server_create_branch`, `mcp_github-mcp-server_create_pull_request` to manage Terraform IaC changes. Direct pushes to main are forbidden.
 
 ## Workflow
 1.  **Request:** User wants "Automatic backups."

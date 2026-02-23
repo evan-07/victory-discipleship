@@ -14,6 +14,8 @@ Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without break
     * *Trigger:* **MANDATORY** before renaming, modifying, or deleting any column or table.
 * **Schema Linter:** `python3 .agent/skills/data-engineer/scripts/schema_lint.py`
     * *Usage:* Run this to verify naming conventions (e.g., `_at` for timestamps). Use `--help` for details.
+* **BigQuery MCP & GitHub MCP:**
+    * *Usage:* Use `mcp_bigquery_get_table_info` or `mcp_bigquery_execute_sql` (READ-ONLY) to validate schema prior to modifying `sqlx` definitions. Use GitHub MCP tools for managing schema evolution PRs. See `.agent/workflows/mcp-integration.md` for explicit rules.
 
 ## Core Responsibilities
 1.  **Bronze Layer (Ingestion):** Monitor `definitions/1_bronze/`. All tables MUST use `raw_*` prefix (e.g., `raw_members`).

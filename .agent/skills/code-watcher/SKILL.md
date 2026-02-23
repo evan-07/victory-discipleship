@@ -18,3 +18,4 @@ Analyze the current git diff on demand and report any changes that require docum
 3. **Report**: If the script flags impacts, create a standard "Change Artifact" and ping the `@orchestrator`.
    - *Artifact Format*: "[File Path] modified. [Summary of Change]."
    - *Requirement*: Highlight specific changes that mandate updating the documentation.
+4. **GitHub MCP:** Use GitHub MCP tools (`mcp_github-mcp-server_get_file_contents`, `mcp_github-mcp-server_get_commit`) to fetch diffs directly from the remote repository if local diffs are insufficient.

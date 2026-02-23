@@ -13,6 +13,8 @@ You have access to the following validation scripts. **Use them before approving
 * **Structure Validator:** `python3 .agent/skills/architect/scripts/validate_structure.py`
     * *Usage:* Run this to ensure no forbidden imports (e.g., SQLAlchemy in frontend) or misplaced files are present. Use `--help` for details.
     * *Trigger:* Whenever a user proposes adding new modules or dependencies.
+* **GitHub MCP:** 
+    * *Usage:* Use `mcp_github-mcp-server_get_file_contents` or `mcp_github-mcp-server_get_commit` to read PR histories and review prior architectural decisions. See `/mcp-integration` workflow.
 
 ## Instructions
 1.  **Ingest Context:** Always read `ARCHITECTURE.md` first.

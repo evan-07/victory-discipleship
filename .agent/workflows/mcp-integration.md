@@ -36,7 +36,7 @@ Agents are authorized to run `SELECT` queries to verify data states. **DROP/DELE
 SELECT count(*) FROM `project.dataset.table` WHERE created_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
 ```
 
-## 2. GitHub MCP (`@orchestrator`)
+## 2. GitHub MCP (`@orchestrator`, `@architect`, `@frontend-dev`, `@backend-dev`, `@data-engineer`, `@infra-ops`, `@readme-updater`, `@code-watcher`)
 
 ### **Issue & Duplicate Detection**
 Before creating a new task or issue, the **Orchestrator** MUST check for existing work.

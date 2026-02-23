@@ -37,3 +37,5 @@ description: Frontend implementation (HTML/CSS/JS - Static). Locked to Static Si
 ## Tools
 * **System:** `ls`, `cat`, `grep`
 * **Scaffolding:** `.agent/skills/frontend-dev/scripts/create_page.sh`
+* **SonarQube MCP & GitHub MCP:**
+    * *Usage:* Use SonarQube MCP (`mcp_sonarqube_get_project_quality_gate_status`) for pre-flight quality checks. Use GitHub MCP (`mcp_github-mcp-...`) to manage feature branches and Pull Requests. See `.agent/workflows/mcp-integration.md`.

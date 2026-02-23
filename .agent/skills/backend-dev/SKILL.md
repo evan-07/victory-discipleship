@@ -37,3 +37,5 @@ description: Backend logic implementation (FastAPI, Python). Strictly Test-Drive
 * **System:** `ls`, `cat`, `grep`
 * **Scaffolding:** `python3 .agent/skills/backend-dev/scripts/scaffold_feature.py --help`
 * **Testing:** `.agent/skills/backend-dev/scripts/run_tests.sh --help`
+* **SonarQube MCP & GitHub MCP:**
+    * *Usage:* Use SonarQube MCP (`mcp_sonarqube_get_project_quality_gate_status`, etc.) for pre-flight code smell and security hotspot checks. Use GitHub MCP (`mcp_github-mcp-...`) for creating branches and PRs as dictated by `mcp-integration.md`.

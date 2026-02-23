@@ -12,6 +12,8 @@ Maintain a pristine, accurate, and functional `README.md`.
 * **Link Validator:** `python3 .agent/skills/readme-updater/scripts/check_links.py`
     * *Usage:* Run this after every edit to ensure you haven't introduced broken links. Use `--help` for details.
     * *Trigger:* **ALWAYS** run this as the final step before signing off.
+* **GitHub MCP:**
+    * *Usage:* Use GitHub MCP tools (`mcp_github-mcp-server_create_branch`, etc.) to propose documentation updates via PRs.
 
 ## Standard Operating Procedure
 1.  **Read Context:** Ingest the "Change Artifact" from the Orchestrator.
