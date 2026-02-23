@@ -27,8 +27,9 @@ Prevent "CI/CD Rejection" by ensuring 100% test coverage for new logic and zero-
 1.  **Monitor:** When `@orchestrator` signals a code change.
 2.  **Analyze:** Identify the new functions and edge cases.
 3.  **Draft:** 
+    * **Deterministic Mock Scaffolding:** *Before* generating tests via `testsprite_generate_code_and_execute`, you MUST manually construct a skeleton `backend/tests/test_filename.py` and apply `unittest.mock` (`patch`) for all external dependencies (BigQuery, Cloud Run, Firebase, etc.). Do not allow the LLM to write live infrastructure calls.
     * Initiate `testsprite_generate_code_and_execute` for targeted file/diff.
-    * **Constraint (Backend):** MUST manually review generated code to ensure it uses `unittest.mock` for all Cloud calls.
+    * **Constraint (Backend):** MUST manually review generated code to ensure it adheres to the mock skeleton.
     * **Constraint (Frontend):** MUST verify `frontend/package.json` has `playwright` dependencies. Output must be `lcov.info` compatible for SonarQube to ingest.
     * Supplement with manual `backend/tests/test_api.py` updates if TestSprite misses complex logic.
 4.  **Verify:** 

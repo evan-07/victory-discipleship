@@ -22,6 +22,7 @@ Bridge the gap between BigQuery data (Gold Layer) and Looker Studio visualizatio
 *   Understand the "Business Question" (e.g., "How many new members joined last month?").
 *   Identify the target `Gold` table.
 *   **Check:** Does the table exist? If not, request `@data-engineer` to build it.
+*   **Dataform-to-Looker Coupling Trigger:** If you receive a "Looker Migration Request" artifact from the `@orchestrator` (originating from `@data-engineer`), immediately review the documented schema changes and prepare the corresponding Looker update specifications to restore dashboard functionality.
 
 ### 2. Spec Generation
 *   Obtain the schema of the Gold table (request from `@data-engineer` or read definitions).

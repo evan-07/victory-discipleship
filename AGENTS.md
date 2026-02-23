@@ -10,14 +10,14 @@ The system uses a multi-agent workflow coordinated by the `@orchestrator`.
 | :--- | :--- | :--- | :--- |
 | **@orchestrator** | Workflow Manager | Coordinates complex tasks; manages project lifecycle | `generate_context.sh` |
 | **@architect** | Technical Authority | Enforces standards; validates project structure | `validate_structure.py` |
-| **@frontend-dev** | Frontend Specialist | Vanilla HTML/CSS/JS; static site generation | `validate_static_page.sh` |
-| **@backend-dev** | Backend Specialist | Python (FastAPI); Test-Driven Development | `run_backend_tests.sh` |
+| **@frontend-dev** | Frontend Specialist | Vanilla HTML/CSS/JS; static site generation | `create_page.sh` |
+| **@backend-dev** | Backend Specialist | Python (FastAPI); Test-Driven Development | `run_tests.sh` |
 | **@data-engineer** | Data Architect | BigQuery; Dataform; Medallion pipelines | `impact_analysis.sh`, `find_lineage.sh` |
 | **@infra-ops** | Cloud Infrastructure | Terraform; GCP; Cost optimization | `cost_sentinel.sh` |
 | **@qa-engineer** | Quality Guardian | Pytest; SonarQube; TestSprite automation | `check_coverage.py`, Sonar MCP |
 | **@bi-analyst** | Data Visualization | Looker Studio dashboards; data insights | `generate_looker_spec.py` |
 | **@readme-updater**| Docs Maintainer | Documentation integrity; link validation | `check_links.py` |
-| **@code-watcher** | System Monitor | Monitors file changes in `/src` | (Background monitoring) |
+| **@code-watcher** | System Monitor | Analyzes diffs for documentation impact | `get_diff.sh` |
 
 ---
 
@@ -30,7 +30,7 @@ Agents are automatically invoked based on the file paths modified in a session. 
 | `backend/**` | `@backend-dev` | `@qa-engineer` |
 | `frontend/**` | `@frontend-dev` | `@qa-engineer` |
 | `data/definitions/**` | `@data-engineer` | `@bi-analyst` |
-| `data/definitions/3_gold/**`| `@data-engineer` | `@bi-analyst` + `@architect` |
+| `data/definitions/3_gold/**`| `@data-engineer` | `@bi-analyst` + `@architect` + Looker Impact Statement |
 | `terraform/**` | `@infra-ops` | `@architect` |
 | `resources/**` | `@infra-ops` | — |
 | `.github/workflows/**` | `@infra-ops` | `@qa-engineer` |

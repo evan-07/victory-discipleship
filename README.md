@@ -54,6 +54,9 @@ For a complete list of agent roles, current team members, and the automatic rout
 *   **`/feature-development`** - Implementing new features.
 *   **`/data-pipeline-evolution`** - Evolving BQ schemas.
 *   **`/feature-branch-workflow`** - Standard development flow.
+*   **`/architecture-audit`** - Architecture compliance audits.
+*   **`/mcp-integration`** - Guide for using MCP tools.
+*   **`/sonarqube-quality-gate`** - Running SonarQube analysis and checking quality gates.
 
 Refer to [AGENTS.md](AGENTS.md) for detailed toolsets and triggering rules.
 

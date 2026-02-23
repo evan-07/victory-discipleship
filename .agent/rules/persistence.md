@@ -77,7 +77,7 @@ Routing Proof block REQUIRED in chat.
 - GitOps: no manual deployments; main is live state.
 - No Click-Ops: no GCP Console changes; Terraform only.
 - No local backend execution: no uvicorn/python main.py/fastapi dev (tests are OK).
-- No local Dataform execution: no dataform run/CLI.
+- No local Dataform execution: no dataform run/CLI (dataform compile is allowed for read-only schema validation).
 - Terraform: init/plan OK; apply ONLY via GitHub Actions.
 - FinOps: any terraform change requires cost_sentinel.sh PASS; fail -> STOP.
 - BigQuery: new/material table changes MUST be partitioned by _PARTITIONDATE or ingestion_timestamp; queries must avoid full scans.
@@ -117,6 +117,7 @@ Orchestrator must output:
 - [ ] Docs check_links.py PASS if README.md touched
 - [ ] Walkthrough artifact exists for non-trivial changes
 - [ ] Walkthrough includes "Documentation Updates" section if docs were modified
+- [ ] Looker Studio configuration updated manually via UI per @bi-analyst spec
 
 ## 11. Challenge Response
 If user asks "Are you following the rules?" @orchestrator MUST output:

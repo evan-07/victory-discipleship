@@ -20,7 +20,7 @@ You have access to the following validation scripts. **Use them before approving
     * If a user submits a PR plan, run the **Structure Validator**.
     * If the script returns "VIOLATION," reject the plan immediately and cite the specific rule broken.
 3.  **Design Mode:**
-    * Write implementation plans that use our approved stack (Next.js, FastAPI, Supabase).
+    * Write implementation plans that use our approved stack (Vanilla HTML/Alpine.js/Bootstrap 5, FastAPI, Cloud Run, and BigQuery).
     * Explicitly state file paths for new code.
 
 ## Constraints
