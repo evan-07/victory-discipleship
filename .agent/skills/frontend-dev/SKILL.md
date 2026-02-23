@@ -29,9 +29,10 @@ description: Frontend implementation (HTML/CSS/JS - Static). Locked to Static Si
 ### 2. Local Verification
 * Ensure the site works by opening HTML files directly or using a simple static server.
 
-### 3. Build & Export
-* If a build step exists (e.g., Vite for static export), run it.
-* Verify the `dist/` or `public/` folder contains only static assets.
+### 3. Static Verification (NO Build Step)
+* **There is NO build step.** Do NOT create or use `package.json`, `node_modules`, Vite, Webpack, or any other bundler for the frontend.
+* Verify the site works by opening HTML files directly in a browser, or via `python -m http.server 3000` from the `frontend/` directory.
+* Confirm the `frontend/` folder contains **only** `.html`, `.css`, and `.js` files before signoff.
 
 ## Tools
 * **System:** `ls`, `cat`, `grep`

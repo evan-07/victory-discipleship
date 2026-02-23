@@ -27,10 +27,10 @@ Prevent "CI/CD Rejection" by ensuring 100% test coverage for new logic and zero-
 1.  **Monitor:** When `@orchestrator` signals a code change.
 2.  **Analyze:** Identify the new functions and edge cases.
 3.  **Draft:** 
-    * **Deterministic Mock Scaffolding:** *Before* generating tests via `testsprite_generate_code_and_execute`, you MUST manually construct a skeleton `backend/tests/test_filename.py` and apply `unittest.mock` (`patch`) for all external dependencies (BigQuery, Cloud Run, Firebase, etc.). Do not allow the LLM to write live infrastructure calls.
-    * Initiate `testsprite_generate_code_and_execute` for targeted file/diff.
-    * **Constraint (Backend):** MUST manually review generated code to ensure it adheres to the mock skeleton.
-    * **Constraint (Frontend):** MUST verify `frontend/package.json` has `playwright` dependencies. Output must be `lcov.info` compatible for SonarQube to ingest.
+    * **Deterministic Mock Strategy via `additionalInstruction`:** Do NOT pre-write a skeleton test file that TestSprite may overwrite. Instead, pass all mocking requirements directly to `testsprite_generate_code_and_execute` via the `additionalInstruction` parameter. Example: `"Mock all external dependencies: BigQuery client, Firebase Admin SDK, and Cloud Run HTTP calls using unittest.mock (patch). No live infrastructure calls allowed."` This ensures mocks are embedded in the generation prompt rather than a fragile pre-written file.
+    * Initiate `testsprite_generate_code_and_execute` for targeted file/diff with the `additionalInstruction` set.
+    * **Constraint (Backend):** MUST manually review generated code to confirm all BigQuery/Firebase/Cloud Run calls are mocked and no live infrastructure is called.
+    * **Constraint (Frontend — Playwright):** Frontend tests run in a Node.js test harness that is **decoupled from the static deployment artifact**. A `package.json` for Playwright is permitted in the repo root or a dedicated `tests/` directory, but MUST NOT appear inside `frontend/`. The static `frontend/` folder must never gain a build dependency. Output must be `lcov.info` compatible for SonarQube to ingest.
     * Supplement with manual `backend/tests/test_api.py` updates if TestSprite misses complex logic.
 4.  **Verify:** 
     * Run `check_coverage.py` to confirm 100% logic coverage.

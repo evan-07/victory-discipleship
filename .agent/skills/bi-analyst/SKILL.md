@@ -25,9 +25,9 @@ Bridge the gap between BigQuery data (Gold Layer) and Looker Studio visualizatio
 *   **Dataform-to-Looker Coupling Trigger:** If you receive a "Looker Migration Request" artifact from the `@orchestrator` (originating from `@data-engineer`), immediately review the documented schema changes and prepare the corresponding Looker update specifications to restore dashboard functionality.
 
 ### 2. Spec Generation
-*   Obtain the schema of the Gold table (request from `@data-engineer` or read definitions).
-*   Create a temporary JSON file with the schema `{"table_name": "...", "columns": [...]}`.
-*   Run `generate_looker_spec.py` to get the baseline config.
+*   Obtain the schema of the Gold table directly using the **BigQuery MCP tool**: `mcp_bigquery_get_table_info` (dataset: `victory_gold`, table: `<view_name>`). This eliminates the need to manually transcribe schema into a JSON file.
+*   If the MCP tool is unavailable, fall back to reading the `.sqlx` definition file from `data/definitions/3_gold/` and request schema details from `@data-engineer`.
+*   Run `generate_looker_spec.py <schema_json>` with the retrieved schema to produce the baseline config.
 
 ### 3. Refinement & Handoff
 *   Update the generated markdown with specific instructions:

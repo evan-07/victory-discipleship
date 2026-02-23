@@ -76,7 +76,7 @@ Routing Proof block REQUIRED in chat.
 ## 6. Architectural Hard Boundaries (STOP CONDITIONS)
 - GitOps: no manual deployments; main is live state.
 - No Click-Ops: no GCP Console changes; Terraform only.
-- No local backend execution: no uvicorn/python main.py/fastapi dev (tests are OK).
+- No local backend execution: no `uvicorn`, no `python main.py`, no `fastapi dev`. **Permitted exception:** `pytest` unit/integration tests that use `unittest.mock` (`patch`) to fully mock all external dependencies (BigQuery, Firebase, Cloud Run). No ephemeral local server may be started, even during TestSprite `testsprite_bootstrap` or discovery phases. TestSprite MUST be configured for mock-only `pytest` generation, not live HTTP endpoint testing against a local server.
 - No local Dataform execution: no dataform run/CLI (dataform compile is allowed for read-only schema validation).
 - Terraform: init/plan OK; apply ONLY via GitHub Actions.
 - FinOps: any terraform change requires cost_sentinel.sh PASS; fail -> STOP.

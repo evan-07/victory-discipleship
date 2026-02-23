@@ -1,15 +1,15 @@
 ---
 name: code-watcher
-description: Continuously monitors /src for file modifications and reports them.
+description: Invoked on demand to analyze git diffs for documentation impact.
 ---
 
 # Code Watcher
 
 ## Goal
-Detect changes in the codebase that require documentation updates.
+Analyze the current git diff on demand and report any changes that require documentation updates to `README.md` or `ARCHITECTURE.md`.
 
 ## Triggers
-- **Manual Invocation**: Typically triggered by the Orchestrator, CI hooks, or User before documentation reviews or commits.
+- **On-Demand Invocation**: Triggered explicitly by the `@orchestrator`, a CI hook, or the user before documentation reviews or commits. This agent does NOT run as a continuous background process.
 - **Diff Analysis**: Uses git diff or script output covering `backend/`, `frontend/`, and `data/`.
 
 ## Actions

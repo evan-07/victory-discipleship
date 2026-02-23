@@ -28,7 +28,7 @@ Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without break
       - `fact_*` for facts (e.g., `fact_attendance`)
       - `agg_*` or `rpt_*` for reports (e.g., `agg_monthly_stats`)
     * **Critical Check:** Before changing any Gold table, run `impact_analysis.sh` on the columns involved.
-    * **Dataform-to-Looker Coupling Protocol:** If `impact_analysis.sh` flags a potential Looker breakage, STOP. You must generate a "Looker Migration Request" artifact detailing the specific schema alterations and required downstream updates. Ping the `@orchestrator` to assign this artifact to the `@bi-analyst`.
+    * **Dataform-to-Looker Coupling Protocol:** If `impact_analysis.sh` flags a potential Looker breakage, STOP. You must generate a **"Looker Impact Statement"** artifact detailing the specific schema alterations (fields added/removed/renamed), affected dashboards/reports, and whether the change is breaking or non-breaking. Ping the `@orchestrator` to assign this artifact to the `@bi-analyst`.
 4.  **Naming Convention Enforcement:** Verify all new tables follow ARCHITECTURE.md Section 13 standards and Section 8 Data Architecture.
 
 ## Workflow
