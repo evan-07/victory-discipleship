@@ -59,7 +59,7 @@ Victory Church's member and ministry management system is a full-stack, cloud-na
 | **Testing Automation** | TestSprite | LLM-based autonomous test generation and execution | Included (via MCP) |
 | **Data Integrity Testing** | Dataform Assertions | SQL-based automated assertions executed during CI/CD and routine loads | Free |
 | **Infrastructure as Code** | Terraform OSS | All GCP resources defined, versioned, and deployed as code | Free (OSS) |
-| **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development ([AGENTS.md](AGENTS.md)) | Included |
+| **IDE** | Google AntiGravity | Agentic AI IDE for full-stack system development | Included |
 | **Secrets** | Secret Manager | API keys and credentials — never in code or env vars | Free (≤ 6 secrets) |
 
 ## 3. Person Lifecycle & Journey Stages
@@ -652,15 +652,6 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `gold_headcounts.sqlx` | `silver.headcounts` + `silver.events` | `gold.vw_attendance_headcounts` | On silver table update |
 | `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.events` | `gold.vw_equipping_funnel` | On silver table update |
 | `gold_vg_summary.sqlx` | `silver.victory_groups` + `silver.victory_group_members` | `gold.vw_victory_group_summary` | On silver table update |
-| `gold_engagement.sqlx` | `silver.event_attendances` + `silver.event_registrations` | `gold.vw_person_engagement` | On silver table update |
-| `gold_event_history.sqlx` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` | `gold.vw_person_event_history` | On silver table update |
-| `gold_equipping_completion.sqlx` | `silver.equipping_enrollments` + `silver.persons` | `gold.vw_equipping_completion` | On silver table update |
-| `gold_equipping_cohorts.sqlx` | `silver.equipping_classes` + `silver.equipping_enrollments` | `gold.vw_equipping_cohorts` | On silver table update |
-| `gold_leader_dashboard.sqlx` | `silver.victory_groups` + `silver.victory_group_members` + `silver.equipping_enrollments` + `silver.event_attendances` + `silver.ministry_memberships` | `gold.vw_leader_dashboard` | On silver table update |
-| `gold_ministry_participation.sqlx` | `silver.ministry_memberships` + `silver.ministry_catalog` | `gold.vw_ministry_participation` | On silver table update |
-| `gold_pastoral_events.sqlx` | `silver.events` + `silver.event_registrations` + `silver.persons` | `gold.vw_pastoral_events` | On silver table update |
-| `gold_admin_full.sqlx` | `silver.persons` + `silver.person_occupations` + `silver.person_contacts` + `silver.equipping_enrollments` + `silver.victory_groups` + `silver.ministry_memberships` | `gold.vw_admin_full` | On silver table update |
-| `gold_business_network.sqlx` | `silver.persons` + `silver.person_occupations` | `gold.vw_business_network` | On silver table update |
 
 **Dataform assertions:** Each `.sqlx` file includes assertions that verify data quality before writing to the next layer (e.g. `assert person_id IS NOT NULL`, `assert email matches regex pattern`). A failing assertion stops the pipeline and sends an alert — bad data never reaches Gold.
 
@@ -749,7 +740,6 @@ is_active · added_at · removed_at        payment_status · amount_paid · paym
 | `gold.vw_ministry_participation` | Executive + Admin |
 | `gold.vw_pastoral_events` | Admin only |
 | `gold.vw_admin_full` | Admin only |
-| `gold.vw_business_network` | Admin only |
 
 ## 10. CI/CD Pipeline — GitHub Actions + Terraform
 
@@ -1506,7 +1496,6 @@ All Gold views are read-only SQL views on BigQuery. Row access policies are enfo
 | `gold.vw_ministry_participation` | Executive + Admin | Active vs. interested per ministry, monthly join trend, multi-ministry members. |
 | `gold.vw_pastoral_events` | Admin only | All pastoral events including sensitive ones. Family contacts created. Follow-up status. Excluded from executive Looker Studio entirely. |
 | `gold.vw_admin_full` | Admin only | Denormalized join of all silver entities. Includes journey_stage, review_status, duplicate_flag, equipping completion flags, engagement score, employment info, VG membership, and group leadership details. |
-| `gold.vw_business_network` | Admin only | Purpose-built view for the Business & Professionals Network dashboard. Joins `silver.persons` + `silver.person_occupations` (is_current = TRUE). Exposes only: person_id, first_name, last_name, employment_type, nature_of_work, company_name, nature_of_business, business_name. Filtered to employed and self_employed records only. Least-privilege alternative to sourcing occupation granularity from vw_admin_full. |
 
 ## 15. Development IDE — Google AntiGravity
 Platform: Local / Agentic Workspace
