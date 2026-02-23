@@ -23,7 +23,7 @@ The **Victory Discipleship Member Management System** is a full-stack applicatio
 ## 2. Architecture & Standards
 
 > [!NOTE]
-> For a detailed breakdown of the **Medallion Architecture**, **Technology Stack**, and **Governance Rules**, please refer to the [ARCHITECTURE.md](ARCHITECTURE.md) file.
+> For a detailed breakdown of the **Medallion Architecture**, **Technology Stack**, **Governance Rules**, and **Naming Conventions**, please refer to [ARCHITECTURE.md](ARCHITECTURE.md) — specifically [Section 19 (Naming Conventions)](ARCHITECTURE.md#19-naming-conventions--consistency-standards).
 
 ### Repository Map
 
@@ -46,19 +46,15 @@ For a detailed file-by-file breakdown, see [ARCHITECTURE.md Section 10 (Reposito
 
 ## 3. Agent Orchestration
 
-This project uses a multi-agent workflow system to manage complex tasks while maintaining architectural standards. 
+This project uses a multi-agent workflow system to manage complex tasks while maintaining architectural standards.
 
-For a complete list of agent roles, current team members, and the automatic routing matrix, see [AGENTS.md](AGENTS.md).
+See **[AGENTS.md](AGENTS.md)** for:
+- The complete agent team roster and responsibilities
+- The automated routing matrix (which agent is triggered by which file path)
+- All available slash-command workflows and their protocols
 
-### Core Workflows
-*   **`/feature-development`** - Implementing new features.
-*   **`/data-pipeline-evolution`** - Evolving BQ schemas.
-*   **`/feature-branch-workflow`** - Standard development flow.
-*   **`/architecture-audit`** - Architecture compliance audits.
-*   **`/mcp-integration`** - Guide for using MCP tools.
-*   **`/sonarqube-quality-gate`** - Running SonarQube analysis and checking quality gates.
-
-Refer to [AGENTS.md](AGENTS.md) for detailed toolsets and triggering rules.
+> [!NOTE]
+> `AGENTS.md` is the **single source of truth** for agent orchestration. Do not define or duplicate workflow descriptions here.
 
 ### Feature Branch Workflow
 

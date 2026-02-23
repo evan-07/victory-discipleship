@@ -44,11 +44,19 @@ Agents are automatically invoked based on the file paths modified in a session. 
 
 ## 3. Workflow Protocols
 
-### Feature Development
-Use the `/feature-development` workflow to trigger the standard implementation cycle.
+This section is the **single source of truth** for all available agent slash-command workflows. Descriptions in other docs (e.g., `README.md`) MUST NOT duplicate this list — they should link here instead.
 
-### Data Evolution
-Use the `/data-pipeline-evolution` workflow when modifying BigQuery schemas or Dataform definitions.
+| Workflow | Trigger | Description | Primary Agent(s) |
+| :--- | :--- | :--- | :--- |
+| `/feature-development` | New feature request | Full cycle: plan → architect gate → delegate → implement → verify → PR | `@orchestrator` |
+| `/data-pipeline-evolution` | BQ schema or Dataform change | Impact analysis → Looker Impact Statement → SQLX edit → compile check → PR | `@data-engineer`, `@bi-analyst` |
+| `/feature-branch-workflow` | Any code change | Create branch → develop → SonarQube gate → PR → merge | `@orchestrator` |
+| `/architecture-audit` | Compliance review request | Validate structure → cross-reference docs → report findings → remediation plan | `@architect`, `@orchestrator` |
+| `/mcp-integration` | MCP tool usage | Guide for using BigQuery, GitHub, SonarQube, and TestSprite MCP tools | `@orchestrator` |
+| `/sonarqube-quality-gate` | Post-implementation QA | Run analysis → check gate status → fix issues → re-run | `@qa-engineer` |
 
 ### Quality Enforcement
-All code changes must pass the **SonarQube Quality Gate** enforced by `@qa-engineer`.
+All code changes MUST pass the **SonarQube Quality Gate** enforced by `@qa-engineer` before any PR is eligible for merge. See `/sonarqube-quality-gate` for the full procedure.
+
+### Governance
+All workflows operate under the rules defined in [`.agent/rules/persistence.md`](.agent/rules/persistence.md). The `@orchestrator` is responsible for enforcing the OP-01 protocol on every task.
