@@ -46,54 +46,16 @@ For a detailed file-by-file breakdown, see [ARCHITECTURE.md Section 10 (Reposito
 
 ## 3. Agent Orchestration
 
-This project uses a multi-agent workflow system coordinated by the `@orchestrator` agent to manage complex tasks while maintaining architectural standards.
+This project uses a multi-agent workflow system to manage complex tasks while maintaining architectural standards. 
 
-### Available Agent SKILLs
+For a complete list of agent roles, current team members, and the automatic routing matrix, see [AGENTS.md](AGENTS.md).
 
-All agent definitions are located in `.agent/skills/`. Each agent has specific responsibilities:
+### Core Workflows
+*   **`/feature-development`** - Implementing new features.
+*   **`/data-pipeline-evolution`** - Evolving BQ schemas.
+*   **`/feature-branch-workflow`** - Standard development flow.
 
-| Agent | Responsibility | Key Tools |
-| :--- | :--- | :--- |
-| **@orchestrator** | Workflow manager; coordinates agents and manages lifecycle | `generate_context.sh` |
-| **@architect** | Technical authority; enforces standards and validates structure | `validate_structure.py` |
-| **@frontend-dev** | Frontend implementation (HTML/CSS/JS - Static) | `validate_static_page.sh` |
-| **@backend-dev** | Backend logic implementation (FastAPI, Python); Test-Driven | `run_backend_tests.sh` |
-| **@data-engineer** | Manages Dataform pipelines and Looker compatibility | `impact_analysis.sh`, `find_lineage.sh`, `schema_lint.py` |
-| **@infra-ops** | Manages Terraform and enforces Free Tier constraints | `cost_sentinel.sh` |
-| **@qa-engineer** | Writes and maintains test suite (Pytest/Playwright); **SonarQube quality gate enforcement** | `check_coverage.py`, **SonarQube MCP tools** |
-| **@bi-analyst** | Transforms data into Looker Studio visualizations | `generate_looker_spec.py` |
-| **@readme-updater** | Updates README.md and verifies documentation integrity | `check_links.py` |
-| **@code-watcher** | Continuously monitors /src for file modifications | (monitoring only) |
-
-### Standard Workflows
-
-The project includes predefined workflows in `.agent/workflows/`:
-
-*   **`/feature-development`** - Standard instructions for implementing a new feature from idea to production
-*   **`/data-pipeline-evolution`** - Guide for evolving the data warehouse schema
-*   **`/mcp-integration`** - Guide for using Model Context Protocol (MCP) tools for BigQuery and GitHub
-*   **`/sonarqube-quality-gate`** - Guide for running SonarQube analysis and checking quality gates
-*   **`/feature-branch-workflow`** - Standard workflow for feature branch development and Pull Requests
-
-### Agent Triggering (Routing Matrix)
-
-Agents are automatically invoked based on file paths being modified. See [`.agent/rules/persistence.md` Section 5](.agent/rules/persistence.md#5-routing-matrix-mandatory) for the complete routing matrix.
-
-**Common triggers:**
-*   `backend/**` → `@backend-dev`
-*   `frontend/**` → `@frontend-dev`
-*   `data/definitions/**` → `@data-engineer`
-*   `terraform/**` OR `resources/**` → `@infra-ops`
-*   `.github/workflows/**` → `@infra-ops` + `@qa-engineer`
-
-### Working with Agents
-
-1.  **For complex tasks:** Invoke `@orchestrator` which will coordinate the necessary agents
-2.  **For feature development:** Use the `/feature-development` workflow for structured guidance
-3.  **For data changes:** Use the `/data-pipeline-evolution` workflow and consult `@data-engineer`
-4.  **Documentation updates:** `@readme-updater` is automatically triggered based on file changes (see routing matrix)
-
-Refer to `.agent/rules/persistence.md` for detailed governance rules and agent protocols.
+Refer to [AGENTS.md](AGENTS.md) for detailed toolsets and triggering rules.
 
 ### Feature Branch Workflow
 
