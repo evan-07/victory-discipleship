@@ -13,8 +13,8 @@ Analyze the current git diff on demand and report any changes that require docum
 - **Diff Analysis**: Uses git diff or script output covering `backend/`, `frontend/`, and `data/`.
 
 ## Actions
-1. **Fetch Diff**: Execute `.agent/skills/code-watcher/scripts/get_diff.sh` to capture the latest changes.
-2. **Analyze**: Identify if the change was logic-based (e.g., altered core execution paths) or style-based (formatting, superficial changes).
-3. **Report**: If logic changed, create a standard "Change Artifact" and ping the `@orchestrator`.
+1. **Analyze Impact**: Execute `python3 .agent/skills/code-watcher/scripts/check_docs_impact.py` to analyze changes.
+2. **Review Output**: The script will automatically check if changes to `backend/`, `frontend/`, `data/`, or infrastructure trigger a required update for `ARCHITECTURE.md` or `README.md`.
+3. **Report**: If the script flags impacts, create a standard "Change Artifact" and ping the `@orchestrator`.
    - *Artifact Format*: "[File Path] modified. [Summary of Change]."
-   - *Requirement*: Highlight specific changes that mandate updating the `README.md` or `ARCHITECTURE.md`.
+   - *Requirement*: Highlight specific changes that mandate updating the documentation.

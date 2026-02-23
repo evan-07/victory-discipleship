@@ -1,217 +1,88 @@
 # Victory Discipleship Member Management System
 
-> [!IMPORTANT]
-> **AI Agent Instructions**: This README is the **single source of truth** for this repository. When analyzing the codebase, troubleshooting, or planning changes, **ALWAYS** check this document first to understand the directory structure, architectural patterns, and deployment workflows.
+> [!IMPORTANT]  
+> **🤖 AI Agent Instructions**: This file contains human-readable business logic. For system design, data architecture, allowed tools, and mandatory governance rules, you MUST read **[ARCHITECTURE.md](ARCHITECTURE.md)** and **[AGENTS.md](AGENTS.md)**.
 
-## 1. Project Overview
-
-The **Victory Discipleship Member Management System** is a full-stack application designed to manage church member data. It ingests data from a public-facing website, processes it through a data warehouse pipeline, and creates actionable insights.
-
-### Technology Stack
-
-*   **Frontend**: Vanilla HTML/CSS/JavaScript. Hosted on **Cloudflare Pages** for free global CDN and DDoS protection.
-*   **Backend**: Python (Flask) running on **Google Cloud Run**. Scales to zero for 100% cost efficiency when idle.
-*   **Data Warehouse**: Google BigQuery, utilizing Free Tier limits (10GB storage / 1TB query per month).
-*   **Data Pipeline**: **Dataform** (using SQLX) following the **Medallion Architecture** (Bronze $\rightarrow$ Silver $\rightarrow$ Gold).
-*   **Visualization**: **Looker Studio**. Native BigQuery connection, utilizing cached queries for cost control.
-*   **Infrastructure**: **Terraform** for Infrastructure-as-Code (IaC) on Google Cloud Platform (GCP).
-*   **Security & WAF**: **Cloudflare WAF** with Bot Fight Mode enabled to protect backend resources.
-*   **CI/CD**: GitHub Actions with **Workload Identity Federation (WIF)** for secure, keyless authentication.
+## 1. System Purpose
+The Victory Discipleship Member Management System is a comprehensive platform designed to manage church member data, track discipleship progress, and handle event registrations. It is built to seamlessly support the pastoral team by providing accurate, real-time insights into the spiritual journey of every person.
 
 ---
 
-## 2. Architecture & Standards
+## 2. The Discipleship Journey (Person Lifecycle)
+The system tracks an individual's growth through four distinct, admin-managed stages. A person's stage is never auto-computed; it relies on pastoral judgment and confirmed milestones.
 
-> [!NOTE]
-> For a detailed breakdown of the **Medallion Architecture**, **Technology Stack**, **Governance Rules**, and **Naming Conventions**, please refer to [ARCHITECTURE.md](ARCHITECTURE.md) — specifically [Section 19 (Naming Conventions)](ARCHITECTURE.md#19-naming-conventions--consistency-standards).
+### Stage 1: Contact
+* **Who they are:** Someone participating in the church but not yet an official member (e.g., a first-time guest or event registrant).
+* **Requirements:** Basic contact info (Name, Address, Mobile, Birthday).
+* **Next Step:** Complete One2One to become a Member.
 
-### Repository Map
+### Stage 2: Member
+* **Who they are:** Someone who has completed **One2One** and is actively part of a Victory Group.
+* **Requirements:** All Contact info + Employment Details + Name of their Victory Group Leader.
+* **Next Step:** Begin training as an intern while taking Equipping Classes.
 
-```mermaid
-graph TD;
-    root[Root] --> backend[backend/];
-    root --> frontend[frontend/];
-    root --> data[data/];
-    root --> terraform[terraform/];
-    
-    backend --> py[main.py];
-    frontend --> html[index.html];
-    data --> definitions[definitions/];
-    terraform --> main_tf[main.tf];
-```
+### Stage 3: VG Intern
+* **Who they are:** A member actively being discipled to lead their own group.
+* **Requirements:** Same as Member, but they are formally linked in the system to a supervising VG Leader.
+* **Next Step:** Launch and lead their own group.
 
-For a detailed file-by-file breakdown, see [ARCHITECTURE.md Section 10 (Repository Structure)](#10-cicd-pipeline--github-actions--terraform).
-
----
-
-## 3. Agent Orchestration
-
-This project uses a multi-agent workflow system to manage complex tasks while maintaining architectural standards.
-
-See **[AGENTS.md](AGENTS.md)** for:
-- The complete agent team roster and responsibilities
-- The automated routing matrix (which agent is triggered by which file path)
-- All available slash-command workflows and their protocols
-
-> [!NOTE]
-> `AGENTS.md` is the **single source of truth** for agent orchestration. Do not define or duplicate workflow descriptions here.
-
-### Feature Branch Workflow
-
-This project uses a feature branch workflow with Pull Requests for all changes.
-
-#### Creating a Feature Branch
-
-1. **Ensure you're on main and up to date:**
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
-
-2. **Create a new feature branch:**
-   ```bash
-   git checkout -b <type>/<description>
-   ```
-   
-   **Branch Types:**
-   - `feature/` - New features or enhancements
-   - `fix/` - Bug fixes
-   - `docs/` - Documentation updates
-   - `refactor/` - Code refactoring
-   - `test/` - Test additions or updates
-   - `chore/` - Maintenance tasks
-
-3. **Make your changes and commit:**
-   ```bash
-   git add .
-   git commit -m "feat: your feature description"
-   ```
-
-4. **Push to GitHub:**
-   ```bash
-   git push origin <your-branch-name>
-   ```
-
-5. **Create a Pull Request:**
-   - Go to GitHub repository
-   - Click "Compare & pull request"
-   - Wait for automated checks to pass:
-     - ✅ SonarQube Quality Gate
-     - ✅ Test Coverage
-     - ✅ Dataform Compilation (if applicable)
-     - ✅ Backend Tests (if applicable)
-
-6. **Merge the PR:**
-   - Once all checks pass, merge the PR
-   - Delete the feature branch after merge
-
-**Note:** Direct pushes to `main` are blocked by branch protection rules. See `/feature-branch-workflow` for detailed instructions.
+### Stage 4: VG Leader
+* **Who they are:** An individual actively leading one or more Victory Groups.
+* **Requirements:** All previous info + specific data on the groups they lead (Group Type, Member Roster).
+* **Ongoing:** Tracked in the system as the primary spiritual mentor for their group members.
 
 ---
 
-## 4. API Documentation
+## 3. The Equipping Pathway
+The system tracks the classes and training a member undergoes. The completion logic handles both the historical ("Old") pathway and the current ("New") pathway natively, ensuring no one is left behind.
 
-### Public Web Pages
+* **New Pathway (2025 - Present):**
+  1. `One2One` 
+  2. `Spiritual Foundations`
+  3. `Leadership 113`
+* **Old Pathway (Legacy):**
+  1. `One2One` 
+  2. `Victory Weekend`
+  3. `Discipleship Class` (or Leader's Lab)
+  4. `Leadership 113`
 
-*   **Member Registration Form:** `https://<your-cloudflare-pages-url>/`
-    *   Purpose: Allows church members to self-register their information
-    *   Access: Public (no authentication required)
-    *   Features: Collects demographics, occupation, ministry preferences, discipleship classes
-
-*   **Admin Member Management:** `https://<your-cloudflare-pages-url>/admin.html`
-    *   Purpose: Search and update existing member records
-    *   Access: **Protected via Cloudflare Access** (authorized staff only)
-    *   Features: Email-based search, pre-filled update forms, append-only architecture
-    *   Note: Updates are not immediately reflected in search until Dataform pipeline runs
-
-### Backend API Endpoints
-
-Backend is hosted on **Google Cloud Run** at `https://<cloud-run-service-url>`.
-
-| Endpoint | Method | Purpose | Authentication | Request | Response |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `/api/submit` | POST | Submit member data | None (public) | JSON payload (see schema below) | `{"message": "Success", "row_id": "..."}` |
-| `/api/search` | GET | Search members by email | None* | Query: `?email=xxx@example.com` | JSON array of member records |
-| `/health` | GET | Health check | None | N/A | `{"status": "healthy"}` |
-
-*Note: `/api/search` is conceptually admin-only, but authentication is enforced at the frontend level via Cloudflare Access, not at the API layer.*
-
-For complete API contracts and authentication model, see [ARCHITECTURE.md Section 7](ARCHITECTURE.md#7-backend--cloud-run--fastapi).
+> [!TIP]
+> The system automatically grants a "Fully Equipped" status when either pathway is completed. Leaders on the old pathway are gently encouraged by the system to take *Spiritual Foundations*.
 
 ---
 
-## 5. Development Workflow
+## 4. Event Management & Registration
+Events are strictly categorized into four types to ensure data cleanliness and prevent registration errors.
 
-### Prerequisites
+### 🎓 Equipping Classes
+* **Examples:** Spiritual Foundations, Leadership 113.
+* **Workflow:** Admin-managed rosters only. There is no public registration page for these. Administrators enroll members, and completion directly impacts the person's Equipping Pathway progress.
 
-To work on this repository, you must have the following tools installed:
+### 🎉 Church Events
+* **Examples:** Date Talk, Convergence, Family Day.
+* **Workflow:** Public self-registration via a dedicated landing page (`/e/[slug]`). The system strictly checks for duplicates to prevent double-booking. If a brand new person registers, they are entered into the system as a **Contact**.
 
-1.  **[Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)**: For interacting with GCP resources.
-3.  **[HashiCorp Terraform](https://developer.hashicorp.com/terraform/downloads)**: For infrastructure management.
+### ⛪ Pastoral Events (Self-Register)
+* **Examples:** Weddings, Child Dedications.
+* **Workflow:** Families register via a pastoral form. The system automatically creates new profiles for the individuals involved if they do not exist, flagging them for pastoral follow-up.
 
-### 🛠️ Setup Instructions
-
-#### 1. Backend (FastAPI)
-*   **Exclusive Execution**: The backend runs exclusively on **Google Cloud Run**. Local execution of the API is prohibited to maintain environment parity and security.
-*   **Deployment**: Automated via GitHub Actions on every push to `main` that modifies the `backend/` directory.
-
-#### 2. Frontend
-*   Simply open `frontend/index.html` in your browser.
-*   For development, you can use a simple HTTP server:
-    ```bash
-    cd frontend
-    python -m http.server 3000
-    ```
-
-#### 3. Dataform (Pipeline)
-*   **Exclusive Execution**: Dataform runs exclusively via **GitHub Actions** whenever code is pushed to the `main` branch or a Pull Request is created.
-*   **Validation**: Schema validation and compilation checks are performed automatically in the `Compile Dataform` job of the CI/CD pipeline. No local installation of the Dataform CLI is required.
-
-#### 4. Infrastructure (Terraform)
-*   **Local Validation**: You can use Terraform locally for linting and planning only.
-    ```bash
-    cd terraform
-    terraform init
-    terraform plan
-    ```
-*   **Exclusive Execution**: `terraform apply` is **strictly prohibited** locally. Infrastructure changes are applied exclusively via GitHub Actions upon merging to the `main` branch.
+### 🕊️ Pastoral Events (Admin-Only)
+* **Examples:** Funerals.
+* **Workflow:** Highly sensitive. Handled entirely by administrators. These records are hidden from standard executive reports to maintain privacy.
 
 ---
 
-## 6. Deployment & Secrets
+## 5. Development & Administration Quick Links
 
-### Cloudflare Pages (Frontend)
+### System Access
+* **Public Pages:** `/` (Member Registration) and `/e/[slug]` (Event Registration).
+* **Admin Portal:** `/admin.html` (Protected via Cloudflare Access).
+* **Leader Dashboard:** `/dashboard.html` (Google Sign-In required; verified against `vg_leader` role).
+* **Executive Reports:** `/reports.html` (Looker Studio Dashboards).
 
-*   **Automatic Deployment:** Cloudflare Pages is configured to auto-deploy from the `main` branch.
-*   **Build Settings:**
-    *   Build command: (None - static files)
-    *   Build output directory: `frontend/`
-    *   Root directory: `/`
-*   **Admin Page Protection:**
-    *   The `admin.html` page is protected using **Cloudflare Access**.
-    *   Configuration: Cloudflare Dashboard → Access → Applications → Create Application
-    *   Policy: Define authorized emails/groups who can access `/admin.html`
-
-### GitHub Actions Secrets
-The following secrets MUST be configured in the GitHub Repository settings for CI/CD to work:
-
-| Secret Name | Description | Required By |
-| :--- | :--- | :--- |
-| **`WIF_PROVIDER`** | The full GCP resource name of the Workload Identity Provider. | `dataform.yaml` |
-| **`WIF_SERVICE_ACCOUNT`** | The Service Account email that GitHub Actions impersonates. | `dataform.yaml` |
-| **`GCP_PROJECT_ID`** | The Google Cloud Project ID (e.g., `victory-discipleship`). | `deploy_backend.yaml`, `dataform.yaml` |
-| **`GCP_CREDENTIALS`** | Raw JSON Service Account key. | `deploy_backend.yaml` |
-| **`GCP_LOCATION`** | The Google Cloud location (e.g., `asia-southeast1`). | `dataform.yaml` |
-| **`SONAR_TOKEN`** | SonarQube Cloud authentication token | `sonarqube-analysis.yaml` |
-| **`SONAR_ORGANIZATION`** | SonarQube Cloud organization key (e.g., `evan-07`) | `sonarqube-analysis.yaml` |
-| **`SONAR_PROJECT_KEY`** | SonarQube Cloud project key (e.g., `evan-07_victory-discipleship`) | `sonarqube-analysis.yaml` |
-
-### Deployment Targets
-*   **Backend**: Automatically deployed to **Cloud Run** on pushing to `main` (if changes are in `backend/`). Can be manually triggered via **Workflow Dispatch**.
-*   **Frontend**: Deployed to **Cloudflare Pages** (configured via Cloudflare Dashboard linked to this repo).
-*   **Data Pipeline**: Compiled on Pull Requests. Runs via **GitHub Actions** on pushing to `main` (if changes are in `data/`). This is the **only** environment where Dataform is executed.
-
----
-
-> [!NOTE]
-> **Troubleshooting Tip**: If the backend fails to deploy, check the `WIF_PROVIDER` and `WIF_SERVICE_ACCOUNT` secrets first. Ensure the Service Account has the `roles/run.developer` and `roles/iam.serviceAccountUser` roles.
+### Developer Resources
+If you are an engineer or an authorized AI agent working on this repository, please refer strictly to the following guides:
+1. **[ARCHITECTURE.md](ARCHITECTURE.md)**: Master architecture plan, schema references, and hard boundaries.
+2. **[AGENTS.md](AGENTS.md)**: Agent orchestration, tool authorizations, and workflows.
+3. **Infrastructure**: `terraform/` (No local applies allowed; standard PR flow required).
+4. **Dataform**: `data/definitions/` (Medallion architecture: Bronze -> Silver -> Gold).

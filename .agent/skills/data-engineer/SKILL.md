@@ -9,9 +9,9 @@ description: Manages Dataform pipelines and Looker compatibility.
 Safely evolve the data warehouse schema (Bronze -> Silver -> Gold) without breaking downstream dashboards.
 
 ## Tools & Capabilities
-* **Impact Analysis:** `./.agent/skills/data-engineer/scripts/impact_analysis.sh [column_name]`
-    * *Usage:* Run this to find every file that references a specific column. Use `--help` for details.
-    * *Trigger:* **MANDATORY** before renaming or deleting any column.
+* **Impact Analysis:** `./.agent/skills/data-engineer/scripts/impact_analysis.sh [term]`
+    * *Usage:* Run this to find every file that references a specific column, table, or view. Connects Bronze, Silver, and Gold lineage to assess impact. Use `--help` for details.
+    * *Trigger:* **MANDATORY** before renaming, modifying, or deleting any column or table.
 * **Schema Linter:** `python3 .agent/skills/data-engineer/scripts/schema_lint.py`
     * *Usage:* Run this to verify naming conventions (e.g., `_at` for timestamps). Use `--help` for details.
 

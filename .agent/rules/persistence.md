@@ -92,8 +92,9 @@ Hard gate: touching 3_gold requires Looker Impact Statement BEFORE implementatio
 - compatibility: breaking vs non-breaking
 
 ## 8. Tool Authorization
-Always allow (read-only/context): generate_context.sh, validate_structure.py, impact_analysis.sh, find_lineage.sh, schema_lint.py, check_coverage.py, cost_sentinel.sh, check_links.py, get_diff.sh, generate_looker_spec.py, ls/cat/grep/find/git diff/git status.
+Always allow (read-only/context): generate_context.sh, validate_structure.py, impact_analysis.sh, schema_lint.py, check_coverage.py, cost_sentinel.sh, check_links.py, check_docs_impact.py, generate_looker_spec.py, ls/cat/grep/find/git diff/git status.
 MCP read-only allowed: BigQuery get_table_info/execute_sql(read-only)/ask_data_insights; GitHub search/list PR/get file/create_branch/create_pull_request/list_pull_requests/pull_request_read/list_branches; SonarQube search_sonar_issues_in_projects/get_component_measures/get_project_quality_gate_status/analyze_code_snippet/get_raw_source/show_rule/search_my_sonarqube_projects/list_*.
+MCP automation allowed: TestSprite testsprite_generate_code_and_execute/testsprite_open_test_result_dashboard/testsprite_rerun_tests (for @qa-engineer).
 Restricted (STOP & ASK): mv/rm/cp/sed/redirect writes; git add/commit/push; terraform apply; dataform run; SonarQube change_sonar_issue_status/create_webhook; GitHub merge_pull_request/update_pull_request.
 
 ## 9. Repo Artifacts (HARD REQUIRED)
