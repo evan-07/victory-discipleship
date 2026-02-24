@@ -29,7 +29,7 @@ This is the authoritative delivery reference. Use this table to track whether ea
 | `/events.html` | Admin only | Firebase Auth + role check (admin) | **Phase 1** | Event management: create event, manage status, view registrations, mark attendance. |
 | `/leader.html` | VG Leaders | Google Sign-In | **Phase 2** | VG Leader self-reporting form — captures personal info, Victory Groups led, and interns supervised. Pre-fills for returning users. |
 | `/dashboard.html` | VG Leaders | Firebase Auth + role check (`vg_leader`) | **Phase 2** | Personal group and discipleship overview for VG Leaders. |
-| `/reports.html` | Executives | Looker Studio embed or direct link | **Phase 4** | Embedded Looker Studio dashboards. No data editing. |
+| `/reports.html` | Executives | Firebase Auth + executive role; Looker Studio iframe embed | **Phase 4** | Embedded Looker Studio dashboards. No data editing. Direct Looker Studio links are not the delivery mechanism. |
 ### Mobile Responsiveness Strategy
 
 - Bootstrap 5 grid provides mobile-first responsiveness for the existing member form.
@@ -76,11 +76,11 @@ Copy URL → hand to comms team        Zero developer required
 | Entry Point | URL | Who | Auth | Key Behavior | Phase |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Event Landing Page | `/e/[slug]` | Anyone | Google Sign-In | Smart pre-check → profile form or confirm or already-registered screen. VG question for new users. | **Phase 1** |
-| Member Profile | `/profile` | VG Members | Google Sign-In | View and update own record. Pre-fills from Silver. Collects employment info and VG Leader name (member-stage required fields). Cannot see other records. | **Phase 1** |
-| Admin Portal | `/admin` | Admin team | Google Sign-In + admin role | Review queue, event management, person editing, role assignment. | **Phase 1** |
-| VG Leader Form | `/leader` | VG Leaders | Google Sign-In | New → blank form. Returning → full pre-fill. Captures personal info + groups + members. | **Phase 2** |
+| Member Profile | `/profile.html` | VG Members | Google Sign-In | View and update own record. Pre-fills from Silver. Collects employment info and VG Leader name (member-stage required fields). Cannot see other records. | **Phase 1** |
+| Admin Portal | `/admin.html` | Admin team | Google Sign-In + admin role | Review queue, event management, person editing, role assignment. | **Phase 1** |
+| VG Leader Form | `/leader.html` | VG Leaders | Google Sign-In | New → blank form. Returning → full pre-fill. Captures personal info + groups + members. | **Phase 2** |
 | Pastoral Event Page | `/e/[slug]` | Families / couples | Google Sign-In | Simplified public self-registration for pastoral events (Weddings, Dedications). Admin-initiated in Phase 1. | **Phase 3** |
-| Reports | `/reports` | Executives | Google Sign-In + executive role | Embedded Looker Studio dashboards. No data editing. | **Phase 4** |
+| Reports | `/reports.html` | Executives | Google Sign-In + executive role | Embedded Looker Studio dashboards. No data editing. Direct Looker Studio links are not the delivery mechanism. | **Phase 4** |
 
 ### Member Profile Form — `/profile.html`
 
@@ -89,7 +89,7 @@ Copy URL → hand to comms team        Zero developer required
 > **Stage-dependent Facebook enforcement:** If the user's `journey_stage = 'contact'`, the Facebook field is shown with an "encouraged" label and is not required. If `journey_stage = 'member'` or higher, Facebook is **required** — the form submission is blocked until it is filled.
 
 ```plaintext
-1. Member opens /profile → Google Sign-In (one-tap if already signed in)
+1. Member opens /profile.html → Google Sign-In (one-tap if already signed in)
 2. Frontend calls GET /api/me with JWT
 3. Cloud Run looks up record by google_uid → returns full profile.
    If no match by google_uid, Cloud Run attempts email-match fallback (account-claiming).
@@ -118,7 +118,7 @@ Copy URL → hand to comms team        Zero developer required
 > **Phase 2.** The VG Leader form is not part of the MVP. In Phase 1, admin manually creates and edits leader and member records via the admin portal. The self-service leader form ships in Phase 2.
 
 ```plaintext
-1. Leader opens /leader → Google Sign-In (one-tap if already signed in)
+1. Leader opens /leader.html → Google Sign-In (one-tap if already signed in)
 2. Frontend calls GET /api/leaders/me with JWT
 3. Cloud Run looks up record by google_uid → returns full profile + groups + members
 4. Form pre-fills:
@@ -238,10 +238,9 @@ Person opens /e/[slug]
                   └───┬────┘ └───┬────┘  │
                       │          │       │
                       ▼          ▼       ▼
-               ┌─────────────────────────────┐
-               │  POST /api/events/{slug}/   │
-               │  self-register              │
-               └──────────┬──────────────────┘
+               ┌──────────────────────────────────────────┐
+               │  POST /api/events/{slug}/self-register   │
+               └──────────────────┬───────────────────────┘
                           │
                           ▼
                ┌─────────────────────────────┐
@@ -258,6 +257,27 @@ Person opens /e/[slug]
                │  Clean confirmation only.   │
                └─────────────────────────────┘
 ```
+
+### Event Registration — Error Handling
+
+#### Google Sign-In Failure or Cancellation
+
+| Condition | User Experience |
+| :--- | :--- |
+| User cancels Google Sign-In dialog | Sign-in modal closes. Page returns to event landing with **[ Register Now ]** button re-enabled. No error message. |
+| Network error during sign-in | Show inline error: *"Sign-in failed. Please check your connection and try again."* Re-enable **[ Register Now ]** button. |
+| Popup blocked by browser | Show inline message: *"Your browser blocked the sign-in popup. Please allow popups for this site and try again."* |
+
+No registration data is written on failure. The user may retry without page reload.
+
+#### Event Page — Not Found or Closed
+
+| Condition | User Experience |
+| :--- | :--- |
+| Event slug does not exist | Show page: *"This event page could not be found. The link may be incorrect or the event may no longer be available."* No Register button. |
+| Event `status = closed` | Show event details (hero image, name, date) with message: *"Registration for this event is now closed."* No Register button. |
+| Event `status = completed` | Show event details with message: *"This event has already taken place."* No Register button. |
+| Event `status = cancelled` | Show message: *"This event has been cancelled. Please check with your Victory Group leader for updates."* No Register button. |
 
 ### Scenario 1 — Brand New Person
 
@@ -392,7 +412,9 @@ Person opens /e/[slug]
      a. Cloud Run writes updated profile fields to victory_bronze.raw_form_submissions.
      b. The person already has a Silver record (person_id known from pre-check).
         Cloud Run creates victory_silver.event_registrations immediately using the existing person_id —
-        no direct Silver write needed. The person_id FK is already resolved.
+        no direct Silver write to persons is needed (person already exists). The event_registrations
+        insert is still a direct Silver write by Cloud Run, providing immediate confirmation.
+        The person_id FK is already resolved.
      c. Dataform reconciles the profile update on the next scheduled run (SCD2 upsert adds missing fields).
      d. SUCCESS SCREEN returned to user immediately — no re-registration step required.
 7. SUCCESS SCREEN (clean confirmation — no payment instructions)
@@ -472,6 +494,9 @@ The admin review queue is organized into tabs, each surfacing a distinct categor
 │                                                                  │
 │  [ "Anna Reyes" ]  Leader: Pedro Santos  Source: leader_form     │
 │  Search: [_______________] → [ Link to Person ]                  │
+│  (Search returns a list of candidates — admin selects the        │
+│   correct person; disambiguate by birthday or contact number     │
+│   if names conflict.)                                            │
 │  [ Create New Contact Record ]                                   │
 │                                                                  │
 │  ────────────────────────────────────────────────────────────    │
@@ -507,6 +532,8 @@ The admin review queue is organized into tabs, each surfacing a distinct categor
 ### Pastoral Event Self-Registration Flow (`pastoral_self` category) — Phase 3
 
 > **Phase 1 scope:** Pastoral event registration is **admin-initiated only** in Phase 1. Admin registers celebrants and registrants directly via the admin portal (`/events.html`). The public self-registration flow below is deferred to Phase 3.
+
+> **Phase 1 — Admin-initiated pastoral events:** Both `pastoral_self` and `pastoral_admin` categories are admin-managed in Phase 1. Admin creates the event via `POST /api/events` (selecting the appropriate `event_type_id` from `victory_silver.event_type_catalog`), then adds registrations manually via the event's registrations view in `/events.html`. For `pastoral_admin` events (`is_sensitive = TRUE`, e.g. funerals), the event is not displayed publicly — admin enters family members as new Contact-stage persons via `POST /api/persons` and links them as registrations. See [docs/EVENTS.md](EVENTS.md) for the full `pastoral_admin` category definition.
 
 Applies to Weddings, Child Dedications, and Business Dedications. These events have public pages at `/e/[slug]` but use a different form from the standard event registration.
 
@@ -754,9 +781,35 @@ Admin actions:
   └──────────────────────────────────────────────────────────────────┘
 ```
 
+> **Event cancellation does not auto-cancel registrations.** When an event is set to
+> `cancelled`, existing `event_registrations` records are **not** modified —
+> `status` remains `registered`. Registrants are **not** notified by the system.
+> Admin must:
+> 1. Communicate the cancellation through existing church channels (WhatsApp, social media, email).
+> 2. For paid events: manually process refunds outside the system; optionally set `payment_status = 'refunded'` via `PATCH /api/event-registrations/{id}`.
+> 3. Optionally mark all registrations as `no_show` if the event record needs to be closed cleanly.
+
 - Creating a new event: `POST /api/events` (fields: event_type_id, event_name, start_datetime, end_datetime, venue_name, capacity, is_paid, price, page_slug — auto-generated if not provided).
 - `capacity` is displayed for admin planning reference. It does NOT block registration when reached (Phase 1).
 - All status transitions are manual admin actions — no auto-transitions.
+
+### Admin Headcount Submission (`/events.html` or `/admin.html`)
+
+Headcounts capture aggregate anonymous attendance for services and events where
+individual registration is not used (e.g., Sunday services).
+
+```plaintext
+Admin action:
+  1. Navigate to the relevant event or service record.
+  2. Click [ Submit Headcount ].
+  3. Enter attendee_count → Confirm.
+  Backend: POST /api/headcounts
+  Fields: date, event_type, attendee_count, event_id (optional FK, NULL for services).
+  Writes to: victory_bronze.raw_headcounts → Dataform → victory_silver.headcounts.
+```
+
+- Headcounts are aggregate only — no individual person records are created.
+- Multiple headcount submissions for the same event are allowed (e.g., multi-session events).
 
 ---
 

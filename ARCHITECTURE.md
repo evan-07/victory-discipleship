@@ -124,16 +124,15 @@ Four categories in `victory_silver.event_type_catalog`. New event types are adde
 
 Stack: HTML + Alpine.js + Bootstrap 5 on Cloudflare Pages. No build step.
 
-| Page | Who | Access |
-| :--- | :--- | :--- |
-| `/` (form) | VG Leaders | Cloudflare Access + Google Sign-In |
-| `/admin.html` | Admin only | Firebase Auth + admin role |
-| `/events.html` | Admin only | Firebase Auth + admin role |
-| `/dashboard.html` | Leaders | Firebase Auth + vg_leader role |
-| `/reports.html` | Executives | Looker Studio embed |
-| `/e/[slug]` | Anyone | Google Sign-In |
-| `/leader.html` | VG Leaders | Google Sign-In |
-| `/profile.html` | VG Members | Google Sign-In |
+| Page | Who | Access | Phase |
+| :--- | :--- | :--- | :--- |
+| `/e/[slug]` | Anyone | Google Sign-In | 1, 3 |
+| `/profile.html` | VG Members | Google Sign-In | 1 |
+| `/admin.html` | Admin only | Firebase Auth + admin role | 1 |
+| `/events.html` | Admin only | Firebase Auth + admin role | 1 |
+| `/leader.html` | VG Leaders | Google Sign-In | 2 |
+| `/dashboard.html` | VG Leaders | Firebase Auth + vg_leader role | 2 |
+| `/reports.html` | Executives | Firebase Auth + executive role | 4 |
 
 
 ## 7. Backend — Cloud Run + FastAPI
@@ -146,7 +145,7 @@ Key API routes — primary routes only. Full route table (30+ routes) in [docs/A
 
 | Route | Role | Purpose |
 | :--- | :--- | :--- |
-| `POST /api/submit` | vg_leader | VG Leader / Member form submission |
+| `POST /api/submit` | authenticated | VG Leader / Member form submission |
 | `GET /api/me` | authenticated | Current user's profile |
 | `GET /api/persons` | admin | Person search (`?q=<name>`, min 2 chars; excludes rejected records) |
 | `POST /api/persons` | admin | Create person directly (admin "Create Profile" tool) |
@@ -154,8 +153,10 @@ Key API routes — primary routes only. Full route table (30+ routes) in [docs/A
 | `POST /api/persons/{id}/promote-to-leader` | admin | Atomic role + stage promotion |
 | `GET /api/events/{slug}/pre-check` | authenticated | Registration eligibility check |
 | `POST /api/events/{slug}/self-register` | authenticated | Self-registration (409 if duplicate) |
+| `POST /api/events` | admin | Create event (event_type_id, name, dates, venue, capacity, page_slug) |
 | `PATCH /api/events/{id}` | admin | Update event status, hero image, or capacity |
 | `POST /api/events/{id}/attend` | admin | Mark attendance; auto-creates registration for walk-ins |
+| `PATCH /api/event-registrations/{id}` | admin | Update registration status (no_show/attended), payment fields |
 | `PATCH /api/intern-relationships/{id}` | admin | Approve / reject / deactivate intern relationship |
 | `PATCH /api/intern-relationships/{id}/link` | admin | Link unresolved intern to a person_id |
 | `GET /api/intern-relationships` | admin | List intern relationships; used by admin queue Tabs 3 & 4 |
@@ -174,6 +175,12 @@ All writes first            Dataform hourly +              Looker Studio
 (Cloud Run API)             Pub/Sub immediate              Admin Portal
                                                            Leader Dashboard
 ```
+
+> **Exception — new user event registration:** Cloud Run performs one permitted direct
+> `victory_silver.persons` write (minimal record, `review_status = 'pending'`) to
+> resolve the `event_registrations.person_id` FK before Dataform runs. Bronze is still
+> written first. Dataform reconciles the full record on the next scheduled run.
+> Full specification: [docs/UX_FLOWS.md — Scenario 1](docs/UX_FLOWS.md).
 
 **BigQuery datasets:** `victory_bronze` · `victory_silver` · `victory_gold`
 **Trigger:** Dataform native `workflow_config` (hourly, Asia/Manila) + Cloud Function for near-real-time attendance.
