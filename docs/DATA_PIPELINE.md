@@ -92,7 +92,7 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `stg_occupations.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.person_occupations` | Scheduled (hourly, Dataform native) |
 | `stg_victory_groups.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.victory_groups` | Scheduled (hourly, Dataform native) |
 | `stg_vg_members.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.victory_group_members` | Scheduled (hourly, Dataform native) |
-| `stg_intern_relationships.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.intern_relationships` — always INSERTs a new `pending` record for each intern named in Section 3 of a leader form submission. No MERGE/dedup is applied. For each record, attempts a case-insensitive exact match of the typed intern first + last name against `victory_silver.persons` (WHERE `is_current = TRUE`): if exactly one match is found, `intern_person_id` is populated; if zero or multiple matches are found, `intern_person_id` is set to NULL and the record appears in the admin "Unresolved Interns" queue. `intern_first_name` and `intern_last_name` are always stored as typed. Admin reviews all pending and unresolved records in the admin review queue. | Scheduled (hourly, Dataform native) |
+| `stg_intern_relationships.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.intern_relationships` — INSERTs a new `pending` record for each intern named in Section 3 of a leader form submission, **unless** an `approved`, `is_active = TRUE` record already exists for the same `leader_person_id` + `intern_first_name` + `intern_last_name` combination (de-duplication rule — skips insert for already-confirmed interns on re-submission). Auto-match: case-insensitive exact match of the typed intern first + last name against `victory_silver.persons` (WHERE `is_current = TRUE`): if exactly one match, `intern_person_id` is populated; if zero or multiple matches, `intern_person_id` is set to NULL and the record appears in the admin "Unresolved Interns" queue (Tab 3). `intern_first_name` and `intern_last_name` are always stored as typed. | Scheduled (hourly, Dataform native) |
 | `stg_events.sqlx` | `2_silver` | `victory_bronze.raw_event_actions` (action_type = 'created') | `victory_silver.events` | Scheduled (hourly, Dataform native) |
 | `stg_registrations.sqlx` | `2_silver` | `victory_bronze.raw_event_actions` (action_type = 'registered') | `victory_silver.event_registrations` | Scheduled (hourly, Dataform native) |
 | `stg_attendances.sqlx` | `2_silver` | `victory_bronze.raw_event_actions` (action_type = 'attended') | `victory_silver.event_attendances` | Pub/Sub (immediate, via Cloud Function) |
@@ -114,6 +114,22 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 | `gold_business_network.sqlx` | `3_gold` | `victory_silver.persons` + `victory_silver.person_occupations` | `victory_gold.vw_business_network` | Scheduled (hourly, Dataform native) |
 
 > **Trigger note:** "Scheduled (hourly, Dataform native)" means the file runs as part of the full `workflow_config` cron run. "Pub/Sub (immediate, via Cloud Function)" means the file is also invoked as a scoped partial run when Cloud Function `dataform-attendance-trigger` fires — in addition to the hourly run.
+
+### Resubmission Reconcile Logic (`stg_vg_members.sqlx` + `stg_victory_groups.sqlx`)
+
+Both files implement **reconcile (replace)** behavior. The latest leader form submission is the authoritative source for active group membership.
+
+**`stg_vg_members.sqlx`:**
+- Members in the new Bronze submission but not currently active in Silver → INSERT new `victory_group_members` record.
+- Members currently `is_active = TRUE` in Silver but absent from the new submission → UPDATE `is_active = FALSE`, `removed_at = submission_timestamp`.
+- Members present in both → no change.
+
+**`stg_victory_groups.sqlx`:**
+- Groups in the new submission but not in Silver → INSERT (SCD2 new row).
+- Groups currently `is_current = TRUE` for the same leader but absent from the new submission → SCD2 close (`valid_to = NOW()`, `is_current = FALSE`, `is_active = FALSE`).
+- Groups present in both → SCD2 upsert of any changed fields if applicable.
+
+This prevents stale active member and group records from accumulating when leaders update their rosters.
 
 **Dataform assertions:** Each `.sqlx` file includes assertions that verify data quality before writing to the next layer (e.g. `assert person_id IS NOT NULL`, `assert email matches regex pattern`). A failing assertion stops the pipeline and sends an alert — bad data never reaches Gold.
 
@@ -181,7 +197,7 @@ When `POST /api/events/{id}/attend` writes an attendance record, Cloud Run publi
 
 **Rules:**
 - `equipping_step` MUST be included. Set to `null` if the event is not an equipping event — this short-circuits `discipleship_pipeline.sqlx` and avoids unnecessary pipeline execution.
-- The Cloud Function invocation targets only `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` (not a full warehouse run), bounded by `event_id` to minimize BigQuery slot usage.
+- The Cloud Function invocation is **scoped to `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` only** (not a full warehouse run). This minimizes BigQuery slot usage. Note: the `event_id` in the Pub/Sub payload is metadata for the Cloud Function — Dataform itself processes all pending Bronze records in those two files, not only the triggering event. There is no per-event-id filter inside Dataform.
 - If the Cloud Function fails or the Pub/Sub message is not delivered within 5 minutes, the hourly Dataform native schedule provides a guaranteed catch-up run. The pipeline is idempotent — re-running produces the same result.
 
 ### Dataform Native Scheduling
@@ -307,4 +323,4 @@ is_active · added_at · removed_at        payment_status · amount_paid · paym
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-24.*
+*Owner: @architect. Last updated: 2026-02-24. v4.6 amendments applied.*

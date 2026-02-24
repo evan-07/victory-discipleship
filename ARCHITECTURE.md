@@ -1,6 +1,6 @@
 # Victory Church — Master Architecture Plan
 
-**Version:** 4.4 (Compacted Master — Full detail in `docs/`)
+**Version:** 4.6 (Compacted Master — Full detail in `docs/`)
 **Classification:** Confidential — Internal Use Only
 **Scope:** Full-Stack System Design — Frontend, Backend, Data, DevOps, Security, Business Logic & UX
 
@@ -142,20 +142,25 @@ Stack: HTML + Alpine.js + Bootstrap 5 on Cloudflare Pages. No build step.
 
 Runtime: Python 3.12 / FastAPI / Cloud Run. Stateless. Scales to zero.
 
-Key API routes (full table in [docs/API.md](docs/API.md)):
+Key API routes — primary routes only. Full route table (30+ routes) in [docs/API.md](docs/API.md):
 
 | Route | Role | Purpose |
 | :--- | :--- | :--- |
 | `POST /api/submit` | vg_leader | VG Leader / Member form submission |
 | `GET /api/me` | authenticated | Current user's profile |
-| `GET /api/persons` | admin | Person search (`?q=<name>`, min 2 chars) |
+| `GET /api/persons` | admin | Person search (`?q=<name>`, min 2 chars; excludes rejected records) |
+| `POST /api/persons` | admin | Create person directly (admin "Create Profile" tool) |
 | `PATCH /api/persons/{id}` | admin | SCD2 close-and-insert update |
 | `POST /api/persons/{id}/promote-to-leader` | admin | Atomic role + stage promotion |
 | `GET /api/events/{slug}/pre-check` | authenticated | Registration eligibility check |
 | `POST /api/events/{slug}/self-register` | authenticated | Self-registration (409 if duplicate) |
+| `PATCH /api/events/{id}` | admin | Update event status, hero image, or capacity |
 | `POST /api/events/{id}/attend` | admin | Mark attendance; auto-creates registration for walk-ins |
 | `PATCH /api/intern-relationships/{id}` | admin | Approve / reject / deactivate intern relationship |
 | `PATCH /api/intern-relationships/{id}/link` | admin | Link unresolved intern to a person_id |
+| `GET /api/intern-relationships` | admin | List intern relationships; used by admin queue Tabs 3 & 4 |
+| `POST /api/intern-relationships` | admin | Admin creates an intern relationship directly (bypasses leader form) |
+| `PATCH /api/vg-members/{id}/link` | admin | Link a VG member name record to an existing person_id |
 
 
 ## 8. Data Architecture
@@ -238,11 +243,11 @@ Looker Studio connects via BigQuery native connector. `vw_leader_dashboard` requ
 
 | Phase | Focus | Scope |
 | :--- | :--- | :--- |
-| **Phase 1** | Foundations & Core CRM + Event Registration | Monorepo, Cloud Run, BigQuery Bronze/Silver/Gold, Dataform, VG Leader Form, Member Profile (`/profile.html`), Admin Review Queue, Google Sign-In, RBAC, Event Landing Pages, Self-registration, Duplicate checking. |
-| **Phase 2** | Event Operations & Reporting | Admin Event Management UI, Attendance tracking and check-in, Looker Studio executive dashboards. |
-| **Phase 3** | Discipleship Pipeline | Equipping class cohorts, Enrollment logic, Discipleship milestones, Looker Studio drill-downs. |
-| **Phase 4** | Automation & Scale | **Person merging logic**, Audit logging, Advanced engagement scoring, Performance tuning. |
-| **Phase 5** | Member Engagement Dashboard | Extended `/profile` — badge collection, event history timeline, ministry involvement, pathway progress. |
+| **Phase 1** | Foundations & Core CRM + Event Registration | Monorepo, Cloud Run, BigQuery Bronze/Silver/Gold, Dataform, Member Profile (`/profile.html`), Admin Review Queue, Google Sign-In, RBAC, Event Landing Pages, Self-registration, Duplicate checking, Admin Event Management UI, Attendance tracking. |
+| **Phase 2** | VG Leader Operations | VG Leader Form (`/leader.html`), Leader Dashboard (`/dashboard.html`), Group & member lifecycle, Intern relationship management, Equipping class roster, Enrollment logic, Discipleship milestones. |
+| **Phase 3** | Pastoral Events | Pastoral event self-registration (Weddings, Child Dedications, Business Dedications). |
+| **Phase 4** | Executive Reporting | Looker Studio executive dashboards (`/reports`), Looker Studio drill-downs. |
+| **Phase 5** | Automation & Engagement | **Person merging logic**, Audit logging, Advanced engagement scoring, Performance tuning, Extended `/profile` (badge collection, event history timeline, ministry involvement, pathway progress). |
 
 
 ## 14. Naming Conventions
@@ -271,14 +276,29 @@ Key rules at a glance:
 
 All architectural decisions are documented in the decision log. Any deviation from this architecture requires a new entry there and an `@architect` review.
 
-**Recent decisions (2026-02-24):**
+**v4.5 decisions (2026-02-24):**
 - Facebook Profile encouraged at Contact, required at Member
 - `intern_person_id` made nullable; raw name capture added; auto-match + admin link queue
 - Duplicate resolution: Phase 1 keep-one approach; Phase 4 full merge
 - VG Leader promotion: atomic Steps 3 & 4 via `POST /api/persons/{id}/promote-to-leader`
 - Gold views: binding `review_status != 'rejected'` filter on all `victory_silver.persons` joins
 - Admin Review Queue restructured into 4 tabs
+- `stg_intern_relationships` skips insert when active approved relationship already exists
+- Queue routing: pending + duplicate records → Tab 2 only until duplicate is resolved
+- `POST /api/events/{slug}/self-register` accepts optional profile payload for new/incomplete users
+
+**v4.6 decisions (2026-02-24):**
+- `event_registrations.status` (`attended`/`no_show`) — manual admin PATCH only; Dataform never writes it
+- `stg_vg_members.sqlx` + `stg_victory_groups.sqlx` — reconcile (replace) behavior; latest form = source of truth
+- Admin Review Queue expanded to 5 tabs — Tab 5: Unlinked VG Members (`person_id IS NULL`)
+- Ministry memberships — admin-only, Phase 1; no self-service path
+- Event capacity — informational only in Phase 1; no registration blocking
+- Account-claiming — email-match fallback on first Google Sign-In; direct `google_uid` UPDATE (not SCD2)
+- `GET /api/persons` excludes `review_status = 'rejected'` records
+- `data_change_log` — Cloud Run only; Dataform never writes to it
+- Event status — all transitions manual admin; cancellation does not auto-cancel registrations
+- Pastoral self-register — registrant ≠ celebrant; celebrant captured as `source = 'pastoral_event'` Contact record
 
 ---
 
-*Victory Church · Master Architecture Plan · v4.4 · Confidential — Internal Use Only*
+*Victory Church · Master Architecture Plan · v4.6 · Confidential — Internal Use Only*

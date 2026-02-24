@@ -30,7 +30,7 @@ Each stage has required information that must be collected and maintained. Field
 | First Name | victory_silver.persons.first_name | |
 | Middle Name | victory_silver.persons.middle_name | Common in PH (mother's maiden name) |
 | Last Name | victory_silver.persons.last_name | |
-| Suffix | victory_silver.persons.suffix | Jr., Sr., III, etc. — None if not applicable |
+| Suffix | victory_silver.persons.suffix | Jr., Sr., III, etc. — Form pre-populates with 'None' when not applicable. Never NULL after form submission. |
 | Address | victory_silver.persons.address | Full address, single text field |
 | Contact Number | victory_silver.person_contacts (type: mobile) | |
 | Birthday | victory_silver.persons.birthdate | |
@@ -43,13 +43,16 @@ Each stage has required information that must be collected and maintained. Field
 - **Characteristics:** Part of a Victory Group as a member. Attends events and services.
 - **Self-service data collection:** VG Members submit their employment info and VG Leader name via `/profile.html` (Google Sign-In). The form pre-fills from their existing Silver record and writes to `victory_bronze.raw_form_submissions`. Dataform reconciles on the next scheduled run. Admin may also enter this data directly via the admin portal.
 - **Admin portal soft-warning:** When admin sets `journey_stage = member`, the portal checks whether `vg_leader_first_name` and `vg_leader_last_name` are populated. If either is missing, a soft warning is displayed: *"VG Leader name is missing for this member. Please collect and enter it."* This does **not** block the stage transition — admin may proceed — but the warning ensures the gap is visible. The record will appear with a low `profile_completeness_pct` in admin views until resolved.
-- **Next step:** Become a VG Intern while progressing through the Equipping Pathway.
+- **Next step:** *(Phase 1)* A Member can be promoted directly to VG Leader by admin — no intern stage required. *(Phase 2)* The full intermediate intern stage is available, allowing a Member to become a VG Intern while progressing through the Equipping Pathway before becoming a leader.
 - **Note on One2One:** The One2One completion is currently communicated verbally by the leader to admin. There is no system-triggered notification. Admin records it manually via PATCH on the person record.
 
 **Required fields (all Contact fields plus):**
 
+> **Facebook Profile transition:** Facebook Profile was *encouraged* at Contact stage. It becomes **required** at Member stage. The admin portal and `/profile.html` enforce this field from Member stage onward *(Phase 1)*. `/leader.html` enforcement is added in *Phase 2* when the VG Leader form ships.
+
 | Field | Storage Location | Notes |
 | :--- | :--- | :--- |
+| Facebook Profile | victory_silver.person_contacts (type: facebook) | Required from this stage onward (was encouraged at Contact). |
 | Employment Type | victory_silver.person_occupations.employment_type | employed or self_employed |
 | If employed: Nature of Work | victory_silver.person_occupations.nature_of_work | e.g. Accounting, Engineering, Teaching |
 | If employed: Company Name | victory_silver.person_occupations.company_name | |
@@ -60,11 +63,14 @@ Each stage has required information that must be collected and maintained. Field
 
 ### Stage 03 — VG Intern
 
+> **Phase 2.** All intern stage management — including setting `journey_stage = intern`, the VG Leader form, and intern relationship tracking — ships in Phase 2.
+
 - **Definition:** Being discipled, training to lead.
 - **Entry point — two steps, both required:**
   1. **Admin** sets `journey_stage = intern` on the person's record in the admin portal.
-  2. **VG Leader** identifies the intern on the VG Leader form (Section 3 — Interns I'm Supervising). This creates a `pending` `intern_relationships` record. Admin reviews and confirms in the admin portal, which activates the relational link (`review_status = 'approved'`, `is_active = TRUE`).
+  2. **VG Leader** identifies the intern on the VG Leader form (Section 3 — Interns I'm Supervising) *(VG Leader form ships in Phase 2)*. This creates a `pending` `intern_relationships` record. Admin reviews and confirms in the admin portal, which activates the relational link (`review_status = 'approved'`, `is_active = TRUE`).
 - **Sequencing:** Either step may happen first, but the `intern_relationships` record is not considered active until admin confirms it. The Silver pipeline only syncs `vg_leader_first_name/last_name` from an `approved` relationship.
+- **De-duplication rule:** `stg_intern_relationships` skips inserting a new `pending` record when an `approved`, `is_active = TRUE` relationship already exists for the same `leader_person_id` + `intern_first_name` + `intern_last_name` combination. This prevents duplicate pending records accumulating every time a leader re-submits their form with the same confirmed interns listed. New interns (no existing active approved relationship) always create a new `pending` record as usual.
 - **Characteristics:** Active intern under a VG Leader. Listed in `victory_silver.intern_relationships` linked to their supervising leader (after admin confirmation).
 - **Admin queue alert — unlinked interns:** The admin portal surfaces a dedicated alert queue for persons where `journey_stage = 'intern'` but no `intern_relationships` record with `review_status = 'approved'` and `is_active = TRUE` exists. These are interns who have been stage-promoted but whose relational link is pending, unresolved, or missing. Admin is prompted to either approve a pending relationship or create one directly via `POST /api/intern-relationships`.
 - **Next step:** Lead their own group → becomes a VG Leader.
@@ -80,13 +86,16 @@ Each stage has required information that must be collected and maintained. Field
 ### Stage 04 — VG Leader
 
 - **Definition:** Leading their own Victory Group(s).
-- **Entry point — five sequential admin actions (all required):**
+- **Entry point — Phase 1 (direct promotion):**
+  Admin clicks **`[ Promote to VG Leader ]`** directly on the person's record in the admin portal. No form submission required. This button simultaneously (a) INSERTs the `vg_leader` role into `victory_silver.person_roles` and (b) SCD2 PATCHes `journey_stage = 'leader'` on `victory_silver.persons` in a single API call (`POST /api/persons/{id}/promote-to-leader`).
+
+- **Entry point — Phase 2 (five sequential admin actions, all required):**
   1. Person submits VG Leader form (`/leader.html`). Admin must wait until after the next Dataform run (up to 1 hour) for the leader's victory groups to appear in `victory_silver.victory_groups` before proceeding to Step 2.
   2. Admin reviews the submission in the admin portal (approves the person record — `review_status = 'approved'`).
   3. **Admin executes Steps 3 and 4 as a single atomic UI action:** The admin portal exposes a single **"Promote to VG Leader"** button on the person's record view. This button simultaneously (a) INSERTs the `vg_leader` role into `victory_silver.person_roles` and (b) SCD2 PATCHes `journey_stage = 'leader'` on `victory_silver.persons` in a single API call (`POST /api/persons/{id}/promote-to-leader`). The two operations are never performed as separate actions — splitting them creates a data inconsistency state. A person with mismatched role and stage is surfaced as a **data inconsistency warning** in the person's record view with a prompt to resolve.
   4. *(Included in Step 3 atomic action — see above.)*
   5. **Admin closes the person's active intern relationship** (if they were previously a VG Intern). Immediately after the "Promote to VG Leader" action completes, the admin portal checks for any active `intern_relationships` records (`is_active = TRUE`) for this person. If found, an **inline prompt** is displayed: *"This person has an active intern relationship with [Leader Name]. Close it now?"* with a **[ Close Relationship ]** button that calls `PATCH /api/intern-relationships/{id}` with `is_active = FALSE` and `end_date = today`. Admin must explicitly act — the system does not auto-close. If dismissed, the portal re-surfaces the open relationship as a warning on the person's record view until resolved.
-- **Characteristics:** Has at least one active group in `victory_silver.victory_groups`. Fills in the VG Leader form. Has the `vg_leader` role in `victory_silver.person_roles`.
+- **Characteristics:** Has at least one active group in `victory_silver.victory_groups`. *(Phase 2)* Fills in the VG Leader form (`/leader.html`) as part of the promotion flow — in Phase 1, the leader is promoted directly by admin without form submission. Has the `vg_leader` role in `victory_silver.person_roles`.
 - **Encouraged to:** Complete Equipping Pathway if not already done. Go back for Spiritual Foundations if on old pathway.
 
 **Required fields (all Member/Intern fields plus):**
@@ -122,7 +131,9 @@ Note: The VG Leader form captures group and member information directly. The num
 | `last_name` | STRING | Required. |
 | `suffix` | STRING | Jr., Sr., III, etc. NULL if not applicable. |
 | `full_name` | STRING | Computed by Silver pipeline: first_name middle_name last_name suffix. |
+| `birthdate` | DATE | Required at Contact stage. Used in duplicate detection (name + birthday match). |
 | `address` | STRING | Full address, single text field. |
+| `email` | STRING | Firebase Auth email. Retained for account-matching when admin-created records claim their Google account on first sign-in. Canonical contact store is `victory_silver.person_contacts`. |
 | `is_in_victory_group` | BOOL | Captured during event registration. NULL = not yet answered. |
 | `vg_leader_first_name` | STRING | First name of their VG Leader. Set at member/intern stage. |
 | `vg_leader_last_name` | STRING | Last name of their VG Leader. Set at member/intern stage. |
@@ -139,6 +150,8 @@ Note: The VG Leader form captures group and member information directly. The num
 ---
 
 ## Equipping Pathway
+
+> **Phase 2.** Equipping class batch creation, enrollment management, and discipleship milestone tracking ship in Phase 2 alongside the VG Leader form and leader dashboard. The pathway data model is defined here for reference; admin-managed entry points activate in Phase 2.
 
 Admin-managed, not self-reported. VG Leaders and Members are never asked what they've completed — the admin records it. The pathway has two valid versions (old and new). Both are permanently valid.
 
@@ -185,4 +198,4 @@ Completion logic lives in Gold views, not the Silver schema. When the pathway ch
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-24.*
+*Owner: @architect. Last updated: 2026-02-24. v4.5 amendments applied.*

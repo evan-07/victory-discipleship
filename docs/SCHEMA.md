@@ -53,7 +53,7 @@ google_uid                  STRING               -- Firebase Auth UID
 first_name                  STRING     NOT NULL
 middle_name                 STRING               -- Mother's maiden name (common in PH)
 last_name                   STRING     NOT NULL
-suffix                      STRING               -- Jr., Sr., III, etc. NULL if not applicable
+suffix                      STRING               -- Jr., Sr., III, etc. NULL permissible in schema (legacy/admin-created records). Forms always pre-populate with 'None' when not applicable — never NULL after a form submission.
 full_name                   STRING     NOT NULL  -- Computed: "first middle last suffix"
 
 -- Contact (core — additional contacts via victory_silver.person_contacts)
@@ -97,6 +97,13 @@ Exact-match only — no fuzzy matching. A duplicate is flagged when ALL conditio
 The canonical record is the older `person_id` (lower `valid_from`). Middle name is intentionally excluded from the match key — middle name capture is inconsistent during early data migration.
 
 **Pipeline behavior:** Sets `duplicate_flag = TRUE` and `duplicate_of_person_id = <canonical_id>`. The pipeline never auto-merges. Admin reviews in the pending queue and manually resolves.
+
+**`profile_completeness_pct` formula (`stg_persons.sqlx`):**
+- Contact stage required fields (6): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, mobile contact record (`person_contacts` WHERE `contact_type = 'mobile'` AND `is_current = TRUE`). `suffix` is excluded — the form always pre-populates it with 'None' so it is never NULL after submission. Facebook is excluded from the Contact-stage formula — it is encouraged but non-blocking at this stage.
+- Member+ stage adds 5 more: facebook contact record (`person_contacts` WHERE `contact_type = 'facebook'` AND `is_current = TRUE`), `employment_type`, **one** applicable conditional field (`nature_of_work` OR `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted), `vg_leader_first_name`, `vg_leader_last_name`. Total employment contribution: 2 fields (`employment_type` + 1 conditional field).
+- Formula: `(count of non-NULL required fields for this person's journey_stage) / (total required fields for that stage) × 100`.
+- `facebook_profile` counts as present when a `person_contacts` record exists with `contact_type = 'facebook'` and `is_current = TRUE`. Only counted as a required field for `journey_stage IN ('member', 'intern', 'leader')` — not counted for `journey_stage = 'contact'`.
+- Defaults to `0` for new users until the next Dataform run. Pre-check computes completeness dynamically via JOINs during this window.
 
 victory_silver.person_contacts (SCD2)
 ```sql
@@ -158,7 +165,7 @@ assigned_by     STRING     NOT NULL  -- FK → victory_silver.persons (admin)
 assigned_at     TIMESTAMP  NOT NULL
 is_active       BOOL       NOT NULL  DEFAULT TRUE
 ```
-victory_silver.equipping_classes
+victory_silver.equipping_classes (Phase 2)
 ```sql
 class_id                STRING     NOT NULL  -- UUID
 canonical_step          STRING     NOT NULL  -- victory_weekend|discipleship_class|
@@ -173,7 +180,7 @@ status                  STRING     NOT NULL  -- upcoming|ongoing|completed|cance
 created_by              STRING               -- FK → victory_silver.persons (admin)
 created_at              TIMESTAMP  NOT NULL
 ```
-victory_silver.equipping_enrollments
+victory_silver.equipping_enrollments (Phase 2)
 ```sql
 enrollment_id           STRING     NOT NULL  -- UUID
 class_id                STRING     NOT NULL  -- FK → victory_silver.equipping_classes
@@ -217,11 +224,27 @@ status            STRING     NOT NULL  -- registration_open|closed|completed|can
 created_by        STRING               -- FK → victory_silver.persons (admin)
 created_at        TIMESTAMP  NOT NULL
 ```
+
+**Event Status Lifecycle — all transitions are manual admin actions. No auto-transitions.**
+
+| Status | Trigger | Who Sets It |
+| :--- | :--- | :--- |
+| `registration_open` | Admin manually opens registration | Admin via `PATCH /api/events/{id}` |
+| `closed` | Admin manually closes after event date or when full | Admin via `PATCH /api/events/{id}` |
+| `completed` | Admin marks after event and attendance fully recorded | Admin via `PATCH /api/events/{id}` |
+| `cancelled` | Admin cancels the event | Admin via `PATCH /api/events/{id}` |
+
+- Status never transitions automatically. No capacity-based auto-close.
+- Cancellation does **not** auto-cancel existing `event_registrations` records — admin manages registrations individually if needed.
+- `capacity` field is informational only in Phase 1 — registration is not blocked when capacity is reached.
+
 victory_silver.event_registrations (self-register + admin)
 ```sql
 registration_id       STRING     NOT NULL  -- UUID (deterministic hash of event_id + person_id for self-reg)
 event_id              STRING     NOT NULL  -- FK → victory_silver.events
-person_id             STRING               -- FK → victory_silver.persons (NULL if no account yet)
+person_id             STRING               -- FK → victory_silver.persons. In all Phase 1 flows, always
+                                           -- populated before registration insert. Nullable as a schema
+                                           -- safety margin for future pastoral celebrant flows only.
 status                STRING     NOT NULL  -- registered|attended|no_show|cancelled
 payment_status        STRING               -- pending|paid|waived|N/A
 amount_paid           NUMERIC
@@ -235,6 +258,13 @@ registration_source   STRING               -- self|admin|bulk
 
 Duplicate registration prevention: For self-registrations, registration_id is computed as SHA256(event_id + ':' + person_id). This deterministic ID ensures that even if the API is called twice for the same person + event combination, only one registration record exists. The API also performs a pre-insert check and returns HTTP 409 if an active registration already exists.
 
+**`event_registrations.status` semantics:**
+- `registered` — default state on creation.
+- `attended` — set post-event by `POST /api/events/{id}/attend` (same call that writes attendance to Bronze → `event_attendances`). Updated in-place on the registration record. NOT set by Dataform pipeline.
+- `no_show` — admin manually sets after the event closes for registrants who did not attend, via `PATCH /api/event-registrations/{id}`.
+- `cancelled` — admin or registrant cancels the registration.
+- **The Dataform pipeline never writes to `event_registrations.status`.** The primary attendance record is `event_attendances`; `event_registrations.status` is updated as a direct in-place write by the attend endpoint. Attendance marking is a post-event admin action — not performed at the venue door.
+
 victory_silver.event_attendances (admin check-in)
 ```sql
 attendance_id       STRING     NOT NULL  -- UUID
@@ -246,7 +276,7 @@ check_in_method     STRING     NOT NULL  -- manual|qr_scan
 checked_in_by       STRING               -- FK → victory_silver.persons (admin)
 session_tag         STRING               -- e.g. "morning" / "afternoon" for multi-session events
 ```
-victory_silver.victory_groups (SCD2)
+victory_silver.victory_groups (SCD2 — Phase 2)
 ```sql
 group_id              STRING     NOT NULL  -- UUID
 leader_person_id      STRING     NOT NULL  -- FK → victory_silver.persons
@@ -257,7 +287,7 @@ valid_from            TIMESTAMP  NOT NULL
 valid_to              TIMESTAMP            -- NULL = current record
 is_current            BOOL       NOT NULL  DEFAULT TRUE
 ```
-victory_silver.victory_group_members
+victory_silver.victory_group_members (Phase 2)
 ```sql
 membership_id         STRING     NOT NULL  -- UUID
 group_id              STRING     NOT NULL  -- FK → victory_silver.victory_groups
@@ -271,13 +301,26 @@ removed_at            TIMESTAMP            -- NULL = currently active
 
 **Linking strategy:** `person_id` is NULL when the VG member has not yet been registered in the system. This allows leaders to submit member names immediately without requiring every member to have a system account first.
 
-**Admin linking procedure:** The admin portal surfaces unlinked members (where `person_id IS NULL`) in a dedicated "Unlinked VG Members" queue accessible from `/admin`. For each unlinked member, the admin can:
+**Resubmission reconcile behavior (`stg_vg_members.sqlx` and `stg_victory_groups.sqlx`):**
+
+The pipeline implements **reconcile (replace)** behavior — the latest leader form submission is the source of truth for active group membership.
+
+For `victory_group_members`: On each leader form re-submission, the pipeline:
+1. Reads all member names listed in the new Bronze submission for each group.
+2. Compares against current `is_active = TRUE` members in `victory_group_members` for that group.
+3. Members in the new submission but not in Silver → INSERT (new members).
+4. Members in Silver (`is_active = TRUE`) but absent from the new submission → UPDATE `is_active = FALSE`, `removed_at = submission_timestamp`.
+5. Members present in both → no change.
+
+For `victory_groups`: Groups absent from the latest leader form submission for a given leader → SCD2 close (`valid_to = NOW()`, `is_current = FALSE`, `is_active = FALSE`). New groups → INSERT. This prevents stale active group records accumulating over time.
+
+**Admin linking procedure:** The admin portal surfaces unlinked members (where `person_id IS NULL`) in a dedicated "Unlinked VG Members" queue (Tab 5 of the Admin Review Queue). For each unlinked member, the admin can:
 1. **Search for existing person** — Admin types the member's name; system calls `GET /api/persons?q=<name>` to search `victory_silver.persons`.
 2. **Link** — Admin selects the matching person; calls `PATCH /api/vg-members/{membership_id}/link` with `{ "person_id": "<uuid>" }` (admin role required).
 3. **Create new person** — If no match found, admin creates a new Contact-stage record; system auto-links after creation.
 4. **Leave unlinked** — Admin can dismiss; `person_id` remains NULL and member name is captured but not linked.
 
-victory_silver.intern_relationships
+victory_silver.intern_relationships (Phase 2)
 ```sql
 relationship_id     STRING     NOT NULL  -- UUID, primary key
 intern_person_id    STRING               -- FK → victory_silver.persons. NULLABLE. NULL when the name typed by
@@ -307,7 +350,7 @@ source              STRING     NOT NULL  -- leader_form|admin_created
 **Lifecycle management:**
 - **Creation:** Dataform `stg_intern_relationships.sqlx` INSERTs a new `pending` record whenever a VG Leader names an intern in Section 3 of their form submission. Admin also creates records directly via `POST /api/intern-relationships` (admin-created, auto-approved).
 - **Approval:** Admin sets `review_status = 'approved'` via `PATCH /api/intern-relationships/{id}`. The Silver pipeline syncs the `vg_leader_first_name/last_name` display cache on the intern's `victory_silver.persons` record on the next scheduled run.
-- **Duplicate pending records:** If the same intern is named across multiple leader form resubmissions, each generates a new `pending` record. Admin reviews the queue and rejects duplicates — only one `approved` record per active intern-leader pair should exist.
+- **Duplicate pending records:** `stg_intern_relationships.sqlx` skips inserting a new `pending` record when an `approved`, `is_active = TRUE` record already exists for the same `leader_person_id` + `intern_first_name` + `intern_last_name` combination. This prevents duplicate pending entries accumulating on every leader form re-submission. New interns (no existing active approved relationship) always create a new `pending` record.
 - **Closure (intern → leader promotion):** When an intern is promoted to VG Leader, admin must set `is_active = FALSE` and `end_date = today` via `PATCH /api/intern-relationships/{id}`. This is step 5 of the Stage 04 entry process. Without this, the former intern remains in active intern counts and in the supervising leader's form pre-fill indefinitely.
 victory_silver.ministry_catalog + victory_silver.ministry_memberships
 ```sql
@@ -352,6 +395,11 @@ old_value    JSON
 new_value    JSON
 ```
 
+**`data_change_log` population rules:**
+- **Who populates it:** Cloud Run backend only. Dataform pipelines do NOT write to `data_change_log`.
+- **Which operations are logged:** All admin PATCH on SCD2 tables (`persons`, `person_contacts`, `person_occupations`, `victory_groups`); all `person_roles` INSERTs and deactivations; all `intern_relationships` status changes (approve / reject / close); all `review_status` changes on `persons`; the `promote-to-leader` atomic action.
+- **Gold view:** Not exposed in any Gold view. Audit access is admin-only via raw BigQuery query or a future admin audit screen.
+
 Table Inventory Summary
 | Dataset | Table | Type | Phase |
 | :--- | :--- | :--- | :--- |
@@ -362,16 +410,16 @@ Table Inventory Summary
 | `victory_silver` | `person_contacts` | SCD2 | Phase 1 |
 | `victory_silver` | `person_occupations` | SCD2 | Phase 1 |
 | `victory_silver` | `person_roles` | Admin-managed | Phase 1 |
-| `victory_silver` | `equipping_classes` | Admin-managed | Phase 1 |
-| `victory_silver` | `equipping_enrollments` | Admin-managed | Phase 1 |
+| `victory_silver` | `equipping_classes` | Admin-managed | Phase 2 |
+| `victory_silver` | `equipping_enrollments` | Admin-managed | Phase 2 |
 | `victory_silver` | `event_type_catalog` | Admin-managed | Phase 1 |
 | `victory_silver` | `events` | Admin-managed | Phase 1 |
 | `victory_silver` | `event_registrations` | Self-register + admin | Phase 1 |
 | `victory_silver` | `event_attendances` | Admin check-in | Phase 1 |
 | `victory_silver` | `headcounts` | Admin-managed | Phase 1 |
-| `victory_silver` | `victory_groups` | SCD2 | Phase 1 |
-| `victory_silver` | `victory_group_members` | Leader form capture | Phase 1 |
-| `victory_silver` | `intern_relationships` | Admin-managed | Phase 1 |
+| `victory_silver` | `victory_groups` | SCD2 | Phase 2 |
+| `victory_silver` | `victory_group_members` | Leader form capture | Phase 2 |
+| `victory_silver` | `intern_relationships` | Admin-managed | Phase 2 |
 | `victory_silver` | `ministry_catalog` | Admin-managed | Phase 1 |
 | `victory_silver` | `ministry_memberships` | Admin-managed | Phase 1 |
 | `victory_silver` | `data_change_log` | Audit log | Phase 1 |
@@ -381,4 +429,4 @@ Table Inventory Summary
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-24.*
+*Owner: @architect. Last updated: 2026-02-24. v4.6 amendments applied.*
