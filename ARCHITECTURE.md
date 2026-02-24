@@ -1,6 +1,6 @@
 # Victory Church — Master Architecture Plan
 
-**Version:** 4.0 (Refined)
+**Version:** 4.3 (BA Walkthrough — Process Gaps Resolved & Amendments Applied)
 **Classification:** Confidential — Internal Use Only
 **Scope:** Full-Stack System Design — Frontend, Backend, Data, DevOps, Security, Business Logic & UX
 
@@ -96,13 +96,15 @@ Each stage has required information that must be collected and maintained. Field
 | Address | silver.persons.address | Full address, single text field |
 | Contact Number | silver.person_contacts (type: mobile) | |
 | Birthday | silver.persons.birthdate | |
-| Facebook Profile | silver.person_contacts (type: facebook) | URL or profile name |
+| Facebook Profile | silver.person_contacts (type: facebook) | URL or profile name — **encouraged at Contact stage, required from Member stage onward** |
 
 ### Stage 02 — Member
 
 - **Definition:** Completed One2One, part of the movement. Consumer stage.
 - **Entry point:** Admin records `one2one_completed = true` and `one2one_date`. Sets `journey_stage = member`.
 - **Characteristics:** Part of a Victory Group as a member. Attends events and services.
+- **Self-service data collection:** VG Members submit their employment info and VG Leader name via `/profile.html` (Google Sign-In). The form pre-fills from their existing Silver record and writes to `bronze.raw_form_submissions`. Dataform reconciles on the next scheduled run. Admin may also enter this data directly via the admin portal.
+- **Admin portal soft-warning:** When admin sets `journey_stage = member`, the portal checks whether `vg_leader_first_name` and `vg_leader_last_name` are populated. If either is missing, a soft warning is displayed: *"VG Leader name is missing for this member. Please collect and enter it."* This does **not** block the stage transition — admin may proceed — but the warning ensures the gap is visible. The record will appear with a low `profile_completeness_pct` in admin views until resolved.
 - **Next step:** Become a VG Intern while progressing through the Equipping Pathway.
 
 **Required fields (all Contact fields plus):**
@@ -120,21 +122,31 @@ Each stage has required information that must be collected and maintained. Field
 ### Stage 03 — VG Intern
 
 - **Definition:** Being discipled, training to lead.
-- **Entry point:** Admin sets `journey_stage = intern` and the VG Leader records them as an intern on the leader form.
-- **Characteristics:** Active intern under a VG Leader. Listed in `silver.intern_relationships` linked to their supervising leader.
+- **Entry point — two steps, both required:**
+  1. **Admin** sets `journey_stage = intern` on the person's record in the admin portal.
+  2. **VG Leader** identifies the intern on the VG Leader form (Section 3 — Interns I'm Supervising). This creates a `pending` `intern_relationships` record. Admin reviews and confirms in the admin portal, which activates the relational link (`review_status = 'approved'`, `is_active = TRUE`).
+- **Sequencing:** Either step may happen first, but the `intern_relationships` record is not considered active until admin confirms it. The Silver pipeline only syncs `vg_leader_first_name/last_name` from an `approved` relationship.
+- **Characteristics:** Active intern under a VG Leader. Listed in `silver.intern_relationships` linked to their supervising leader (after admin confirmation).
+- **Admin queue alert — unlinked interns:** The admin portal surfaces a dedicated alert queue for persons where `journey_stage = 'intern'` but no `intern_relationships` record with `review_status = 'approved'` and `is_active = TRUE` exists. These are interns who have been stage-promoted but whose relational link is pending, unresolved, or missing. Admin is prompted to either approve a pending relationship or create one directly via `POST /api/intern-relationships`.
 - **Next step:** Lead their own group → becomes a VG Leader.
 
 **Required fields:** Same as Member. The intern is still under a VG Leader and has the same data requirements.
 
 **Leader linkage — two layers:**
 - `vg_leader_first_name` / `vg_leader_last_name` on `silver.persons` — display cache. Pre-populated when the person was at member stage and may reference a leader not yet in the system. Present at all stages.
-- `silver.intern_relationships.leader_person_id` — canonical FK for the intern-leader data relationship. Requires the supervising leader to be a registered `silver.persons` record. This is the authoritative relational link for interns.
-- The Silver pipeline (`stg_persons.sqlx`) derives and keeps `vg_leader_first_name/last_name` in sync from the linked leader's `first_name`/`last_name` when a valid `leader_person_id` exists in `intern_relationships`.
+- `silver.intern_relationships.leader_person_id` — canonical FK for the intern-leader data relationship. Requires the supervising leader to be a registered `silver.persons` record. `review_status = 'approved'` indicates the admin has confirmed the relationship. This is the authoritative relational link for interns.
+- The Silver pipeline (`stg_persons.sqlx`) derives and keeps `vg_leader_first_name/last_name` in sync from the linked leader's `first_name`/`last_name` when a valid `leader_person_id` exists in `intern_relationships` with `review_status = 'approved'`.
+- If multiple active approved relationships exist for the same intern (edge case), the pipeline uses the most recent `start_date`.
 
 ### Stage 04 — VG Leader
 
 - **Definition:** Leading their own Victory Group(s).
-- **Entry point:** Submitted the VG Leader form → admin reviewed → admin assigned `vg_leader` role → `journey_stage = leader`.
+- **Entry point — five sequential admin actions (all required):**
+  1. Person submits VG Leader form (`/leader.html`). Admin must wait until after the next Dataform run (up to 1 hour) for the leader's victory groups to appear in `silver.victory_groups` before proceeding to Step 2.
+  2. Admin reviews the submission in the admin portal (approves the person record — `review_status = 'approved'`).
+  3. **Admin executes Steps 3 and 4 as a single atomic UI action:** The admin portal exposes a single **"Promote to VG Leader"** button on the person's record view. This button simultaneously (a) INSERTs the `vg_leader` role into `silver.person_roles` and (b) SCD2 PATCHes `journey_stage = 'leader'` on `silver.persons` in a single API call (`POST /api/persons/{id}/promote-to-leader`). The two operations are never performed as separate actions — splitting them creates a data inconsistency state (`vg_leader` role without `journey_stage = 'leader'`, or vice versa). The admin portal must not expose separate controls for these two fields on a person already being promoted. A person with mismatched role and stage (e.g., from a prior incomplete action) is surfaced as a **data inconsistency warning** in the person's record view with a prompt to resolve.
+  4. *(Included in Step 3 atomic action — see above.)*
+  5. **Admin closes the person's active intern relationship** (if they were previously a VG Intern). Immediately after the "Promote to VG Leader" action completes, the admin portal checks for any active `intern_relationships` records (`is_active = TRUE`) for this person. If found, an **inline prompt** is displayed: *"This person has an active intern relationship with [Leader Name]. Close it now?"* with a **[ Close Relationship ]** button that calls `PATCH /api/intern-relationships/{id}` with `is_active = FALSE` and `end_date = today`. Admin must explicitly act — the system does not auto-close. If dismissed, the portal re-surfaces the open relationship as a warning on the person's record view until resolved. Without this step, the former intern remains in active intern counts and in their supervising leader's form pre-fill indefinitely.
 - **Characteristics:** Has at least one active group in `silver.victory_groups`. Fills in the VG Leader form. Has the `vg_leader` role in `silver.person_roles`.
 - **Encouraged to:** Complete Equipping Pathway if not already done. Go back for Spiritual Foundations if on old pathway.
 
@@ -157,7 +169,7 @@ Note: The VG Leader form captures group and member information directly. The num
 | Address | ✅ | ✅ | ✅ | ✅ |
 | Contact Number | ✅ | ✅ | ✅ | ✅ |
 | Birthday | ✅ | ✅ | ✅ | ✅ |
-| Facebook Profile | ✅ | ✅ | ✅ | ✅ |
+| Facebook Profile | ○ encouraged | ✅ | ✅ | ✅ |
 | Employment Info | — | ✅ | ✅ | ✅ |
 | VG Leader Name | — | ✅ | ✅ | ✅ |
 | Groups Led + Types | — | — | — | ✅ |
@@ -181,7 +193,7 @@ Note: The VG Leader form captures group and member information directly. The num
 | `one2one_date` | DATE | Date the One2One meeting occurred. NULL until completed. |
 | `google_uid` | STRING | Firebase Auth UID. NULL for migrated/admin-created records until first sign-in. |
 | `review_status` | STRING | pending · approved · rejected. All new submissions start as pending. |
-| `source` | STRING | form_submission · event_registration · bulk_import · admin_created · pastoral_event |
+| `source` | STRING | form_submission · event_registration · admin_created · pastoral_event |
 | `duplicate_flag` | BOOL | Set by pipeline when name + birthday match found across different google_uid records. |
 | `duplicate_of_person_id` | STRING FK | Points to the likely canonical record. Admin resolves. |
 | `profile_completeness_pct` | INT64 | 0–100. Computed by Silver pipeline based on stage-appropriate required fields. |
@@ -318,7 +330,7 @@ GitHub repo → (OAuth) → Cloudflare Pages
 | `/reports.html` | Executives | Looker Studio embed or direct link | Embedded Looker Studio reports or direct share link |
 | `/e/[slug]` | Anyone | Google Sign-In | Public event landing page — no nav |
 | `/leader.html` | VG Leaders | Google Sign-In | VG Leader form — pre-fills for returning users |
-| `/profile.html` | VG Members | Google Sign-In | Phase 2: own record view and edit |
+| `/profile.html` | VG Members | Google Sign-In | Phase 1: own record view and edit. Pre-fills from existing Silver record. Collects member-stage fields (employment type + conditional fields, VG Leader name) that the VG Leader form does not cover. Cannot see other records. |
 ### Mobile Responsiveness Strategy
 
 - Bootstrap 5 grid provides mobile-first responsiveness for the existing member form.
@@ -379,16 +391,22 @@ Cloud Run hosts a containerized Python FastAPI application. It scales automatica
 | :--- | :--- | :--- | :--- |
 | `POST /api/submit` | POST | `vg_leader` | VG Leader form submission — writes to bronze |
 | `GET /api/me` | GET | authenticated | Returns current user's profile by `google_uid` |
-| `GET/PATCH /api/persons` | GET, PATCH | admin | Admin CRUD for person records |
+| `GET /api/persons` | GET | admin | List persons. Supports `?q=<name>` for name search (used in VG member linking and intern search). Returns matching `silver.persons` records (`is_current = TRUE`) ordered by relevance. Minimum query length: 2 characters. |
+| `PATCH /api/persons/{id}` | PATCH | admin | Update a person record. Must implement SCD2 close-and-insert — see Write-Path Ownership Matrix. |
+| `POST /api/persons/{id}/promote-to-leader` | POST | admin | Atomic promotion to VG Leader. Simultaneously (1) INSERTs `vg_leader` role into `silver.person_roles` and (2) SCD2 PATCHes `journey_stage = 'leader'` on `silver.persons`. Both operations succeed or both fail — no partial state. Returns the updated person record and a flag `has_active_intern_relationship` so the frontend can surface the Step 5 inline prompt. |
 | `GET /api/events` | GET | admin, executive | List all events |
 | `POST /api/events` | POST | admin | Create new event instance |
 | `GET /api/events/{slug}/pre-check` | GET | authenticated | Pre-registration check: person exists, profile completeness, duplicate registration check, upcoming event list |
 | `POST /api/events/{slug}/self-register` | POST | authenticated | Self-register for a public event. Returns 409 if already registered. |
 | `POST /api/events/{id}/register` | POST | admin | Admin registers a person for an event |
-| `POST /api/events/{id}/attend` | POST | admin | Mark attendance (triggers discipleship pipeline) |
+| `POST /api/events/{id}/attend` | POST | admin | Mark attendance. If no prior registration exists (walk-in), auto-creates a `registered` registration record with `payment_status = 'pending'` (paid events) or `'N/A'` (free events) before writing the attendance. Triggers discipleship pipeline. |
 | `POST /api/headcounts` | POST | admin | Submit anonymous headcount for an event or Sunday Service |
 | `GET /api/leaders/me` | GET | `vg_leader` | VG Leader's own profile, groups, and member list |
 | `PATCH /api/vg-members/{id}/link` | PATCH | admin | Link a VG member name record to an existing `person_id` |
+| `GET /api/intern-relationships` | GET | admin | List intern relationship records. Supports `?status=pending` filter for admin review queue. Returns `intern_person_id`, `leader_person_id`, `review_status`, `is_active`, `source`, `start_date`. |
+| `POST /api/intern-relationships` | POST | admin | Create an intern relationship directly (admin-initiated, bypasses leader form). `review_status` defaults to `approved` for admin-created records. `source = 'admin_created'`. |
+| `PATCH /api/intern-relationships/{id}` | PATCH | admin | Approve, reject, or deactivate an intern relationship. Permitted field updates: `review_status` (`approved` / `rejected`), `is_active` (`FALSE` to close), `end_date`. Used for both admin review of leader-form submissions and closing relationships when an intern is promoted to VG Leader. |
+| `PATCH /api/intern-relationships/{id}/link` | PATCH | admin | Link an unresolved intern relationship to an existing `silver.persons` record. Body: `{ "intern_person_id": "<uuid>" }`. Required before an `intern_relationships` record with `intern_person_id = NULL` can be approved. |
 | `GET /api/health` | GET | public | Health check endpoint (for Cloud Run uptime) |
 ### Authentication Flow
 
@@ -483,11 +501,14 @@ Authorization: Bearer <JWT>
 **Backend logic:**
 
 1. Verify JWT → extract `google_uid`.
-2. Query `silver.persons` for matching `google_uid` (WHERE `is_current = TRUE`).
-3. If person found → query `silver.event_registrations` for this event + person (WHERE `status != 'cancelled'`).
-4. If person found → query `silver.event_registrations` for ALL upcoming events (WHERE `event.start_datetime > NOW()` AND `status IN ('registered')`).
-5. Compute `profile_complete` based on contact-stage required fields being non-NULL.
-6. Return assembled response.
+2. Query `silver.events` for the given `slug`. If not found → return 404. If `status != 'registration_open'` → return 410 Gone with `{ "event_status": "<status>", "message": "Registration is not open for this event." }`. Frontend shows an appropriate closed/cancelled screen — no registration is possible.
+3. Query `silver.persons` for matching `google_uid` (WHERE `is_current = TRUE`).
+4. If person found → query `silver.event_registrations` for this event + person (WHERE `status != 'cancelled'`).
+5. If person found → query `silver.event_registrations` for ALL upcoming events (WHERE `event.start_datetime > NOW()` AND `status IN ('registered')`).
+6. Compute `profile_complete` by checking contact-stage required fields. Fields on `silver.persons` (`first_name`, `middle_name`, `last_name`, `suffix`, `address`, `birthdate`) are checked directly. `contact_number` is resolved by LEFT JOINing `silver.person_contacts WHERE contact_type = 'mobile' AND is_current = TRUE`. `facebook_profile` is resolved by LEFT JOINing `silver.person_contacts WHERE contact_type = 'facebook' AND is_current = TRUE`. If any required field is NULL or missing, `profile_complete = false` and `missing_fields` is populated with the field names.
+7. Return assembled response.
+
+> **Known limitation:** For a new user created via the two-phase write (Section 12, Scenario 1), `profile_completeness_pct` on `silver.persons` defaults to `0` until the next Dataform run (up to 1 hour). If the same user visits a second event landing page within this window, the backend computes completeness dynamically via the JOINs above (step 6) rather than relying on `profile_completeness_pct` — ensuring the pre-check returns an accurate result. `profile_completeness_pct` is used for reporting and admin views only. It is not used by the pre-check endpoint.
 
 ### Duplicate Registration Prevention (`POST /api/events/{slug}/self-register`)
 
@@ -496,6 +517,14 @@ Authorization: Bearer <JWT>
 def self_register(slug, jwt_user):
     person = lookup_person(jwt_user.google_uid)
     event = lookup_event(slug)
+
+    # 0. Re-validate event status at write time (guards against race condition
+    #    between pre-check and self-register calls)
+    if event.status != 'registration_open':
+        return 410, {
+            "event_status": event.status,
+            "message": "Registration is not open for this event."
+        }
 
     # 1. Check profile completeness
     if not person.profile_complete:
@@ -522,20 +551,67 @@ def self_register(slug, jwt_user):
 
 **Idempotency:** The `registration_id` is computed as a deterministic hash of `event_id` + `person_id`. This means even if the request is accidentally sent twice (double-click, network retry), the same ID is generated and BigQuery treats it as a no-op on the second insert.
 
-### Discipleship Auto-Pipeline (Event Attendance → Enrollment Record)
+### Discipleship Auto-Pipeline (Event Attendance → Enrollment Completion)
+
+Events and equipping classes are separate systems. Equipping enrollment is exclusively admin-managed via class rosters. The discipleship pipeline does **not** create new enrollment records — it marks existing `enrolled` records as `completed` when admin confirms attendance at an equipping event session.
+
+**Pre-condition:** Admin must enroll a person in an equipping class (via the admin class roster, setting `enrollment_status = 'enrolled'`) before marking attendance. The pipeline finds that enrollment record and updates it — if no enrolled record exists, the pipeline is a no-op for that person.
 
 Copy
 ```plaintext
-1. Admin POSTs to /api/events/{id}/attend with person_id
-2. Cloud Run writes attendance to bronze.raw_event_actions (immediate, streaming insert)
-3. Cloud Run publishes a Pub/Sub message to trigger an immediate Dataform run
-4. Dataform stg_attendances.sqlx reads from bronze → MERGE-upserts to silver.event_attendances
-5. Dataform discipleship_pipeline.sqlx reads from silver.event_attendances + silver.event_type_catalog
-   → upserts silver.equipping_enrollments (only when equipping_step IS NOT NULL; short-circuits otherwise)
-6. Gold views update automatically — Looker Studio reflects the change on next data refresh
+1. Admin pre-enrolls persons in a class via the admin class roster portal.
+   silver.equipping_enrollments created with enrollment_status = 'enrolled'.
+
+2. Admin POSTs to /api/events/{id}/attend with person_id (at the actual class session).
+
+3. Cloud Run writes attendance to bronze.raw_event_actions (immediate, streaming insert).
+
+4. Cloud Run publishes a Pub/Sub message. Cloud Function dataform-attendance-trigger fires.
+
+5. Dataform stg_attendances.sqlx reads from bronze → MERGE-upserts to silver.event_attendances.
+
+6. Dataform discipleship_pipeline.sqlx reads from:
+     silver.event_attendances + silver.event_type_catalog
+     + silver.equipping_enrollments + silver.equipping_classes
+   → UPDATES silver.equipping_enrollments SET
+       enrollment_status = 'completed',
+       completed_at = checked_in_at
+   WHERE person has an 'enrolled' record whose equipping_classes.canonical_step
+     matches the event's event_type_catalog.equipping_step.
+   Short-circuits (no-op) when equipping_step IS NULL on the event.
+   If multiple enrolled records exist for the same step, the most recent (by enrolled_at) is updated.
+
+7. Gold views update automatically — Looker Studio reflects the change on next data refresh.
 ```
 
-> **Write-path rule:** Cloud Run writes attendance data to `bronze` only. `silver.event_attendances` and `silver.equipping_enrollments` are owned exclusively by Dataform. Admin corrections to existing silver records are permitted directly via the admin portal (PATCH endpoints on Cloud Run), but initial attendance records always originate from bronze via the Dataform pipeline.
+> **Write-path rule:** Cloud Run writes attendance data to `bronze` only. `silver.event_attendances` is owned exclusively by Dataform. `silver.equipping_enrollments` is created by admin via the admin portal (enrolled status) and updated to `completed` by the Dataform pipeline after attendance is confirmed. Admin corrections to existing silver records are permitted directly via admin portal PATCH endpoints, but initial attendance records always originate from bronze via the Dataform pipeline.
+>
+> **Enrollment rule:** The pipeline never auto-creates enrollment records. Admin must enroll a person before attendance can trigger a completion update. This preserves the pastoral oversight principle — a person cannot be marked as completing an equipping step without deliberate admin enrollment.
+
+### Write-Path Ownership Matrix
+
+This table is the authoritative reference for which component is permitted to write to each Silver table and what write pattern it must follow. Deviating from this table requires an `@architect` review and a Decision Log entry.
+
+| Silver Table | Dataform (scheduled) | Cloud Run (API) | Write Pattern |
+| :--- | :--- | :--- | :--- |
+| `persons` | ✅ Owns initial creation + SCD2 upsert | ✅ Exception: minimal record on new-user event registration (two-phase write). Admin PATCH: SCD2 close-and-insert. | SCD2 — every write closes the current row and inserts a new row with updated `valid_from`, `valid_to = NULL`, `is_current = TRUE`. |
+| `person_contacts` | ✅ Owns initial creation + SCD2 upsert | ✅ Admin PATCH: SCD2 close-and-insert. | SCD2 |
+| `person_occupations` | ✅ Owns initial creation + SCD2 upsert | ✅ Admin PATCH: SCD2 close-and-insert. | SCD2 |
+| `victory_groups` | ✅ Owns initial creation + SCD2 upsert | ✅ Admin PATCH: SCD2 close-and-insert. | SCD2 |
+| `victory_group_members` | ✅ Owns initial creation | ✅ Admin PATCH (link/unlink): direct UPDATE (not SCD2 — no history tracking on `person_id` link). | Direct UPDATE on `person_id` field only. |
+| `person_roles` | ❌ Not managed by Dataform | ✅ Admin only: INSERT new role record. Deactivation: `is_active = FALSE` UPDATE. | INSERT for new roles; direct UPDATE for deactivation. |
+| `intern_relationships` | ✅ INSERTs new `pending` records from Bronze form data | ✅ Admin only: PATCH to set `review_status = 'approved' / 'rejected'`, `is_active = FALSE`, `end_date`. | Dataform INSERTs; admin PATCHes status fields in-place (not SCD2). |
+| `equipping_classes` | ❌ Not managed by Dataform | ✅ Admin only: full CRUD. | Direct INSERT/UPDATE. |
+| `equipping_enrollments` | ✅ UPDATEs `enrolled → completed` via discipleship pipeline | ✅ Admin: INSERT (`enrolled` status), PATCH (status corrections). | Dataform UPDATE; admin INSERT/PATCH. |
+| `events` | ✅ Creates from Bronze `action_type = 'created'` | ✅ Admin PATCH (status, capacity, hero image). | Dataform INSERT; admin PATCH in-place. |
+| `event_registrations` | ✅ Creates from Bronze `action_type = 'registered'` | ✅ Cloud Run direct INSERT for two-phase write (new-user event reg). Admin PATCH (payment status). | Dataform INSERT; Cloud Run INSERT (exception); admin PATCH in-place. |
+| `event_attendances` | ✅ Exclusively owns via `stg_attendances.sqlx` | ❌ No direct Cloud Run writes. Admin corrections via admin PATCH only. | Dataform MERGE-upsert; admin PATCH in-place for corrections. |
+| `headcounts` | ✅ Creates from Bronze `raw_headcounts` | ❌ No direct Cloud Run writes. | Dataform MERGE-upsert. |
+| `event_type_catalog` | ❌ Not managed by Dataform | ✅ Admin only: INSERT new types. | Direct INSERT. |
+| `ministry_catalog` | ❌ Not managed by Dataform | ✅ Admin only: full CRUD. | Direct INSERT/UPDATE. |
+| `ministry_memberships` | ❌ Not managed by Dataform | ✅ Admin only: full CRUD. | Direct INSERT/UPDATE. |
+
+> **SCD2 PATCH rule:** All admin PATCH operations on SCD2 tables (`persons`, `person_contacts`, `person_occupations`, `victory_groups`) MUST follow the close-and-insert pattern: (1) `UPDATE` the current row → `valid_to = NOW(), is_current = FALSE`; (2) `INSERT` a new row with updated values, `valid_from = NOW()`, `valid_to = NULL`, `is_current = TRUE`, and the same `person_id` (stable UUID preserved). A plain `UPDATE` on an SCD2 table is a data integrity violation.
 
 ### Primary Terraform Resources
 
@@ -543,11 +619,14 @@ Copy
 | :--- | :--- | :--- |
 | `google_cloud_run_service` | Cloud Run | Hosts FastAPI backend API |
 | `google_bigquery_dataset` | BigQuery | Bronze, Silver, Gold datasets |
-| `google_dataform_repository` | Dataform | SQL pipeline automation |
-| `google_pubsub_topic` | Pub/Sub | Event trigger for immediate data refresh |
+| `google_dataform_repository` | Dataform | SQL pipeline Git repository connection |
+| `google_dataform_repository_release_config` | Dataform | Compiles the `main` branch — used by all workflow invocations |
+| `google_dataform_repository_workflow_config` | Dataform | Hourly scheduled pipeline run (Asia/Manila). Replaces Cloud Scheduler. |
+| `google_pubsub_topic` | Pub/Sub | Attendance event message bus |
+| `google_cloudfunctions_function` | Cloud Functions | `dataform-attendance-trigger` — Pub/Sub subscriber that chains compile → invoke for near-real-time attendance pipeline |
 | `google_secret_manager_secret` | Secret Manager | Store API keys & Service Account JSON |
 | `cloudflare_pages_project` | Cloudflare | Static frontend hosting |
-| `google_service_account` | IAM | Least-privileged identity for Cloud Run |
+| `google_service_account` | IAM | Least-privileged identity for Cloud Run, Dataform, Cloud Functions |
 
 ### Secret Manager Integration
 
@@ -574,7 +653,7 @@ Copy
 ```plaintext
 DATA SOURCES
 ────────────────────────────────────────────────────────────
-📝 VG Leader Form   🎉 Event Registration   📦 Bulk Import   🔧 Admin Direct Entry
+📝 VG Leader Form   🎉 Event Registration   🔧 Admin Direct Entry
                               │
                     (Cloud Run API — streaming insert)
                               │
@@ -585,12 +664,12 @@ DATA SOURCES
 │  Source of truth for all raw data.                        │
 │                                                          │
 │  raw_form_submissions · raw_event_actions                 │
-│  raw_bulk_imports · raw_headcounts                        │
+│  raw_headcounts                                           │
 └──────────────────────────────────────────────────────────┘
                               │
                     Dataform — SCD2 upsert
                     dedup by email + google_uid
-                    Every 15 min + Pub/Sub trigger
+                    Hourly (native) + Pub/Sub (immediate via Cloud Function)
                               │
                               ▼
 ┌──────────────────────────────────────────────────────────┐
@@ -642,37 +721,40 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 
 **Trigger mechanisms:**
 
-- **Cloud Scheduler:** Dataform workflow run every 15 minutes for routine Silver updates.
-- **Pub/Sub:** Immediate Dataform run when Cloud Run publishes an attendance event (near-real-time discipleship updates).
+- **Dataform Native Schedule (`workflow_config`):** Dataform runs the full pipeline on a cron schedule (hourly, Asia/Manila timezone) using Dataform's built-in `release_config` + `workflow_config` resources — no Cloud Scheduler required. Managed via `google_dataform_repository_release_config` and `google_dataform_repository_workflow_config` in Terraform.
+- **Pub/Sub + Cloud Function:** When Cloud Run publishes an attendance event, a lightweight Cloud Function (`dataform-attendance-trigger`) is invoked. The function fetches the latest compilation result from the `release_config` and calls the Dataform `workflowInvocations` API scoped to `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` only — bypassing the hourly schedule window for near-real-time discipleship updates.
 
 ### Transformation Graph
 
-| SQLX File | Source | Target | Trigger |
-| :--- | :--- | :--- | :--- |
-| `stg_persons.sqlx` | `bronze.raw_form_submissions` | `silver.persons` (SCD2 upsert) | Scheduled (15 min) |
-| `stg_contacts.sqlx` | `bronze.raw_form_submissions` | `silver.person_contacts` | Scheduled (15 min) |
-| `stg_occupations.sqlx` | `bronze.raw_form_submissions` | `silver.person_occupations` | Scheduled (15 min) |
-| `stg_victory_groups.sqlx` | `bronze.raw_form_submissions` | `silver.victory_groups` | Scheduled (15 min) |
-| `stg_vg_members.sqlx` | `bronze.raw_form_submissions` | `silver.victory_group_members` | Scheduled (15 min) |
-| `stg_events.sqlx` | `bronze.raw_event_actions` | `silver.events` | Scheduled (15 min) |
-| `stg_registrations.sqlx` | `bronze.raw_event_actions` | `silver.event_registrations` | Scheduled (15 min) |
-| `stg_attendances.sqlx` | `bronze.raw_event_actions` | `silver.event_attendances` | Pub/Sub (immediate) |
-| `stg_headcounts.sqlx` | `bronze.raw_headcounts` | `silver.headcounts` | Scheduled (15 min) |
-| `discipleship_pipeline.sqlx` | `silver.event_attendances` + `silver.event_type_catalog` | `silver.equipping_enrollments` | Pub/Sub (immediate) |
-| `gold_demographics.sqlx` | `silver.persons` | `gold.vw_member_demographics` | On silver table update |
-| `gold_events.sqlx` | `silver.events` + `silver.event_attendances` | `gold.vw_event_participation` | On silver table update |
-| `gold_headcounts.sqlx` | `silver.headcounts` + `silver.events` | `gold.vw_attendance_headcounts` | On silver table update |
-| `gold_funnel.sqlx` | `silver.equipping_enrollments` + `silver.equipping_classes` + `silver.persons` | `gold.vw_equipping_funnel` | On silver table update |
-| `gold_vg_summary.sqlx` | `silver.victory_groups` + `silver.victory_group_members` | `gold.vw_victory_group_summary` | On silver table update |
-| `gold_engagement.sqlx` | `silver.event_attendances` + `silver.event_registrations` | `gold.vw_person_engagement` | On silver table update |
-| `gold_event_history.sqlx` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` | `gold.vw_person_event_history` | On silver table update |
-| `gold_equipping_completion.sqlx` | `silver.equipping_enrollments` + `silver.persons` | `gold.vw_equipping_completion` | On silver table update |
-| `gold_equipping_cohorts.sqlx` | `silver.equipping_classes` + `silver.equipping_enrollments` | `gold.vw_equipping_cohorts` | On silver table update |
-| `gold_leader_dashboard.sqlx` | `silver.victory_groups` + `silver.victory_group_members` + `silver.equipping_enrollments` + `silver.event_attendances` + `silver.ministry_memberships` | `gold.vw_leader_dashboard` | On silver table update |
-| `gold_ministry_participation.sqlx` | `silver.ministry_memberships` + `silver.ministry_catalog` | `gold.vw_ministry_participation` | On silver table update |
-| `gold_pastoral_events.sqlx` | `silver.events` + `silver.event_registrations` + `silver.persons` | `gold.vw_pastoral_events` | On silver table update |
-| `gold_admin_full.sqlx` | `silver.persons` + `silver.person_occupations` + `silver.person_contacts` + `silver.equipping_enrollments` + `silver.victory_groups` + `silver.ministry_memberships` | `gold.vw_admin_full` | On silver table update |
-| `gold_business_network.sqlx` | `silver.persons` + `silver.person_occupations` | `gold.vw_business_network` | On silver table update |
+| SQLX File | Layer | Source | Target | Trigger |
+| :--- | :--- | :--- | :--- | :--- |
+| `stg_persons.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.persons` (SCD2 upsert) | Scheduled (hourly, Dataform native) |
+| `stg_contacts.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.person_contacts` | Scheduled (hourly, Dataform native) |
+| `stg_occupations.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.person_occupations` | Scheduled (hourly, Dataform native) |
+| `stg_victory_groups.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.victory_groups` | Scheduled (hourly, Dataform native) |
+| `stg_vg_members.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.victory_group_members` | Scheduled (hourly, Dataform native) |
+| `stg_intern_relationships.sqlx` | `2_silver` | `bronze.raw_form_submissions` | `silver.intern_relationships` — always INSERTs a new `pending` record for each intern named in Section 3 of a leader form submission. No MERGE/dedup is applied. For each record, attempts a case-insensitive exact match of the typed intern first + last name against `silver.persons` (WHERE `is_current = TRUE`): if exactly one match is found, `intern_person_id` is populated; if zero or multiple matches are found, `intern_person_id` is set to NULL and the record appears in the admin "Unresolved Interns" queue. `intern_first_name` and `intern_last_name` are always stored as typed. Admin reviews all pending and unresolved records in the admin review queue. | Scheduled (hourly, Dataform native) |
+| `stg_events.sqlx` | `2_silver` | `bronze.raw_event_actions` (action_type = 'created') | `silver.events` | Scheduled (hourly, Dataform native) |
+| `stg_registrations.sqlx` | `2_silver` | `bronze.raw_event_actions` (action_type = 'registered') | `silver.event_registrations` | Scheduled (hourly, Dataform native) |
+| `stg_attendances.sqlx` | `2_silver` | `bronze.raw_event_actions` (action_type = 'attended') | `silver.event_attendances` | Pub/Sub (immediate, via Cloud Function) |
+| `stg_headcounts.sqlx` | `2_silver` | `bronze.raw_headcounts` | `silver.headcounts` | Scheduled (hourly, Dataform native) |
+| `discipleship_pipeline.sqlx` | `2_silver` | `silver.event_attendances` + `silver.event_type_catalog` + `silver.equipping_enrollments` + `silver.equipping_classes` | `silver.equipping_enrollments` — UPDATES existing `enrolled` records to `completed`. Never creates new enrollment records. No-op when `equipping_step IS NULL`. | Pub/Sub (immediate, via Cloud Function) |
+| `gold_demographics.sqlx` | `3_gold` | `silver.persons` | `gold.vw_member_demographics` | Scheduled (hourly, Dataform native) |
+| `gold_events.sqlx` | `3_gold` | `silver.events` + `silver.event_attendances` | `gold.vw_event_participation` | Scheduled (hourly, Dataform native) |
+| `gold_headcounts.sqlx` | `3_gold` | `silver.headcounts` + `silver.events` | `gold.vw_attendance_headcounts` | Scheduled (hourly, Dataform native) |
+| `gold_funnel.sqlx` | `3_gold` | `silver.equipping_enrollments` + `silver.equipping_classes` + `silver.persons` | `gold.vw_equipping_funnel` | Scheduled (hourly, Dataform native) |
+| `gold_vg_summary.sqlx` | `3_gold` | `silver.victory_groups` + `silver.victory_group_members` | `gold.vw_victory_group_summary` | Scheduled (hourly, Dataform native) |
+| `gold_engagement.sqlx` | `3_gold` | `silver.event_attendances` + `silver.event_registrations` | `gold.vw_person_engagement` | Scheduled (hourly, Dataform native) |
+| `gold_event_history.sqlx` | `3_gold` | `silver.event_attendances` + `silver.event_registrations` + `silver.events` + `silver.equipping_enrollments` | `gold.vw_person_event_history` | Scheduled (hourly, Dataform native) |
+| `gold_equipping_completion.sqlx` | `3_gold` | `silver.equipping_enrollments` + `silver.persons` | `gold.vw_equipping_completion` | Scheduled (hourly, Dataform native) |
+| `gold_equipping_cohorts.sqlx` | `3_gold` | `silver.equipping_classes` + `silver.equipping_enrollments` | `gold.vw_equipping_cohorts` | Scheduled (hourly, Dataform native) |
+| `gold_leader_dashboard.sqlx` | `3_gold` | `silver.victory_groups` + `silver.victory_group_members` + `silver.equipping_enrollments` + `silver.event_attendances` + `silver.ministry_memberships` | `gold.vw_leader_dashboard` | Scheduled (hourly, Dataform native) |
+| `gold_ministry_participation.sqlx` | `3_gold` | `silver.ministry_memberships` + `silver.ministry_catalog` | `gold.vw_ministry_participation` | Scheduled (hourly, Dataform native) |
+| `gold_pastoral_events.sqlx` | `3_gold` | `silver.events` + `silver.event_registrations` + `silver.persons` | `gold.vw_pastoral_events` | Scheduled (hourly, Dataform native) |
+| `gold_admin_full.sqlx` | `3_gold` | `silver.persons` + `silver.person_occupations` + `silver.person_contacts` + `silver.equipping_enrollments` + `silver.victory_groups` + `silver.ministry_memberships` | `gold.vw_admin_full` | Scheduled (hourly, Dataform native) |
+| `gold_business_network.sqlx` | `3_gold` | `silver.persons` + `silver.person_occupations` | `gold.vw_business_network` | Scheduled (hourly, Dataform native) |
+
+> **Trigger note:** "Scheduled (hourly, Dataform native)" means the file runs as part of the full `workflow_config` cron run. "Pub/Sub (immediate, via Cloud Function)" means the file is also invoked as a scoped partial run when Cloud Function `dataform-attendance-trigger` fires — in addition to the hourly run.
 
 **Dataform assertions:** Each `.sqlx` file includes assertions that verify data quality before writing to the next layer (e.g. `assert person_id IS NOT NULL`, `assert email matches regex pattern`). A failing assertion stops the pipeline and sends an alert — bad data never reaches Gold.
 
@@ -703,11 +785,13 @@ Gold views must be processed in dependency order during Dataform compilation. Al
 
 ### Pub/Sub Message Payload (Attendance → Dataform Trigger)
 
-When `POST /api/events/{id}/attend` writes an attendance record, Cloud Run publishes a Pub/Sub message to `attendance-events-topic`. This triggers an immediate Dataform run for the discipleship pipeline (near real-time), bypassing the 15-minute Cloud Scheduler window.
+When `POST /api/events/{id}/attend` writes an attendance record, Cloud Run publishes a Pub/Sub message to `attendance-events-topic`. A Cloud Function subscribed to this topic invokes the Dataform `workflowInvocations` API, triggering an immediate partial run of the attendance and discipleship pipeline — bypassing the hourly Dataform native schedule for near-real-time updates.
 
 **Publisher:** Cloud Run backend (`google-cloud-pubsub` client)
 **Topic:** `attendance-events-topic` (Terraform resource: `google_pubsub_topic.attendance_events`)
-**Subscriber:** Dataform push subscription → invokes `workflowInvocations` API
+**Subscriber:** Cloud Function `dataform-attendance-trigger` (Pub/Sub push subscription) → fetches the latest `compilationResult` from the Dataform `release_config` → calls `workflowInvocations` API scoped to `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` only.
+
+**Why a Cloud Function (not a direct Dataform push subscription):** Triggering a Dataform workflow invocation requires two sequential API calls — first fetching the latest compilation result, then creating the invocation. A Cloud Function handles this two-step chain cleanly and stays within the free tier (< 10 invocations/day). The function is a lightweight ~30-line Python script and is Terraform-managed via `google_cloudfunctions_function.dataform_attendance_trigger`.
 
 **Message envelope (Google Pub/Sub JSON):**
 ```json
@@ -738,29 +822,41 @@ When `POST /api/events/{id}/attend` writes an attendance record, Cloud Run publi
 
 **Rules:**
 - `equipping_step` MUST be included. Set to `null` if the event is not an equipping event — this short-circuits `discipleship_pipeline.sqlx` and avoids unnecessary pipeline execution.
-- The Dataform invocation targets only `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` (not a full warehouse run), bounded by `event_id` to minimize BigQuery slot usage.
+- The Cloud Function invocation targets only `stg_attendances.sqlx` and `discipleship_pipeline.sqlx` (not a full warehouse run), bounded by `event_id` to minimize BigQuery slot usage.
+- If the Cloud Function fails or the Pub/Sub message is not delivered within 5 minutes, the hourly Dataform native schedule provides a guaranteed catch-up run. The pipeline is idempotent — re-running produces the same result.
 
-### Dataform Cloud Scheduler Invocation
+### Dataform Native Scheduling
 
-The Cloud Scheduler job that triggers Dataform every 15 minutes uses the Dataform REST API via an HTTP target.
+Dataform's built-in scheduling is used instead of Cloud Scheduler. This avoids the two-step compile-then-invoke problem that Cloud Scheduler HTTP targets cannot solve in a single call.
 
-```json
-{
-  "schedule": "*/15 * * * *",
-  "timeZone": "Asia/Manila",
-  "httpTarget": {
-    "uri": "https://dataform.googleapis.com/v1beta1/projects/<project>/locations/us-central1/repositories/<repo>/compilationResults",
-    "httpMethod": "POST",
-    "headers": { "Content-Type": "application/json" },
-    "body": "{ \"gitCommitish\": \"main\" }",
-    "oauthToken": {
-      "serviceAccountEmail": "dataform-runner-sa@<project>.iam.gserviceaccount.com"
-    }
-  }
+**How it works:**
+
+1. A `release_config` in Dataform is configured to point to the `main` Git branch. Dataform compiles the repository on each scheduled run automatically.
+2. A `workflow_config` defines the cron schedule and which actions to run. It references the `release_config` — no manual compilation step needed.
+
+**Terraform resources (managed in `terraform/main.tf`):**
+
+```hcl
+resource "google_dataform_repository_release_config" "main" {
+  project       = var.project_id
+  location      = var.region
+  repository    = google_dataform_repository.main.name
+  name          = "main"
+  git_commitish = "main"
+}
+
+resource "google_dataform_repository_workflow_config" "scheduled" {
+  project        = var.project_id
+  location       = var.region
+  repository     = google_dataform_repository.main.name
+  name           = "scheduled-run"
+  release_config = google_dataform_repository_release_config.main.id
+  cron_schedule  = "0 * * * *"   # Hourly
+  time_zone      = "Asia/Manila"
 }
 ```
 
-**Terraform resource:** `google_cloud_scheduler_job.dataform_15min` (managed in `terraform/main.tf`).
+> **Schedule frequency:** Hourly is sufficient for routine Silver and Gold updates given current scale. Adjust `cron_schedule` in Terraform if business needs change — no code changes required.
 
 
 ## 9. Data Flow Diagram
@@ -769,11 +865,11 @@ The Cloud Scheduler job that triggers Dataform every 15 minutes uses the Datafor
 
 Copy
 ```plaintext
-VG Leader Form       Event Registration    Bulk Import (CSV)    Admin Direct Entry
-/leader              /e/[slug]             Admin portal          Create Profile tool
-Google Sign-In       Google Sign-In        Data migration        Event / Class mgmt
-       │                    │                    │                      │
-       └────────────────────┴────────────────────┴──────────────────────┘
+VG Leader Form       Event Registration    Admin Direct Entry
+/leader              /e/[slug]             Create Profile tool
+Google Sign-In       Google Sign-In        Event / Class mgmt
+       │                    │                    │
+       └────────────────────┴────────────────────┘
                                          │
                         All sources write to Bronze first
                         via Cloud Run API (streaming insert)
@@ -783,15 +879,15 @@ Google Sign-In       Google Sign-In        Data migration        Event / Class m
 
 Copy
 ```plaintext
-bronze.raw_form_submissions        bronze.raw_event_actions         bronze.raw_bulk_imports         bronze.raw_headcounts
-───────────────────────────        ─────────────────────────        ──────────────────────────      ───────────────────────
-submission_id    UUID              action_id        UUID            import_id       UUID            headcount_id  UUID
-google_uid       STRING            action_type      STRING          imported_by     FK person_id    date          DATE
-submitted_at     TIMESTAMP         performed_by     FK person_id    imported_at     TIMESTAMP       event_type    STRING
-raw_payload      JSON              payload          JSON            row_count       INT64           event_id      FK / NULL
-source_page      STRING            event_id         FK              raw_csv_payload JSON array      attendee_count INT64
-ip_hash          STRING                                             error_rows      JSON array      submitted_by  FK person_id
-                                                                                                    submitted_at  TIMESTAMP
+bronze.raw_form_submissions        bronze.raw_event_actions         bronze.raw_headcounts
+───────────────────────────        ─────────────────────────        ───────────────────────
+submission_id    UUID              action_id        UUID            headcount_id  UUID
+google_uid       STRING            action_type      STRING          date          DATE
+submitted_at     TIMESTAMP         performed_by     FK person_id    event_type    STRING
+raw_payload      JSON              payload          JSON            event_id      FK / NULL
+source_page      STRING            event_id         FK              attendee_count INT64
+ip_hash          STRING                                             submitted_by  FK person_id
+                                                                   submitted_at  TIMESTAMP
 ```
 
 ### Silver Tables (normalized, versioned)
@@ -887,7 +983,7 @@ victory-discipleship/
 
 - **Frontend:** On push to `main` → Sync `/frontend` to Cloudflare Pages.
 - **Backend:** On push to `main` → Build Docker image → Push as `:latest` tag only to Artifact Registry (prior versions pruned by cleanup policy) → Deploy to Cloud Run.
-- **Dataform:** On push to `main` → Compile Dataform → Test assertions → Deploy to Dataform service.
+- **Dataform:** On push to `main` → Compile Dataform definitions to validate → Run Dataform assertions. Runtime scheduling is handled by Dataform native `workflow_config` (no deploy step required — the `release_config` picks up the latest `main` commit automatically on its next run).
 - **Terraform:** On pull request → `terraform plan`. On merge to `main` → `terraform apply`.
 - **SonarCloud:** Every PR runs SonarCloud analysis. Quality Gate failure blocks merge.
 
@@ -930,11 +1026,16 @@ Artifact Registry
 Secret Manager
   └── Secret placeholders (values set manually or via CI)
 
-Cloud Scheduler
-  └── Dataform trigger jobs (every 15 minutes)
+Dataform
+  ├── Repository (Git-connected to GitHub)
+  ├── Release config (points to main branch)
+  └── Workflow config (hourly cron, Asia/Manila)
 
 Pub/Sub
-  └── Topics and subscriptions (attendance → equipping pipeline)
+  └── Topics and subscriptions (attendance → Cloud Function → Dataform)
+
+Cloud Functions
+  └── dataform-attendance-trigger (Pub/Sub push subscriber)
 
 Cloudflare
   ├── DNS records
@@ -1021,7 +1122,7 @@ resource "google_bigquery_row_access_policy" "leader_filter" {
 }
 ```
 
-> **Action for `@infra-ops`:** Add `bigquery.filteredDataViewer` role bindings for VG Leader Google accounts in Terraform via `google_bigquery_dataset_iam_member`. This is required before any VG Leader can view their filtered dashboard.
+> **IAM Reconciliation — Automated (periodic):** A scheduled reconciliation script runs hourly (or daily) to sync `bigquery.filteredDataViewer` IAM bindings with the current set of active VG Leaders in `silver.person_roles`. The script queries `silver.person_roles WHERE role = 'vg_leader' AND is_active = TRUE`, retrieves each leader's `email` from `silver.persons`, and applies the `google_bigquery_dataset_iam_member` binding for `victory_gold` via the GCP IAM API. Leaders whose `is_active` is set to `FALSE` are removed from the binding on the next reconciliation run. This eliminates the manual Terraform-per-leader action previously required. The reconciliation script is Terraform-managed as a Cloud Scheduler job + Cloud Function. See Decision Log 2026-02-24 (IAM reconciliation).
 
 ### Cloudflare Access (Admin Gate)
 
@@ -1041,6 +1142,7 @@ The Cloudflare Access policy for `/admin` and `/events` is managed via the Cloud
 | :--- | :--- | :--- |
 | Cloud Run (backend) | `bigquery.dataEditor` on `silver` only | `secretmanager.secretAccessor`, `pubsub.publisher` |
 | Dataform | `bigquery.dataEditor` on `silver` + `gold`; `bigquery.dataViewer` on `bronze` | None additional |
+| Cloud Functions (`dataform-attendance-trigger`) | None (calls Dataform API, not BigQuery directly) | `dataform.editor` on Dataform repository; `pubsub.subscriber` |
 | Looker Studio | `bigquery.dataViewer` on `gold` dataset only | None additional |
 | GitHub Actions (deploy) | None (Terraform manages BigQuery) | `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser` |
 | GitHub Actions (Terraform) | `bigquery.admin` (for schema management only) | `resourcemanager.projectIamAdmin` (scoped) |
@@ -1052,10 +1154,36 @@ The Cloudflare Access policy for `/admin` and `/events` is managed via the Cloud
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Event Landing Page | `/e/[slug]` | Anyone | Google Sign-In | Smart pre-check → profile form or confirm or already-registered screen. VG question for new users. | Phase 1 |
 | VG Leader Form | `/leader` | VG Leaders | Google Sign-In | New → blank form. Returning → full pre-fill. Captures personal info + groups + members. | Phase 1 |
-| Admin Portal | `/admin` | Admin team | Google Sign-In + admin role | Review queue, event management, class roster management, person editing, role assignment, bulk import. | Phase 1 |
+| Admin Portal | `/admin` | Admin team | Google Sign-In + admin role | Review queue, event management, class roster management, person editing, role assignment. | Phase 1 |
 | Reports | `/reports` | Executives | Google Sign-In + executive role | Embedded Looker Studio dashboards. No data editing. | Phase 1 |
-| Member Profile | `/profile` | VG Members | Google Sign-In | View and update own record. Cannot see other records. | Phase 2 |
+| Member Profile | `/profile` | VG Members | Google Sign-In | View and update own record. Pre-fills from Silver. Collects employment info and VG Leader name (member-stage required fields). Cannot see other records. | Phase 1 |
 | Pastoral Event Page | `/e/[slug]` | Families / couples | Google Sign-In | Simplified form capturing person being celebrated as primary record. | Phase 1 |
+
+### Member Profile Form — `/profile.html`
+
+Copy
+```plaintext
+1. Member opens /profile → Google Sign-In (one-tap if already signed in)
+2. Frontend calls GET /api/me with JWT
+3. Cloud Run looks up record by google_uid → returns full profile
+4. Form pre-fills all known fields:
+   Section 1 — Personal Info (Contact-stage fields, all read-only if already complete)
+   Section 2 — Employment Info (Employment Type → conditional fields)
+   Section 3 — VG Leader (their leader's first and last name)
+5. Member updates or completes fields → submits
+6. POST /api/submit → writes to bronze.raw_form_submissions
+7. Success message: "Thank you, your profile has been updated."
+```
+
+**Field display rules:**
+- All Contact-stage fields (name, address, contact number, birthday, Facebook) are shown pre-filled and editable — members may correct their own data.
+- Employment Type and conditional fields (Section 2) are always shown — these are the primary reason a member visits this page.
+- VG Leader name fields (Section 3) are shown pre-filled if previously set and editable — the member may update if their leader changes.
+- A member cannot view or edit any other person's record. The form is scoped strictly to `google_uid` of the signed-in user.
+
+**Write path:** Identical to the VG Leader form — all updates write to `bronze.raw_form_submissions` with `source_page = 'profile'`. Dataform reconciles on the next scheduled run (SCD2 upsert on `silver.persons` and `silver.person_occupations`).
+
+---
 
 ### VG Leader Form — Returning User Flow
 
@@ -1067,6 +1195,7 @@ Copy
 4. Form pre-fills:
    Section 1 — Personal Info (all Member/Intern fields)
    Section 2 — Groups Led (one card per group, type + member list)
+   Section 3 — Interns (confirmed interns shown with ✅, pending shown with clock icon)
 5. Leader updates any fields, adds/removes members → submits
 6. POST /api/submit → writes to bronze.raw_form_submissions
 7. Success message: "Thank you, your data has been received."
@@ -1105,9 +1234,24 @@ Copy
 │                                         │
 │  [+ Add Another Group]                  │
 ├─────────────────────────────────────────┤
+│  SECTION 3 — Interns I'm Supervising    │
+│  (Optional — add names of persons       │
+│   you are currently discipling as       │
+│   future VG leaders)                    │
+│                                         │
+│  • Juan Dela Cruz    (confirmed ✅)     │
+│  • [+ Add Intern]                       │
+│    First Name: [___] Last Name: [___]   │
+├─────────────────────────────────────────┤
 │          [ Submit ]                     │
 └─────────────────────────────────────────┘
 ```
+
+**Section 3 — Interns I'm Supervising (form behavior):**
+- Additive via form. Leaders submit names of interns they are supervising.
+- On pre-fill for returning leaders: confirmed interns (`review_status = 'approved'`, `is_active = TRUE`) are shown with a ✅ badge. Pending interns show as "Pending admin confirmation."
+- Adding an intern via form creates a new `silver.intern_relationships` record with `review_status = 'pending'` and `source = 'leader_form'`. Admin confirms in the admin portal.
+- Removal of interns is admin-managed only (not via form). Leaders cannot remove interns through the form — they communicate removals to admin directly.
 
 ### Event Registration Flow — Complete Decision Tree
 
@@ -1208,9 +1352,25 @@ Copy
      │          [ Submit & Register ]       │
      └─────────────────────────────────────┘
 5. Person fills form → submits
-6. Backend: creates person record (bronze + silver) + creates event registration
+6. Backend — two-phase write (new-user registration exception):
+     Phase 1 (immediate, synchronous):
+       a. Cloud Run writes full profile to bronze.raw_form_submissions (standard write-path).
+       b. Cloud Run immediately creates a minimal Silver person record directly:
+          person_id (new UUID), google_uid, first_name, last_name,
+          review_status = 'pending', source = 'event_registration',
+          journey_stage = 'contact', is_current = TRUE, valid_from = NOW().
+          This is the only permitted direct Silver write from Cloud Run — required so that
+          the event registration FK (person_id) can be resolved without waiting for Dataform.
+       c. Cloud Run creates silver.event_registrations using the new person_id.
+       d. SUCCESS SCREEN returned to user immediately.
+     Phase 2 (async, next Dataform run):
+       Dataform stg_persons.sqlx processes the bronze.raw_form_submissions record and
+       SCD2-upserts the full Silver person record (adding all remaining fields from the
+       form payload). The existing minimal record is updated in-place — no duplicate created.
 7. SUCCESS SCREEN (clean confirmation — no payment instructions)
 ```
+
+> **Write-path exception:** Cloud Run normally writes only to Bronze. The two-phase write above is the single permitted exception: a minimal Silver record is created immediately to satisfy the `event_registrations.person_id` FK and provide an instant confirmation. The Dataform pipeline then reconciles the full record on its next run. All new Bronze submissions must exist before the Silver minimal record is created — Bronze is always the authoritative source.
 
 ### Scenario 2 — Returning Person, Complete Profile, NOT Registered
 
@@ -1297,7 +1457,13 @@ Copy
      │       [ Complete & Register ]        │
      └─────────────────────────────────────┘
 5. Person fills missing fields → submits
-6. Backend: updates person profile + auto-creates registration (no re-register needed)
+6. Backend:
+     a. Cloud Run writes updated profile fields to bronze.raw_form_submissions.
+     b. The person already has a Silver record (person_id known from pre-check).
+        Cloud Run creates silver.event_registrations immediately using the existing person_id —
+        no direct Silver write needed. The person_id FK is already resolved.
+     c. Dataform reconciles the profile update on the next scheduled run (SCD2 upsert adds missing fields).
+     d. SUCCESS SCREEN returned to user immediately — no re-registration step required.
 7. SUCCESS SCREEN (clean confirmation — no payment instructions)
 ```
 
@@ -1325,33 +1491,100 @@ Why no payment instructions on the success screen: Payment details (GCash number
 
 ### Admin Review Queue
 
-Every record created by a public form or bulk import starts as `review_status = 'pending'`. The admin portal surfaces these records in a dedicated view.
+Every record created by a public form or admin direct entry starts as `review_status = 'pending'`. The admin portal surfaces these records in a dedicated view.
+
+The admin review queue is organized into four tabs, each surfacing a distinct category of records requiring action.
 
 Copy
 ```plaintext
-┌──────────────────────────────────────────────────────────┐
-│  PENDING RECORDS REVIEW QUEUE                            │
-│  ──────────────────────────────────────────────────────  │
-│  [ Juan Dela Cruz ]   Source: Event   Duplicate: YES (72%)│
-│  [ Review ] [ Merge with 0001 ] [ Discard ]             │
-│                                                          │
-│  [ Maria Clara ]      Source: Form    Duplicate: NO       │
-│  [ Approve ] [ Reject ] [ Edit ]                         │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  ADMIN REVIEW QUEUE                                              │
+│  [ Pending Records (2) ] [ Duplicates (1) ] [ Unresolved        │
+│    Interns (1) ] [ Interns Without Relationship (1) ]            │
+│  ────────────────────────────────────────────────────────────    │
+│                                                                  │
+│  TAB 1 — PENDING RECORDS                                         │
+│  New submissions awaiting admin review                           │
+│                                                                  │
+│  [ Maria Clara ]   Source: Form   Duplicate: NO                  │
+│  [ Approve ] [ Reject ] [ Edit ]                                 │
+│                                                                  │
+│  ────────────────────────────────────────────────────────────    │
+│                                                                  │
+│  TAB 2 — DUPLICATES                                              │
+│  Records where duplicate_flag = TRUE. Admin selects which        │
+│  record to keep as canonical. The other is marked rejected.      │
+│  Full merge is deferred to Phase 4.                              │
+│                                                                  │
+│  [ Juan Dela Cruz ]  Source: Event  Matches: Person #0001        │
+│  ┌──────────────────────────┐  ┌──────────────────────────────┐  │
+│  │  THIS RECORD             │  │  EXISTING RECORD #0001       │  │
+│  │  Source: event_reg       │  │  Source: admin_created       │  │
+│  │  Created: Jan 20 2025    │  │  Created: Mar 10 2024        │  │
+│  │  google_uid: linked      │  │  google_uid: none            │  │
+│  └──────────────────────────┘  └──────────────────────────────┘  │
+│  [ Keep This Record ] [ Keep #0001 ]                             │
+│  Selecting "Keep" marks the other as review_status = 'rejected'  │
+│  and sets duplicate_of_person_id on the rejected record.         │
+│                                                                  │
+│  ────────────────────────────────────────────────────────────    │
+│                                                                  │
+│  TAB 3 — UNRESOLVED INTERNS                                      │
+│  intern_relationships records where intern_person_id = NULL.     │
+│  Name was typed by a leader but could not be auto-matched.       │
+│  Must be linked before the relationship can be approved.         │
+│                                                                  │
+│  [ "Anna Reyes" ]  Leader: Pedro Santos  Source: leader_form     │
+│  Search: [_______________] → [ Link to Person ]                  │
+│  [ Create New Contact Record ]                                   │
+│                                                                  │
+│  ────────────────────────────────────────────────────────────    │
+│                                                                  │
+│  TAB 4 — INTERNS WITHOUT ACTIVE RELATIONSHIP                     │
+│  Persons with journey_stage = 'intern' but no approved,          │
+│  active intern_relationships record.                             │
+│                                                                  │
+│  [ Ben Cruz ]  Stage: intern  No active relationship found       │
+│  [ View Pending Relationships ] [ Create Relationship ]          │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
+
+**Duplicate resolution rules (Phase 1):**
+- Admin reviews both records side by side and selects which to keep as the canonical record.
+- The kept record retains its `person_id`, `google_uid`, and all history.
+- The rejected record is set to `review_status = 'rejected'` and `duplicate_of_person_id = <canonical_person_id>`. It is excluded from all Gold view reporting.
+- The rejected record's event registrations and history are **not merged** in Phase 1 — they are excluded from counts. Full merge with history re-attribution is deferred to Phase 4 (see Implementation Phases).
+- Once a record is rejected as a duplicate, it is removed from the Duplicates tab and surfaced in a separate "Rejected Records" audit view accessible to admin only.
 
 ### Event Payment Flow
 
+**Pre-registered (standard path):**
 Copy
 ```plaintext
 1. Person registers online → status = 'registered', payment_status = 'pending'
 2. Registration success screen shows clean confirmation only — no payment instructions displayed (see Decision Log 2025-02-09)
 3. Payment details are communicated through existing church channels (social media, announcements). Person pays externally.
 4. Person brings receipt to physical counter OR sends to admin email
-5. Admin looks up person in /events portal → clicks [ Mark Paid ] → enters Reference #
-6. Status remains 'registered' but paid column = TRUE
+5. Admin looks up person in /events portal → clicks [ Mark Paid ] → enters Reference #, payment_method, amount_paid
+6. payment_status = 'paid'. Status remains 'registered'.
 7. Upon arrival at event venue: Admin clicks [ Attend ]
-8. Status → 'attended'. Discipleship pipeline triggers enrollment if applicable.
+8. status → 'attended'. Discipleship pipeline triggers enrollment completion if applicable.
+```
+
+**Walk-in (no prior registration):**
+Copy
+```plaintext
+1. Person arrives at venue without prior online registration.
+2. Admin searches for person in /events portal → clicks [ Check In (Walk-in) ]
+3. Backend auto-creates silver.event_registrations:
+     status = 'registered', registration_source = 'admin'
+     payment_status = 'pending' (paid events) | 'N/A' (free events)
+     registered_at = check_in_timestamp
+4. Backend immediately writes attendance to bronze.raw_event_actions.
+5. Admin can subsequently update payment_status (paid / waived) and enter Reference # as needed.
+6. Admin can also override walk-in registration details or create the registration entry manually
+   before check-in if they prefer explicit control.
 ```
 
 No payment gateway in Phase 1. All payment confirmation is manual. Payment instructions are never displayed on the registration success screen.
@@ -1373,50 +1606,16 @@ bronze.raw_event_actions
 ```sql
 action_id           STRING     NOT NULL  -- UUID, primary key
 action_type         STRING     NOT NULL  -- created|registered|attended|cancelled
-performed_by        STRING     NOT NULL  -- FK → silver.persons.person_id
+performed_by        STRING     NOT NULL  -- FK → silver.persons.person_id. Semantics by action_type:
+                                         --   created:    admin who created the event
+                                         --   registered: the registrant's own person_id (self-reg) OR the admin's person_id (admin-reg)
+                                         --   attended:   admin who marked attendance
+                                         --   cancelled:  admin or the registrant who cancelled
 performed_at        TIMESTAMP  NOT NULL  -- Server-side timestamp
 payload             JSON                 -- Action-specific data
 event_id            STRING               -- FK → silver.events.event_id
 ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
 ```
-bronze.raw_bulk_imports
-```sql
-import_id           STRING     NOT NULL  -- UUID, primary key
-imported_by         STRING     NOT NULL  -- FK → silver.persons.person_id (admin)
-imported_at         TIMESTAMP  NOT NULL  -- Server-side timestamp
-row_count           INT64      NOT NULL  -- Total rows in CSV
-raw_csv_payload     JSON       NOT NULL  -- Full CSV as JSON array
-error_rows          JSON                 -- Rows that failed validation
-ingestion_timestamp TIMESTAMP  NOT NULL  -- Server-set BigQuery ingestion time. Used for table partitioning.
-```
-
-**Bulk Import — Error Handling Specification:**
-
-`error_rows` is a JSON array where each element represents a CSV row that failed validation:
-```json
-[
-  {
-    "row_number": 5,
-    "raw_row": {"first_name": "Juan", "last_name": "", "birthdate": "not-a-date"},
-    "errors": [
-      {"field": "last_name", "rule": "required", "message": "last_name cannot be empty"},
-      {"field": "birthdate", "rule": "date_format", "message": "Expected YYYY-MM-DD, got 'not-a-date'"}
-    ]
-  }
-]
-```
-
-**Validation rules applied at Bronze ingestion:**
-- `first_name`: required, non-empty string
-- `last_name`: required, non-empty string
-- `birthdate`: optional; if present, must match `YYYY-MM-DD` format
-- `email`: optional; if present, must match standard email regex
-- All other fields validated downstream by Silver pipeline assertions
-
-**Retry logic:** No automatic retry. Admin downloads the error report from the admin portal, corrects the CSV manually, and re-uploads. Each upload creates a new `raw_bulk_imports` record with a new `import_id`.
-
-**Admin notification:** No outbound email notifications (Phase 1). The admin portal surfaces import status in the admin review queue. If `error_rows` is non-empty, the import record shows a "Partial Import — X errors" badge. Admin clicks to view the error detail.
-
 bronze.raw_headcounts
 ```sql
 headcount_id        STRING     NOT NULL  -- UUID, primary key
@@ -1444,7 +1643,7 @@ suffix                      STRING               -- Jr., Sr., III, etc. NULL if 
 full_name                   STRING     NOT NULL  -- Computed: "first middle last suffix"
 
 -- Contact (core — additional contacts via silver.person_contacts)
-email                       STRING               -- Firebase Auth email. Retained here for auth-email matching during bulk migration (Decision Log 2026-02-24). Canonical contact store is silver.person_contacts.
+email                       STRING               -- Firebase Auth email. Retained here for auth-email matching when admin-created records claim their Google account on first sign-in (Decision Log 2026-02-24). Canonical contact store is silver.person_contacts.
 address                     STRING               -- Full address, single text field
 
 -- Victory Group membership (person-level attribute)
@@ -1457,7 +1656,7 @@ journey_stage               STRING     NOT NULL  -- contact|member|intern|leader
 one2one_completed           BOOL       DEFAULT FALSE
 one2one_date                DATE                 -- NULL until completed
 review_status               STRING     NOT NULL  -- pending|approved|rejected
-source                      STRING               -- form_submission|event_registration|bulk_import|admin_created|pastoral_event
+source                      STRING               -- form_submission|event_registration|admin_created|pastoral_event
 duplicate_flag              BOOL       DEFAULT FALSE
 duplicate_of_person_id      STRING               -- FK → person_id of canonical record
 profile_completeness_pct    INT64      DEFAULT 0 -- 0-100, computed by Silver pipeline per stage
@@ -1629,7 +1828,7 @@ event_id            STRING     NOT NULL  -- FK → silver.events
 person_id           STRING     NOT NULL  -- FK → silver.persons
 registration_id     STRING               -- FK → silver.event_registrations (if pre-registered)
 checked_in_at       TIMESTAMP  NOT NULL
-check_in_method     STRING     NOT NULL  -- manual|bulk_import|qr_scan
+check_in_method     STRING     NOT NULL  -- manual|qr_scan
 checked_in_by       STRING               -- FK → silver.persons (admin)
 session_tag         STRING               -- e.g. "morning" / "afternoon" for multi-session events
 ```
@@ -1667,14 +1866,35 @@ removed_at            TIMESTAMP            -- NULL = currently active
 silver.intern_relationships
 ```sql
 relationship_id     STRING     NOT NULL  -- UUID, primary key
-intern_person_id    STRING     NOT NULL  -- FK → silver.persons
+intern_person_id    STRING               -- FK → silver.persons. NULLABLE. NULL when the name typed by
+                                         -- the VG Leader in Section 3 could not be auto-matched to a
+                                         -- unique silver.persons record. Admin must link via
+                                         -- PATCH /api/intern-relationships/{id}/link before approving.
+intern_first_name   STRING     NOT NULL  -- First name as typed by the VG Leader on form submission.
+                                         -- Preserved as audit trail regardless of resolution status.
+intern_last_name    STRING     NOT NULL  -- Last name as typed by the VG Leader on form submission.
 leader_person_id    STRING     NOT NULL  -- FK → silver.persons (the supervising VG Leader — must be a registered person)
 start_date          DATE       NOT NULL
 end_date            DATE                 -- NULL = currently active
 is_active           BOOL       NOT NULL  DEFAULT TRUE
+review_status       STRING     NOT NULL  DEFAULT 'pending'  -- pending|approved|rejected
+                                         -- Records from leader_form start as 'pending'.
+                                         -- Admin confirms → 'approved'. Only 'approved' records
+                                         -- are used by stg_persons.sqlx to sync vg_leader display cache.
+                                         -- A record with intern_person_id = NULL cannot be set to
+                                         -- 'approved' — admin must link the person first.
+source              STRING     NOT NULL  -- leader_form|admin_created
+                                         -- 'leader_form': originated from VG Leader form Section 3.
+                                         -- 'admin_created': entered directly by admin in admin portal.
 ```
 
-**Relationship note:** This table is the canonical FK for the intern-leader data relationship. Both `intern_person_id` and `leader_person_id` must be registered `silver.persons` records. The `vg_leader_first_name/last_name` on `silver.persons` serves as a display cache derived from this relationship by the Silver pipeline. See Stage 03 and Decision Log 2026-02-24.
+**Relationship note:** This table is the canonical FK for the intern-leader data relationship. `leader_person_id` must be a registered `silver.persons` record. `intern_person_id` is nullable — it is resolved from the name typed by the VG Leader via auto-match or admin linking. A record with `intern_person_id = NULL` is considered unresolved and cannot be approved. The `vg_leader_first_name/last_name` on `silver.persons` serves as a display cache derived from this relationship by the Silver pipeline — only from records where `review_status = 'approved'` and `intern_person_id IS NOT NULL`. If multiple approved active records exist for the same intern, the most recent `start_date` is used. See Stage 03 and Decision Log 2026-02-24.
+
+**Lifecycle management:**
+- **Creation:** Dataform `stg_intern_relationships.sqlx` INSERTs a new `pending` record whenever a VG Leader names an intern in Section 3 of their form submission. Admin also creates records directly via `POST /api/intern-relationships` (admin-created, auto-approved).
+- **Approval:** Admin sets `review_status = 'approved'` via `PATCH /api/intern-relationships/{id}`. The Silver pipeline syncs the `vg_leader_first_name/last_name` display cache on the intern's `silver.persons` record on the next scheduled run.
+- **Duplicate pending records:** If the same intern is named across multiple leader form resubmissions, each generates a new `pending` record. Admin reviews the queue and rejects duplicates — only one `approved` record per active intern-leader pair should exist.
+- **Closure (intern → leader promotion):** When an intern is promoted to VG Leader, admin must set `is_active = FALSE` and `end_date = today` via `PATCH /api/intern-relationships/{id}`. This is step 5 of the Stage 04 entry process. Without this, the former intern remains in active intern counts and in the supervising leader's form pre-fill indefinitely.
 silver.ministry_catalog + silver.ministry_memberships
 ```sql
 -- ministry_catalog
@@ -1723,7 +1943,6 @@ Table Inventory Summary
 | :--- | :--- | :--- | :--- |
 | `victory_bronze` | `raw_form_submissions` | Append-only | Phase 1 |
 | `victory_bronze` | `raw_event_actions` | Append-only | Phase 1 |
-| `victory_bronze` | `raw_bulk_imports` | Append-only | Phase 1 |
 | `victory_bronze` | `raw_headcounts` | Append-only | Phase 1 |
 | `victory_silver` | `persons` | SCD2 | Phase 1 |
 | `victory_silver` | `person_contacts` | SCD2 | Phase 1 |
@@ -1747,6 +1966,10 @@ Table Inventory Summary
 
 ## 14. Gold Views — Reporting Layer
 All Gold views are read-only SQL views on BigQuery. Row access policies are enforced at the database engine level — not the application layer.
+
+> **Binding rule — `review_status` filter:** Every Gold view that joins `silver.persons` **MUST** include the filter `WHERE persons.review_status != 'rejected'` (or equivalently `WHERE persons.review_status IN ('pending', 'approved')`). This is non-negotiable. Rejected records are duplicate persons that have been superseded by a canonical record — including them in any count, funnel, or engagement metric produces inflated and incorrect reporting. This filter is enforced via a Dataform assertion on each Gold SQLX file. Any Gold view missing this filter will fail the CI/CD quality gate.
+>
+> **Pending vs. approved in Gold views:** `pending` records (new submissions awaiting admin review) are included in Gold views by default so that newly registered event attendees and form submitters appear in reporting immediately. Admin reviews pending records and either approves or rejects them. Only `rejected` records are excluded.
 | View Name | Audience | Description |
 | :--- | :--- | :--- |
 | `gold.vw_member_demographics` | Executive + Admin | Total members, gender split, age bands, marital status, occupation breakdown (employed vs. self-employed), journey stage counts, monthly new member trend. |
@@ -1807,11 +2030,11 @@ Why AntiGravity for This Project
 
 | Phase | Focus | Scope |
 | :--- | :--- | :--- |
-| **Phase 1** | **Foundations & Core CRM + Event Registration** | Monorepo setup, Cloud Run container, BigQuery Bronze/Silver/Gold, Dataform pipeline, VG Leader Form (HTML/Alpine.js), Admin Review Queue, Google Sign-In, Role-based access. Event Type Catalog, Public Landing Pages (`/e/[slug]`), Self-registration logic, Duplicate registration checking. |
+| **Phase 1** | **Foundations & Core CRM + Event Registration** | Monorepo setup, Cloud Run container, BigQuery Bronze/Silver/Gold, Dataform pipeline, VG Leader Form (HTML/Alpine.js), Member Profile (`/profile.html` — employment info + VG leader name self-service), Admin Review Queue, Google Sign-In, Role-based access. Event Type Catalog, Public Landing Pages (`/e/[slug]`), Self-registration logic, Duplicate registration checking. |
 | **Phase 2** | **Event Operations & Reporting** | Admin Event Management UI (create, edit, close events), Attendance tracking and check-in, Looker Studio executive dashboards. |
 | **Phase 3** | **Discipleship Pipeline** | Equipping class cohorts, Enrollment logic, Discipleship milestones (SF, LW, LF), Looker Studio executives dashboards, Discipleship pipeline drill-downs. |
-| **Phase 4** | **Automation & Scale** | Bulk import tool, Person merging logic, Audit logging (SCD2 data_change_log), Advanced engagement scoring (recency/frequency), Performance tuning. |
-| **Phase 5** | **Member Self-Service** | `/profile` page for members to view results, digital badge collection, event history, ministry involvement summary. |
+| **Phase 4** | **Automation & Scale** | Person merging logic, Audit logging (SCD2 data_change_log), Advanced engagement scoring (recency/frequency), Performance tuning. |
+| **Phase 5** | **Member Engagement Dashboard** | Extended `/profile` page — digital badge collection, full event history timeline, ministry involvement summary, pathway progress display. |
 
 All phases deploy through the same GitHub Actions pipeline. New features go through the same quality gates as the initial build. Infrastructure changes are planned via Terraform before any cloud resource is created or modified.
 
@@ -1830,9 +2053,9 @@ All phases deploy through the same GitHub Actions pipeline. New features go thro
 | 2025-01-27 | VG Leader / Member form access | Any Google account can submit. Admin reviews all new submissions before they go live (pending queue). | ✅ Final |
 | 2025-01-28 | Returning user form experience | Form pre-fills with existing data from database. Matched by google_uid on load via GET /api/me. | ✅ Final |
 | 2025-01-29 | Post-submission experience | Simple success message: "Thank you, your data has been received." Form resets. No profile page shown at this stage. | ✅ Final |
-| 2025-01-30 | Event attendance for large events | Phase 1: one-by-one check-in in admin UI. Phase 2: bulk CSV upload. Same schema supports both — no changes needed when bulk ships. | ✅ Final |
+| 2025-01-30 | Event attendance for large events | Phase 1: one-by-one check-in in admin UI. Phase 2: QR scan check-in. Same schema supports both — no changes needed when QR scan ships. | ✅ Final |
 | 2025-01-31 | Person relationships (couples, parents) | Phase 2. Every person is an independent record in Phase 1. silver.person_relationships table added in Phase 2. | ✅ Final |
-| 2025-02-01 | Existing data migration approach | Bulk CSV import for most records + admin "Create Profile" tool for stragglers. Migrated records claim their Google account on first sign-in by email match. | ✅ Final |
+| 2025-02-01 | Existing data migration approach | Admin "Create Profile" tool for all migrated records. Migrated records claim their Google account on first sign-in by email match. | ✅ Final |
 | 2025-02-02 | Role promotion (member → leader) | Always admin-managed. System never auto-promotes. Person submits leader form → admin reviews → admin assigns vg_leader role. | ✅ Final |
 | 2025-02-03 | Automated notifications | None in Phase 1. No outbound emails. Keep it simple. | ✅ Final |
 | 2025-02-04 | Duplicate record handling | System flags by name + birthday match across different google_uid values. Alert lists both records in admin queue. Admin edits correct record and deletes duplicate. No auto-merge. | ✅ Final |
@@ -1862,12 +2085,42 @@ All phases deploy through the same GitHub Actions pipeline. New features go thro
 | 2025-02-28 | Pastoral events — who gets captured | The person being celebrated (baby at dedication, couple at wedding). Created as contact stage records if no existing match by email. | ✅ Final |
 | 2025-03-01 | Person journey stages | Four admin-managed stages: contact → member → intern → leader. Never auto-computed. | ✅ Final |
 | 2025-03-02 | journey_stage computation | Admin-managed field only. System surfaces data to inform pastoral judgment; it never replaces it. | ✅ Final |
-| 2026-02-24 | Remove `phone` from `silver.persons` | `phone` is canonically stored in `silver.person_contacts (type: mobile)`. Denormalization removed to eliminate dual-write ambiguity. `email` is retained on `silver.persons` exclusively for Firebase Auth account-matching during bulk migration (migrated records claim their Google account on first sign-in by email match). All other contact channels live in `silver.person_contacts`. | ✅ Final |
+| 2026-02-24 | Remove `phone` from `silver.persons` | `phone` is canonically stored in `silver.person_contacts (type: mobile)`. Denormalization removed to eliminate dual-write ambiguity. `email` is retained on `silver.persons` exclusively for Firebase Auth account-matching — when admin-created records are claimed by their owner on first sign-in, the system matches by email. All other contact channels live in `silver.person_contacts`. | ✅ Final |
 | 2026-02-24 | Intern-leader data relationship | `vg_leader_first_name/last_name` on `silver.persons` is a display cache valid for all stages and may reference a leader not yet registered in the system. `silver.intern_relationships.leader_person_id` is the canonical FK for the intern-leader relational link — both parties must be registered persons. The Silver pipeline keeps the display cache in sync from the linked leader record when `leader_person_id` is populated. | ✅ Final |
 | 2026-02-24 | Artifact Registry latest-only retention | Artifact Registry stores only the `:latest` Docker image tag for Cloud Run. Prior versions are pruned automatically via Terraform-managed cleanup policy. This keeps storage perpetually under the 0.5 GB free-tier limit. Rollback is achieved via git revert + redeploy, not image version management in the registry. | ✅ Final |
 | 2026-02-24 | Event landing pages in Phase 1 | Public landing pages (`/e/[slug]`), self-registration logic, and duplicate registration checking are Phase 1 scope — they are required to capture new contacts at the earliest stage. Admin Event Management UI and attendance tracking move to Phase 2. | ✅ Final |
+| 2026-02-24 | Dataform scheduling — native over Cloud Scheduler | Dataform native `release_config` + `workflow_config` used for scheduled pipeline runs (hourly). Cloud Scheduler is not used — it cannot chain the two required API calls (compilationResults → workflowInvocations) in a single HTTP target. Dataform native handles this internally with no custom orchestration. | ✅ Final |
+| 2026-02-24 | Pub/Sub → Dataform via Cloud Function | A Cloud Function (`dataform-attendance-trigger`) bridges Pub/Sub attendance events to the Dataform `workflowInvocations` API. Required because triggering a Dataform invocation is a two-step operation (fetch latest compilationResult → create invocation). The function is ~30 lines of Python, runs within free tier, and is Terraform-managed. | ✅ Final |
+| 2026-02-24 | Discipleship pipeline — UPDATE, not CREATE | `discipleship_pipeline.sqlx` does not auto-create `equipping_enrollments` records. Events and equipping classes are separate systems; equipping enrollment is admin-managed via class rosters. The pipeline UPDATES existing `enrolled` records to `completed` when attendance is confirmed. Admin must enroll before attendance can trigger a completion. | ✅ Final |
+| 2026-02-24 | Intern relationships — leader form + admin confirmation | VG Leaders identify their interns via VG Leader form Section 3. This creates pending `intern_relationships` records. Admins review and confirm in the admin portal (`review_status = 'approved'`). Only approved relationships are used by the Silver pipeline to sync the `vg_leader` display cache on `silver.persons`. Removal is admin-managed only. | ✅ Final |
+| 2026-02-24 | New-user event registration — two-phase write | To resolve the timing gap between a new user submitting their profile form and the Dataform pipeline creating their Silver record, Cloud Run immediately creates a minimal Silver person record (person_id, google_uid, first/last name, journey_stage, review_status) to allow immediate event registration FK resolution. The full Bronze record is reconciled by Dataform on the next scheduled run. This is the only permitted direct Silver write from Cloud Run. | ✅ Final |
+| 2026-02-24 | Walk-in check-in auto-creates registration | When admin checks in a person at `POST /api/events/{id}/attend` and no prior registration exists, the backend auto-creates a `silver.event_registrations` record (`status = 'registered'`, `payment_status = 'pending'` for paid events or `'N/A'` for free events, `registration_source = 'admin'`). Admin can override payment status and details afterwards. | ✅ Final |
+| 2026-02-24 | Event pre-check validates event status | `GET /api/events/{slug}/pre-check` verifies `silver.events.status = 'registration_open'` as the first backend step. If the event is closed, completed, or cancelled, the endpoint returns HTTP 410 Gone before any person lookup. This prevents registration for non-open events regardless of profile completeness or prior registration status. | ✅ Final |
+| 2026-02-24 | Remove bulk import feature | `bronze.raw_bulk_imports` table and all bulk CSV import functionality removed. The feature added pipeline complexity without sufficient return — admin "Create Profile" tool covers all data migration needs. `source` values updated: `bulk_import` removed; `admin_created` covers all admin-entered records. `check_in_method` values updated: `bulk_import` removed. | ✅ Final |
+| 2026-02-24 | Pre-check profile completeness JOIN | `GET /api/events/{slug}/pre-check` computes `profile_complete` by querying `silver.persons` AND LEFT JOINing `silver.person_contacts` for `contact_type = 'mobile'` (contact_number) and `contact_type = 'facebook'` (facebook_profile). `profile_completeness_pct` on `silver.persons` is used for reporting views only — not by the pre-check endpoint. | ✅ Final |
+| 2026-02-24 | profile_completeness_pct timing limitation | For new users created via the two-phase write, `profile_completeness_pct` on `silver.persons` defaults to `0` until the next Dataform run (up to 1 hour). The pre-check endpoint computes completeness dynamically via JOINs to avoid returning a false incomplete status during this window. This limitation is accepted for Phase 1; a real-time update to `profile_completeness_pct` as part of the two-phase write may be considered in a future phase. | ✅ Final |
+| 2026-02-24 | Self-register event status re-validation | `POST /api/events/{slug}/self-register` re-validates `silver.events.status = 'registration_open'` at the point of write (step 0 in the handler) to guard against the race condition where admin closes the event between the pre-check call and the registration submission. Returns HTTP 410 Gone if status has changed. | ✅ Final |
+| 2026-02-24 | performed_by semantics in raw_event_actions | `bronze.raw_event_actions.performed_by` records the actor for each action type: `registered` = registrant's own `person_id` (self-reg) or admin's `person_id` (admin-reg); `attended` = admin who marked attendance; `created` = admin who created the event; `cancelled` = admin or registrant. NOT NULL — for self-registration, the registrant's newly created `person_id` (from the two-phase write) is used. | ✅ Final |
+| 2026-02-24 | SCD2 admin PATCH rule | All admin PATCH operations on SCD2 Silver tables (`persons`, `person_contacts`, `person_occupations`, `victory_groups`) MUST use the close-and-insert pattern: close the current row (`valid_to = NOW()`, `is_current = FALSE`), then INSERT a new row with updated values, preserving the original `person_id`. A plain SQL UPDATE on an SCD2 table is a data integrity violation. See Write-Path Ownership Matrix (Section 7). | ✅ Final |
+| 2026-02-24 | Write-path ownership matrix | A consolidated Write-Path Ownership Matrix was added to Section 7 (Backend) documenting which component (Dataform vs. Cloud Run) owns writes to each Silver table, and what write pattern (SCD2 vs. direct INSERT/UPDATE) is required. This resolves previously inconsistent statements about Silver write ownership across the document. | ✅ Final |
+| 2026-02-24 | Intern relationship API endpoints | Three new admin endpoints added: `GET /api/intern-relationships` (list with status filter), `POST /api/intern-relationships` (admin-created, auto-approved), `PATCH /api/intern-relationships/{id}` (approve, reject, deactivate). These endpoints are required for the admin review queue to function for Stage 03 (VG Intern). | ✅ Final |
+| 2026-02-24 | Person search endpoint | `GET /api/persons?q=<name>` added to API Route table. Used by admin in the VG member linking workflow and intern search. Minimum query length: 2 characters. Returns `silver.persons` records (`is_current = TRUE`) ordered by name relevance. | ✅ Final |
+| 2026-02-24 | stg_intern_relationships always-insert behavior | `stg_intern_relationships.sqlx` always INSERTs a new `pending` record for each intern named in a leader form submission — no MERGE or deduplication is applied. If the same leader resubmits with the same intern named, a duplicate `pending` record is created. Admin resolves duplicates in the review queue by approving one and rejecting the rest. `intern_person_id` is auto-populated when the typed name resolves to exactly one match in `silver.persons`; it is NULL when zero or multiple matches exist (unresolved). Admin must link unresolved records before approving. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — sequential admin steps | Stage 04 entry now documents five explicit admin steps: (1) form submission, (2) record approval, (3) `vg_leader` role assignment, (4) `journey_stage = leader` update, (5) close prior `intern_relationships` record. Steps 3 and 4 must be performed in the same admin session. A mismatch between role and journey_stage is surfaced as a warning in the admin portal person record view. | ✅ Final |
+| 2026-02-24 | Intern relationship closure on leader promotion | When an intern is promoted to VG Leader, admin must close their active `intern_relationships` record via `PATCH /api/intern-relationships/{id}` with `is_active = FALSE` and `end_date = today`. This is step 5 of Stage 04 entry. Without this step, the former intern remains in active intern counts and in the supervising leader's form pre-fill indefinitely. | ✅ Final |
+| 2026-02-24 | VG Leader IAM reconciliation — automated | The `bigquery.filteredDataViewer` IAM binding for `victory_gold` is maintained by a periodic reconciliation script (hourly/daily) rather than per-leader manual Terraform actions. The script syncs the active `vg_leader` set from `silver.person_roles` to the IAM policy. Leaders with `is_active = FALSE` are removed on the next reconciliation. Managed as a Cloud Scheduler + Cloud Function, Terraform-provisioned. | ✅ Final |
+| 2026-02-24 | `/profile.html` advanced to Phase 1 | VG Members (non-leaders) need a self-service path to submit employment info and VG Leader name in Phase 1 — data that is required at Member stage but not collected by any existing Phase 1 form. `/profile.html` is advanced from Phase 2 to Phase 1 scope, limited to: contact-stage field corrections, employment info (Section 2), and VG Leader name (Section 3). Writes to `bronze.raw_form_submissions` with `source_page = 'profile'`. Dataform reconciles via SCD2 upsert. Phase 5 retains the extended engagement dashboard features (badges, event timeline, pathway progress). | ✅ Final |
+| 2026-02-24 | Facebook Profile — encouraged at Contact, required at Member | Facebook Profile is an encouraged field at Contact stage and does not block event registration. It becomes a required field from Member stage onward and is included in `profile_completeness_pct` calculations for Member, Intern, and Leader stages. | ✅ Final |
+| 2026-02-24 | Member stage transition — VG Leader name soft-warning | When admin promotes a Contact to Member, the admin portal checks whether `vg_leader_first_name` and `vg_leader_last_name` are populated. If either is missing, a soft warning is displayed. The transition is not blocked — admin may proceed — but the warning ensures the gap is visible and the record surfaces with a low `profile_completeness_pct` in admin views. | ✅ Final |
+| 2026-02-24 | Intern stage — unlinked intern alert queue | Persons with `journey_stage = 'intern'` but no `intern_relationships` record with `review_status = 'approved'` and `is_active = TRUE` are surfaced in a dedicated admin queue tab ("Interns Without Active Relationship"). Admin is prompted to approve a pending relationship or create one directly. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — atomic Steps 3 & 4 via single API action | Steps 3 (role assignment) and 4 (journey_stage update) of Stage 04 entry are executed as a single atomic operation via `POST /api/persons/{id}/promote-to-leader`. The admin portal exposes a single "Promote to VG Leader" button — not two separate controls. This eliminates the data inconsistency state where role and journey_stage are mismatched. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — Step 5 inline prompt | After the "Promote to VG Leader" action, the admin portal checks for active `intern_relationships` records for the person. If found, an inline prompt is displayed to close the relationship. The system does not auto-close — admin must explicitly act. The open relationship is re-surfaced as a warning until resolved. | ✅ Final |
+| 2026-02-24 | intern_relationships — nullable intern_person_id with raw name capture | `silver.intern_relationships.intern_person_id` is nullable. When a VG Leader types an intern's name in Section 3 of their form, `stg_intern_relationships.sqlx` attempts a case-insensitive exact name match against `silver.persons`. If exactly one match is found, `intern_person_id` is populated automatically. If zero or multiple matches exist, `intern_person_id` is NULL and the record appears in the "Unresolved Interns" admin queue tab. `intern_first_name` and `intern_last_name` are always stored. Admin links unresolved records via `PATCH /api/intern-relationships/{id}/link`. A record with `intern_person_id = NULL` cannot be approved. This pattern is consistent with `silver.victory_group_members`. | ✅ Final |
+| 2026-02-24 | Duplicate resolution — Phase 1 keep-one approach | When admin resolves a duplicate (duplicate_flag = TRUE), admin selects which record to keep as canonical. The other is set to `review_status = 'rejected'` and `duplicate_of_person_id` is set to point to the canonical record. The rejected record's history (event registrations, attendances) is excluded from all Gold views via the binding `review_status != 'rejected'` filter. History re-attribution (merging the rejected record's history into the canonical record) is deferred to Phase 4 (Person merging logic). The Admin Review Queue Duplicates tab exposes side-by-side record comparison with "Keep This Record" / "Keep Other Record" actions — the "Merge" button is a Phase 4 feature. | ✅ Final |
+| 2026-02-24 | Gold views — binding review_status filter | All Gold views that join `silver.persons` MUST filter `WHERE persons.review_status != 'rejected'`. This prevents rejected duplicate records from inflating counts, funnels, and engagement metrics. `pending` records are included in Gold views. This rule is enforced via Dataform assertions on each Gold SQLX file and blocks CI/CD on violation. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — Dataform run prerequisite | Admin must wait until after the next Dataform pipeline run (up to 1 hour after the leader's form submission) before executing Steps 2–5 of Stage 04 entry. This ensures the leader's victory groups are present in `silver.victory_groups` before the promotion is completed. | ✅ Final |
 
-Victory Church · Master Architecture Plan · v4.0 · Confidential — Internal Use Only
+Victory Church · Master Architecture Plan · v4.3 · Confidential — Internal Use Only
 
 ---
 
@@ -1892,6 +2145,7 @@ This section is the **authoritative and binding** source for all naming conventi
 | **Bronze Table** | `raw_<entity_plural>` | `raw_form_submissions`, `raw_events` | All bronze tables start with `raw_`. |
 | **Silver Table** | `<entity_plural>` | `persons`, `events`, `intern_relationships` | Plain, normalized plural nouns. |
 | **Silver SQLX File** | `stg_<entity>.sqlx` | `stg_persons.sqlx`, `stg_events.sqlx` | `stg_` prefix distinguishes the transform file from the table it produces. |
+| **Silver Pipeline SQLX File** | `<pipeline_name>.sqlx` (no prefix) | `discipleship_pipeline.sqlx` | For Silver-layer SQLX files that perform cross-table logic (not a simple Bronze→Silver staging transform). Lives in `data/definitions/2_silver/`. No `stg_` prefix. |
 | **Gold View** | `vw_<business_domain>` | `vw_member_demographics`, `vw_attendance_trends` | `vw_` prefix explicitly denotes a read-only BigQuery view. |
 | **Gold Dimension Table** | `dim_<entity>` | `dim_members`, `dim_ministry_teams` | OLAP-style dimension prefix. |
 | **Gold Fact Table** | `fact_<event>` | `fact_attendance`, `fact_event_registrations` | OLAP-style fact prefix. |
