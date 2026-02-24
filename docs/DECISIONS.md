@@ -1,0 +1,88 @@
+# Decision Log
+
+← Part of [ARCHITECTURE.md](../ARCHITECTURE.md)
+
+All architectural decisions are recorded here. Decisions are permanent — superseded decisions are updated in-place with a note. Any deviation from the current architecture requires a new entry here and an `@architect` review.
+
+---
+
+| Date | Decision | Rationale | Status |
+| :--- | :--- | :--- | :--- |
+| 2025-01-20 | Monorepo structure | Simplifies shared logic between Dataform, Terraform, and Backend. | ✅ Final |
+| 2025-01-21 | Cloudflare Pages for Frontend | 100% free for static assets, unified Edge security (WAF). | ✅ Final |
+| 2025-01-22 | SCD2 for Silver Layer | Preserves historical snapshots — critical for discipleship growth over time. | ✅ Final |
+| 2025-01-23 | Deterministic Registration IDs | Simple, code-free duplicate prevention and idempotency. | ✅ Final |
+| 2025-01-24 | 2025 Pathway Transition | Permanent validity for legacy steps prevents data loss. | ✅ Final |
+| 2025-01-25 | Alpine.js + Bootstrap 5 | Zero build step, maximizes speed of development and low-power device support. | ✅ Final |
+| 2025-01-26 | Firebase Auth with Google Sign-In | One-tap if already signed into device. Same button for all pages — role determines what you see after. | ✅ Final |
+| 2025-01-27 | VG Leader / Member form access | Any Google account can submit. Admin reviews all new submissions before they go live (pending queue). | ✅ Final |
+| 2025-01-28 | Returning user form experience | Form pre-fills with existing data from database. Matched by google_uid on load via GET /api/me. | ✅ Final |
+| 2025-01-29 | Post-submission experience | Simple success message: "Thank you, your data has been received." Form resets. No profile page shown at this stage. | ✅ Final |
+| 2025-01-30 | Event attendance for large events | Phase 1: one-by-one check-in in admin UI. Phase 2: QR scan check-in. Same schema supports both. | ✅ Final |
+| 2025-01-31 | Person relationships (couples, parents) | Phase 2. Every person is an independent record in Phase 1. victory_silver.person_relationships table added in Phase 2. | ✅ Final |
+| 2025-02-01 | Existing data migration approach | Admin "Create Profile" tool for all migrated records. Migrated records claim their Google account on first sign-in by email match. | ✅ Final |
+| 2025-02-02 | Role promotion (member → leader) | Always admin-managed. System never auto-promotes. Person submits leader form → admin reviews → admin assigns vg_leader role. | ✅ Final |
+| 2025-02-03 | Automated notifications | None in Phase 1. No outbound emails. Keep it simple. | ✅ Final |
+| 2025-02-04 | Duplicate record handling | System flags by name + birthday match across different google_uid values. Alert lists both records in admin queue. Admin edits correct record and deletes duplicate. No auto-merge. | ✅ Final |
+| 2025-02-05 | Executive reports access | Looker Studio dashboards embedded inside /reports page. Google account already signed in = silent auth in iframe — no second login. | ✅ Final |
+| 2025-02-06 | Event landing pages | Standalone pages at /e/[slug] with no site navigation. Canva-designed hero image uploaded by admin. New event = one admin action + one Canva image. Zero code. | ✅ Final |
+| 2025-02-07 | Incomplete profile at event registration | Redirected to complete profile first. Registration auto-confirmed on completion — person doesn't need to re-register. | ✅ Final |
+| 2025-02-08 | Payment for paid events | External (GCash / bank). Admin manually marks as paid with reference number, date, method. Payment status: pending → paid / waived. No payment gateway in Phase 1. | ✅ Final |
+| 2025-02-09 | Payment instructions on success screen | Not shown. The registration success screen displays only a clean confirmation. No GCash numbers, no bank details. Payment details are communicated through the church's existing channels. | ✅ Final |
+| 2025-02-10 | Victory Group question at event registration | The event registration profile form includes "Are you part of a Victory Group?" (Yes/No). Stored on victory_silver.persons.is_in_victory_group. Asked for new users during profile creation and for returning users with incomplete profiles. Not re-asked for returning users with complete profiles. | ✅ Final |
+| 2025-02-11 | Duplicate event registration prevention | System performs a pre-check before allowing registration. If already registered, frontend displays confirmation. API returns HTTP 409 on duplicate submission. Registration IDs are deterministic (hash of event_id + person_id). | ✅ Final |
+| 2025-02-12 | Upcoming events for returning registrants | When a returning person visits an event page and signs in, the pre-check endpoint returns a list of all their upcoming event registrations. Shown on confirm-registration and already-registered screens. | ✅ Final |
+| 2025-02-13 | Person name fields | Names are decomposed into first_name, middle_name, last_name, and suffix on victory_silver.persons. full_name is computed by the Silver pipeline. Supports PH naming conventions. | ✅ Final |
+| 2025-02-14 | Required fields by stage | Contact: first name, middle name, last name, suffix, address, contact number, birthday, Facebook profile (encouraged). Member/Intern adds: employment info, VG leader name. Leader adds: groups led, member names. | ✅ Final |
+| 2025-02-15 | Employment data model | victory_silver.person_occupations (SCD2) with employment_type (employed / self_employed). Conditional fields — only the applicable pair is populated. | ✅ Final |
+| 2025-02-16 | Victory Group types | single · wives · husbands · students · young_pro. One group = one type. A leader can lead multiple groups of different types. | ✅ Final |
+| 2025-02-17 | VG member capture on leader form | Leaders enter member names (first + last) per group. person_id is NULL until admin links the member to an existing person record. Allows immediate name capture without requiring members to have system accounts. | ✅ Final |
+| 2025-02-18 | Equipping Pathway terminology | New steps: One2One + Spiritual Foundations + Leadership 113. Old steps: One2One + Victory Weekend + Discipleship Class + Leadership 113. | ✅ Final |
+| 2025-02-19 | Leader's Lab historical naming | Leader's Lab = Discipleship Class. Canonical step: discipleship_class. step_name_as_completed field preserves the exact name on the certificate. | ✅ Final |
+| 2025-02-20 | Equipping Pathway data entry | Admin-managed only. VG Leaders and Members are never asked about pathway completion on forms. Admin creates class batches and manages enrollment rosters. | ✅ Final |
+| 2025-02-21 | Old pathway completers + new pathway | Both pathways permanently valid. Old pathway completers encouraged (not required) to complete Spiritual Foundations. System flags them with "Encourage SF" in admin view. | ✅ Final |
+| 2025-02-22 | Equipping batch tracking | Track specific batch (cohort identity) AND report on step completion regardless of batch. victory_silver.equipping_classes holds batch identity. Gold views aggregate on canonical_step. | ✅ Final |
+| 2025-02-23 | One2One operational model | Personal meeting, not tracked as an event. Recorded as two fields on victory_silver.persons: one2one_completed (BOOL) and one2one_date (DATE). Admin sets these. | ✅ Final |
+| 2025-02-24 | Pathway candidate tracking view | Both: high-level funnel with counts per step AND drill-down to individual names per stage. Funnel in Looker Studio, names list in admin portal. | ✅ Final |
+| 2025-02-25 | Event categories | Events, Equipping Pathway classes, Pastoral self-register (Weddings, Dedications), Pastoral admin-only (Funerals). Future: Outreach, Worship, Youth, Fellowship. | ✅ Final |
+| 2025-02-26 | Events profile impact | Attendance records only. No milestone update. Contributes to engagement score surfaced in victory_gold.vw_person_engagement. | ✅ Final |
+| 2025-02-27 | Pastoral events — who enters data | Mix: Weddings and Dedications can self-register. Funerals are always admin-entered and flagged is_sensitive = TRUE. | ✅ Final |
+| 2025-02-28 | Pastoral events — who gets captured | The person being celebrated. Created as contact stage records if no existing match by email. | ✅ Final |
+| 2025-03-01 | Person journey stages | Four admin-managed stages: contact → member → intern → leader. Never auto-computed. | ✅ Final |
+| 2025-03-02 | journey_stage computation | Admin-managed field only. System surfaces data to inform pastoral judgment; it never replaces it. | ✅ Final |
+| 2026-02-24 | Remove `phone` from `victory_silver.persons` | `phone` is canonically stored in `victory_silver.person_contacts (type: mobile)`. `email` is retained on `victory_silver.persons` exclusively for Firebase Auth account-matching. | ✅ Final |
+| 2026-02-24 | Intern-leader data relationship | `vg_leader_first_name/last_name` on `victory_silver.persons` is a display cache. `victory_silver.intern_relationships.leader_person_id` is the canonical FK for the intern-leader relational link. | ✅ Final |
+| 2026-02-24 | Artifact Registry latest-only retention | Stores only `:latest` Docker image tag. Prior versions auto-pruned via Terraform cleanup policy. Rollback via git revert + redeploy. | ✅ Final |
+| 2026-02-24 | Event landing pages in Phase 1 | Public landing pages, self-registration logic, and duplicate registration checking are Phase 1 scope. Admin Event Management UI and attendance tracking move to Phase 2. | ✅ Final |
+| 2026-02-24 | Dataform scheduling — native over Cloud Scheduler | Dataform native `release_config` + `workflow_config` used for scheduled pipeline runs (hourly). Cloud Scheduler cannot chain the two required API calls in a single HTTP target. | ✅ Final |
+| 2026-02-24 | Pub/Sub → Dataform via Cloud Function | A Cloud Function (`dataform-attendance-trigger`) bridges Pub/Sub attendance events to the Dataform `workflowInvocations` API. Required because triggering a Dataform invocation is a two-step operation. | ✅ Final |
+| 2026-02-24 | Discipleship pipeline — UPDATE, not CREATE | `discipleship_pipeline.sqlx` does not auto-create `equipping_enrollments` records. The pipeline UPDATES existing `enrolled` records to `completed` when attendance is confirmed. Admin must enroll before attendance can trigger a completion. | ✅ Final |
+| 2026-02-24 | Intern relationships — leader form + admin confirmation | VG Leaders identify their interns via VG Leader form Section 3. This creates pending `intern_relationships` records. Admins review and confirm. Only approved relationships sync the `vg_leader` display cache. Removal is admin-managed only. | ✅ Final |
+| 2026-02-24 | New-user event registration — two-phase write | Cloud Run immediately creates a minimal Silver person record to allow immediate event registration FK resolution. The full Bronze record is reconciled by Dataform on the next scheduled run. This is the only permitted direct Silver write from Cloud Run. | ✅ Final |
+| 2026-02-24 | Walk-in check-in auto-creates registration | When admin checks in a person and no prior registration exists, the backend auto-creates a `victory_silver.event_registrations` record. Admin can override payment status afterwards. | ✅ Final |
+| 2026-02-24 | Event pre-check validates event status | `GET /api/events/{slug}/pre-check` verifies `victory_silver.events.status = 'registration_open'` first. Returns HTTP 410 Gone if not open. | ✅ Final |
+| 2026-02-24 | Remove bulk import feature | `victory_bronze.raw_bulk_imports` table and all bulk CSV import functionality removed. Admin "Create Profile" tool covers all data migration needs. | ✅ Final |
+| 2026-02-24 | Pre-check profile completeness JOIN | Pre-check computes `profile_complete` by querying `victory_silver.persons` AND LEFT JOINing `victory_silver.person_contacts` for mobile and facebook. `profile_completeness_pct` is for reporting only — not used by pre-check. | ✅ Final |
+| 2026-02-24 | profile_completeness_pct timing limitation | Defaults to `0` for new users until the next Dataform run. Pre-check computes completeness dynamically via JOINs during this window. Accepted for Phase 1. | ✅ Final |
+| 2026-02-24 | Self-register event status re-validation | `POST /api/events/{slug}/self-register` re-validates event status at write time to guard against race condition between pre-check and registration submission. Returns HTTP 410 Gone if status changed. | ✅ Final |
+| 2026-02-24 | performed_by semantics in raw_event_actions | `performed_by` records: `registered` = registrant's `person_id` (self-reg) or admin's `person_id` (admin-reg); `attended` = admin; `created` = admin; `cancelled` = admin or registrant. NOT NULL. | ✅ Final |
+| 2026-02-24 | SCD2 admin PATCH rule | All admin PATCH operations on SCD2 Silver tables MUST use the close-and-insert pattern. A plain SQL UPDATE on an SCD2 table is a data integrity violation. | ✅ Final |
+| 2026-02-24 | Write-path ownership matrix | Consolidated Write-Path Ownership Matrix added to API.md documenting which component owns writes to each Silver table and what write pattern is required. | ✅ Final |
+| 2026-02-24 | Intern relationship API endpoints | `GET /api/intern-relationships`, `POST /api/intern-relationships`, `PATCH /api/intern-relationships/{id}` added for admin review queue. | ✅ Final |
+| 2026-02-24 | Person search endpoint | `GET /api/persons?q=<name>` added. Used in VG member linking and intern search. Minimum query length: 2 characters. | ✅ Final |
+| 2026-02-24 | stg_intern_relationships always-insert behavior | Always INSERTs a new `pending` record per intern named in a leader form submission. `intern_person_id` is auto-populated when the typed name resolves to exactly one match; NULL when zero or multiple matches exist. Admin links unresolved records before approving. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — atomic Steps 3 & 4 via single API action | Steps 3 (role assignment) and 4 (journey_stage update) executed atomically via `POST /api/persons/{id}/promote-to-leader`. Single "Promote to VG Leader" button in admin portal. Eliminates role/stage mismatch risk. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — Step 5 inline prompt | After promotion, admin portal checks for active `intern_relationships` and surfaces inline prompt to close them. System does not auto-close. | ✅ Final |
+| 2026-02-24 | intern_relationships — nullable intern_person_id with raw name capture | `intern_person_id` is nullable. `intern_first_name` and `intern_last_name` store the typed name as audit trail. Auto-match on exact name; NULL on zero/multiple matches. Admin links via `PATCH /api/intern-relationships/{id}/link`. Cannot approve unlinked records. Mirrors VG member pattern. | ✅ Final |
+| 2026-02-24 | Duplicate resolution — Phase 1 keep-one approach | Admin selects which duplicate record to keep. The other is set to `review_status = 'rejected'` with `duplicate_of_person_id` set. Rejected records excluded from all Gold views. Full history merge deferred to Phase 4. | ✅ Final |
+| 2026-02-24 | Gold views — binding review_status filter | All Gold views joining `victory_silver.persons` MUST filter `WHERE persons.review_status != 'rejected'`. Enforced via Dataform assertions. Blocks CI/CD on violation. | ✅ Final |
+| 2026-02-24 | VG Leader promotion — Dataform run prerequisite | Admin must wait until after the next Dataform pipeline run (up to 1 hour) before executing Steps 2–5 of Stage 04 entry. | ✅ Final |
+| 2026-02-24 | Facebook Profile — encouraged at Contact, required at Member | Facebook Profile is encouraged at Contact stage. Required from Member stage onward. Does not block event registration. | ✅ Final |
+| 2026-02-24 | Member stage transition — VG Leader name soft-warning | Admin portal shows soft warning if VG Leader name is missing when promoting to Member. Non-blocking. | ✅ Final |
+| 2026-02-24 | Intern stage — unlinked intern alert queue | Persons with `journey_stage = 'intern'` and no active approved `intern_relationships` surfaced in admin queue tab "Interns Without Active Relationship". | ✅ Final |
+| 2026-02-24 | VG Leader IAM reconciliation — automated | `bigquery.filteredDataViewer` IAM binding maintained by periodic reconciliation script (Cloud Scheduler + Cloud Function, Terraform-provisioned). Syncs active `vg_leader` set from `victory_silver.person_roles`. | ✅ Final |
+| 2026-02-24 | `/profile.html` advanced to Phase 1 | VG Members need a self-service path for employment info and VG Leader name in Phase 1. Writes to `victory_bronze.raw_form_submissions` with `source_page = 'profile'`. Phase 5 retains extended engagement dashboard features. | ✅ Final |
+
+---
+
+*Owner: @architect. Last updated: 2026-02-24.*
