@@ -59,6 +59,38 @@ Copy URL → hand to comms team        Zero developer required
 
 > **Account-Claiming (admin-created records):** Account-claiming (email-match fallback) is triggered on profile load and event registration pre-check. On either action, if no record matches by `google_uid`, the system automatically attempts an email-match fallback against `persons WHERE google_uid IS NULL`. If a match is found, the `google_uid` is claimed silently and the form pre-fills normally. If no email match is found, the user is presented with a blank profile form to complete their initial registration (self-service profile creation). See [API.md](API.md) for the account-claiming flow.
 
+```plaintext
+Account-Claiming Flow (Email-Match Fallback)
+
+ Person signs in via Google (Profile or Event pre-check)
+        │
+        ▼
+   System checks Google UID
+   (WHERE google_uid = <jwt.uid> AND is_current = TRUE)
+        │
+   ┌────┴──────────────────────────┐
+   │                               │
+ MATCH                          NO MATCH
+   │                               │
+   ▼                               ▼
+(Pre-fills normally)      System attempts Email Fallback
+                          (WHERE email = <jwt.email> 
+                           AND google_uid IS NULL)
+                                   │
+             ┌─────────────────────┼─────────────────────┐
+             │                     │                     │
+         ONE MATCH            MULTIPLE MATCHES      ZERO MATCHES
+             │                     │                     │
+             ▼                     ▼                     ▼
+     Account Claimed      (Logs data inconsistency,  (New User Flow)
+   UPDATE google_uid =    returns oldest record)     Ask user to fill
+   <jwt.uid> silently.    UPDATE google_uid =        empty form for 
+             │            <jwt.uid> silently.        "Contact" stage.
+             ▼                     │                     
+     (Proceed normally)            ▼                     
+                          (Proceed normally)
+```
+
 > **Stage-dependent Facebook enforcement:** If the user's `journey_stage = 'contact'`, the Facebook field is shown with an "encouraged" label and is not required. If `journey_stage = 'member'` or higher, Facebook is **required** — the form submission is blocked until it is filled.
 
 > **Profile completeness criteria — canonical field sets for `profile_complete` pre-check flag and `profile_completeness_pct` Silver formula:**

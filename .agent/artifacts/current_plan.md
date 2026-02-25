@@ -1,24 +1,16 @@
-# CPA: UX Flows Phase 1 Updates
-
-Phase: Planning
-Goal: Remove member-initiated VG leader associations and allow self-service registration on profile not found.
-Non-negotiables: Must follow existing markdown structure and ARCHITECTURE.md constraints.
-Affected Paths:
-- /Users/erivanbuenaventura/AntiGravity/victory-discipleship/docs/UX_FLOWS_PHASE1.md
-
-Mandatory Agents: @orchestrator, @architect
-
-Documentation Impact: Updates strictly to docs/UX_FLOWS_PHASE1.md. Future tasks will adapt the schema and API.
-
-Architect Valid Plan:
-1. Update UX_FLOWS_PHASE1.md per the implementation plan to reflect the new VG Leader and Profile Not Found rules.
-2. Ensure no broken links remain.
-
-Steps+Owners:
-1. Draft implementation plan (@orchestrator)
-2. Await user/architect approval (@orchestrator)
-3. Execute markdown updates (@orchestrator)
-4. Verify structure/links (@orchestrator)
-
-Verification plan:
-- check_links.py
+# Current Plan (CPA)
+**Phase:** Executing
+**Goal:** Create a scenario diagram for the Account-Claiming process in `docs/UX_FLOWS_PHASE1.md`.
+**Non-negotiables:** Do not edit any other document than `docs/UX_FLOWS_PHASE1.md`. Ensure formatting matches proper markdown style (`plaintext` block to match existing diagrams). Adhere to the Account-Claiming logic defined in `docs/API.md`.
+**Affected Paths:** `docs/UX_FLOWS_PHASE1.md`
+**Mandatory Agents:** @readme-updater (Documentation Impact) / Orchestrator will execute edit.
+**Documentation Impact:** `docs/UX_FLOWS_PHASE1.md` will receive a new Account-Claiming scenario diagram.
+**Architect Valid Plan (verbatim):** Diagram proposed and approved by user.
+**Steps+Owners:**
+1. Generate CPA & CSA [owner: @orchestrator] - DONE
+2. Propose Scenario Diagram [owner: @orchestrator] - DONE
+3. Seek user approval [owner: @orchestrator] - DONE
+4. Implement changes to `docs/UX_FLOWS_PHASE1.md` once approved [owner: @orchestrator] - DONE
+**Verification plan:** 
+- Visual inspection of the markdown.
+- Verify `docs/UX_FLOWS_PHASE1.md` renders correctly.
