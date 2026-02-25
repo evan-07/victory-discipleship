@@ -1,18 +1,68 @@
-# Frontend & UX Flows — Phase 1
+# Frontend & UX Flows — Phase 1 (Release Slices 1.01–1.08)
 
 ← Part of [ARCHITECTURE.md](../ARCHITECTURE.md) | See also: [UX_FLOWS.md](UX_FLOWS.md) · [API.md](API.md) · [JOURNEY_STAGES.md](JOURNEY_STAGES.md) · [EVENTS.md](EVENTS.md)
 
 ---
 
-## Phase 1 — Pages & Access Control
+## Phase 1.01 — Foundation: Auth + Skeleton Pages
 
 | Page | Who Sees It | Access Control | Phase | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| `/e/[slug]` | Anyone | Google Sign-In | **Phase 1** | Public event landing page — no nav. Smart pre-check drives registration flow. |
-| `/profile.html` | Any authenticated person | Google Sign-In | **Phase 1** | Own record view and edit. Pre-fills from Silver. Collects employment info. Field requirements vary by journey_stage — see Field display rules. Cannot see other records. |
-| `/admin.html` | Admin only | Firebase Auth + role check (admin) | **Phase 1** | Core admin portal: review queue, person editing, role assignment. |
-| `/events.html` | Admin only | Firebase Auth + role check (admin) | **Phase 1** | Event management: create event, manage status, view registrations, mark attendance. |
+| `/e/[slug]` | Anyone | Google Sign-In | **Phase 1.01** | Public event landing shell — no nav. Register CTA enforces sign-in; full registration flow arrives in later slices. |
+| `/profile.html` | Any authenticated person | Google Sign-In | **Phase 1.01 (shell), 1.04 (basic self-service)** | Starts as a shell page; basic self-service profile editing ships with registration writes. Enhanced stage-based enforcement is finalized in 1.08. |
+| `/admin.html` | Admin only | Firebase Auth + role check (admin) | **Phase 1.01 (shell), 1.07–1.08 (core ops)** | Starts as a shell page; review queue lands in 1.07 and advanced person/role tools in 1.08. |
+| `/events.html` | Admin only | Firebase Auth + role check (admin) | **Phase 1.01 (shell), 1.05–1.06 (core ops)** | Starts as a shell page; event setup/status controls land in 1.05 and attendance/manual registration in 1.06. |
 
+
+## Phase 1 Release Slices (Implementation Order)
+
+### Phase 1.01 — Foundation: Auth + Skeleton Pages
+- Google Sign-In integration and Firebase Auth session handling.
+- Route/page shells for `/e/[slug]`, `/profile.html`, `/admin.html`, and `/events.html`.
+- Role gating baseline: public event page access, admin-only enforcement for `/admin.html` and `/events.html`.
+- Standard sign-in failure handling (cancelled sign-in, popup blocked, network failures).
+
+### Phase 1.02 — Event Read-Only Landing Page
+- `/e/[slug]` resolves event by slug and shows hero image, event name, date/time, venue.
+- Event status messaging for `closed`, `completed`, `cancelled`, and not-found states.
+- `Register Now` CTA can remain a sign-in-gated stub.
+
+### Phase 1.03 — Pre-check + Decision Screens (No Writes)
+- End-to-end pre-check integration, including account-claiming fallback by email.
+- Decision screens: Already Registered, Confirm Registration, Complete Profile, Brand New Person.
+- Missing-field highlighting driven by pre-check response.
+- No registration write operations yet.
+
+### Phase 1.04 — Self-Service Registration Writes (Core Public MVP)
+- Public registration write paths for new, incomplete-profile, and complete-profile persons.
+- Minimal success screen and duplicate registration defenses.
+- Mid-flow event closure/race-condition handling.
+- Basic `/profile.html` self-service profile editing ships alongside this slice.
+
+### Phase 1.05 — Admin Event Management
+- `/events.html` supports event creation (default `closed`), hero upload, status transitions, and basic registration list.
+- Public event page behavior reflects live admin-controlled status.
+
+### Phase 1.06 — Attendance Marking + Admin Direct Registration
+- Registration list actions: mark attended / no-show.
+- Usability controls: filtering, search, and pagination.
+- Admin direct registration flow (person search + duplicate guard).
+
+### Phase 1.07 — Admin Review Queue MVP
+- `/admin.html` review queue with Pending and Duplicates tabs.
+- Rejected records audit view with restore path.
+- Duplicate routing and optimistic UI + rollback error messaging.
+
+### Phase 1.08 — Admin Person Record Power Tools
+- Expanded admin person editing and stage transition actions.
+- Role assignment/revocation for Admin and Executive.
+- `Promote to VG Leader` direct action and role/stage mismatch repair guidance.
+
+### Shortest Realistic MVP Cut
+- **1.01 → 1.02 → 1.03 → 1.04 → 1.05** delivers the first complete operational loop: shareable event page, smart pre-check, registration writes, and admin event control.
+- Add **1.06** for attendance operations, **1.07** for data quality stabilization, and **1.08** for scale-oriented admin power tools.
+
+---
 ### Event Page Design
 
 ```plaintext
@@ -46,14 +96,14 @@ Copy URL → hand to comms team        Zero developer required
 ```
 
 
-## UX Flows (Phase 1)
+## UX Flows (Phase 1 Detailed Reference)
 ### Entry Points Summary
 
 | Entry Point | URL | Who | Auth | Key Behavior | Phase |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Event Landing Page | `/e/[slug]` | Anyone | Google Sign-In | Smart pre-check → profile form or confirm or already-registered screen. VG question for new users. | **Phase 1** |
-| Member Profile | `/profile.html` | Any authenticated person | Google Sign-In | View and update own record. Pre-fills from Silver. Accessible to all authenticated persons with a Silver record. Field requirements vary by journey_stage — see Field display rules. Cannot see other records. | **Phase 1** |
-| Admin Portal | `/admin.html` | Admin team | Google Sign-In + admin role | Review queue, event management, person editing, role assignment. | **Phase 1** |
+| Event Landing Page | `/e/[slug]` | Anyone | Google Sign-In | Smart pre-check → profile form or confirm or already-registered screen. VG question for new users. | **1.02–1.04** |
+| Member Profile | `/profile.html` | Any authenticated person | Google Sign-In | View and update own record. Pre-fills from Silver. Accessible to all authenticated persons with a Silver record. Field requirements vary by journey_stage — see Field display rules. Cannot see other records. | **1.01 (shell), 1.04, 1.08** |
+| Admin Portal | `/admin.html` | Admin team | Google Sign-In + admin role | Review queue, event management, person editing, role assignment. | **1.01 (shell), 1.05–1.08** |
 
 ### Member Profile Form — `/profile.html`
 
@@ -945,4 +995,4 @@ Admin action:
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-25. Phase 1 MVP flows — split from UX_FLOWS.md for focused audit.*
+*Owner: @architect. Last updated: 2026-02-25. Phase 1 MVP flows now sequenced into release slices 1.01–1.08 for staged delivery.*
