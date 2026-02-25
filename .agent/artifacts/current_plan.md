@@ -1,30 +1,24 @@
-# CPA: Centralizing Agent Governance
+# CPA: UX Flows Phase 1 Updates
 
 Phase: Planning
-Goal: Implement AGENTS.md to centralize agent roles and routing.
-Non-negotiables: Must not violate ARCHITECTURE.md supremary; must use relative file links.
+Goal: Remove member-initiated VG leader associations and allow self-service registration on profile not found.
+Non-negotiables: Must follow existing markdown structure and ARCHITECTURE.md constraints.
 Affected Paths:
-- /Users/erivanbuenaventura/AntiGravity/victory-discipleship/AGENTS.md
-- /Users/erivanbuenaventura/AntiGravity/victory-discipleship/README.md
-- /Users/erivanbuenaventura/AntiGravity/victory-discipleship/ARCHITECTUREv4.1.md
+- /Users/erivanbuenaventura/AntiGravity/victory-discipleship/docs/UX_FLOWS_PHASE1.md
 
-Mandatory Agents: @orchestrator, @architect, @readme-updater
+Mandatory Agents: @orchestrator, @architect
 
-Documentation Impact: Updates README.md and ARCHITECTURE.md references.
+Documentation Impact: Updates strictly to docs/UX_FLOWS_PHASE1.md. Future tasks will adapt the schema and API.
 
 Architect Valid Plan:
-1. Create `AGENTS.md` containing the Agent Roster and Routing Matrix.
-2. Update `README.md` Section 3 to link to `AGENTS.md`.
-3. Update `ARCHITECTUREv4.1.md` Section 15 to reference `AGENTS.md`.
-4. Run `check_links.py` to verify documentation integrity.
+1. Update UX_FLOWS_PHASE1.md per the implementation plan to reflect the new VG Leader and Profile Not Found rules.
+2. Ensure no broken links remain.
 
 Steps+Owners:
-1. Research AGENTS.md and draft content (@orchestrator)
-2. Create AGENTS.md (@orchestrator)
-3. Update README.md (@readme-updater)
-4. Update ARCHITECTURE.md (@architect)
-5. Verify links (@readme-updater)
+1. Draft implementation plan (@orchestrator)
+2. Await user/architect approval (@orchestrator)
+3. Execute markdown updates (@orchestrator)
+4. Verify structure/links (@orchestrator)
 
 Verification plan:
 - check_links.py
-- validate_structure.py

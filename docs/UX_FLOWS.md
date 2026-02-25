@@ -30,6 +30,7 @@ This is the authoritative delivery reference. Use this table to track whether ea
 | `/leader.html` | VG Leaders | Google Sign-In | **Phase 2** | VG Leader self-reporting form — captures personal info, Victory Groups led, and interns supervised. Pre-fills for returning users. |
 | `/dashboard.html` | VG Leaders | Firebase Auth + role check (`vg_leader`) | **Phase 2** | Personal group and discipleship overview for VG Leaders. |
 | `/reports.html` | Executives | Firebase Auth + executive role; Looker Studio iframe embed | **Phase 4** | Embedded Looker Studio dashboards. No data editing. Direct Looker Studio links are not the delivery mechanism. |
+
 ### Mobile Responsiveness Strategy
 
 - Bootstrap 5 grid provides mobile-first responsiveness for the existing member form.
@@ -39,36 +40,12 @@ This is the authoritative delivery reference. Use this table to track whether ea
 - Font sizes: minimum 16px body text to prevent iOS auto-zoom on form fields.
 - Viewport meta tag enforced: `width=device-width, initial-scale=1.0`.
 
-### Event Page Design
+---
 
-```plaintext
-Admin's job                          Creative team's job
-─────────────────────────────────    ──────────────────────────────────
-Create event in portal               Design event artwork in Canva
-System auto-generates page_slug      Export as image, send to admin
-Upload Canva-designed hero image     Admin uploads it — page is live
-Set status = registration_open       Creative team never touches code
-Copy URL → hand to comms team        Zero developer required
-```
-### Event Landing Page Layout (`/e/[slug]`)
+## Phase 1 Flows
+→ All Phase 1 UX flows are documented in [UX_FLOWS_PHASE1.md](UX_FLOWS_PHASE1.md).
 
-```plaintext
-┌─────────────────────────────────────────┐
-│         [Canva Hero Image]              │
-│                                         │
-│  Event Name                             │
-│  Date & Time · Venue                    │
-│  Description (optional)                 │
-│                                         │
-│  ┌─────────────────────────────┐        │
-│  │   [ Register Now ]          │        │
-│  └─────────────────────────────┘        │
-│                                         │
-│  No payment instructions displayed.     │
-│  No site navigation.                    │
-└─────────────────────────────────────────┘
-```
-
+---
 
 ## UX Flows
 ### Entry Points Summary
@@ -82,34 +59,39 @@ Copy URL → hand to comms team        Zero developer required
 | Pastoral Event Page | `/e/[slug]` | Families / couples | Google Sign-In | Simplified public self-registration for pastoral events (Weddings, Dedications). Admin-initiated in Phase 1. | **Phase 3** |
 | Reports | `/reports.html` | Executives | Google Sign-In + executive role | Embedded Looker Studio dashboards. No data editing. Direct Looker Studio links are not the delivery mechanism. | **Phase 4** |
 
-### Member Profile Form — `/profile.html`
+> Phase 1 entry point flows (event registration scenarios, member profile form, admin portal) are in [UX_FLOWS_PHASE1.md](UX_FLOWS_PHASE1.md).
 
-> **Account-Claiming (admin-created records):** On every page that calls `GET /api/me`, if no record matches by `google_uid`, Cloud Run automatically attempts an email-match fallback against `persons WHERE google_uid IS NULL`. If a match is found, the `google_uid` is claimed silently and the form pre-fills normally. If no email match is found, the user sees: *"Your profile was not found. Please ask your Victory Group leader or admin to create your profile."* — no form is shown.
+### VG Leader Form — New User Flow
 
-> **Stage-dependent Facebook enforcement:** If the user's `journey_stage = 'contact'`, the Facebook field is shown with an "encouraged" label and is not required. If `journey_stage = 'member'` or higher, Facebook is **required** — the form submission is blocked until it is filled.
+> **Phase 2.** A "new user" in this context is a VG Leader who has been promoted by admin (`journey_stage = 'leader'`, `vg_leader` role active) and is accessing `/leader.html` **for the first time**. Their personal data already exists in Silver from their Member stage. Sections 2 and 3 are empty on first access — no Victory Groups or Interns have been submitted yet.
 
 ```plaintext
-1. Member opens /profile.html → Google Sign-In (one-tap if already signed in)
-2. Frontend calls GET /api/me with JWT
-3. Cloud Run looks up record by google_uid → returns full profile.
-   If no match by google_uid, Cloud Run attempts email-match fallback (account-claiming).
-   If still no match → show "Profile not found" message, no form displayed.
-4. Form pre-fills all known fields:
-   Section 1 — Personal Info (Contact-stage fields, all read-only if already complete)
-   Section 2 — Employment Info (Employment Type → conditional fields)
-   Section 3 — VG Leader (their leader's first and last name)
-5. Member updates or completes fields → submits
+1. Leader opens /leader.html → Google Sign-In (one-tap if already signed in)
+2. Frontend calls GET /api/leaders/me with JWT
+3. Cloud Run looks up record by google_uid → returns full personal profile
+   with groups: [] and interns: []
+4. Frontend detects groups: [] → renders NEW USER state:
+   Section 1 — Personal Info: ALL fields pre-filled from Silver record (all editable)
+   Section 2 — Victory Groups Led: empty — shows "Add your first Victory Group" prompt
+                                   with one blank group card already open
+   Section 3 — Interns I'm Supervising: empty (optional — may be skipped on first submit)
+5. Leader reviews/corrects Section 1, adds at least one group in Section 2,
+   optionally adds interns in Section 3 → submits
 6. POST /api/submit → writes to victory_bronze.raw_form_submissions
-7. Success message: "Thank you, your profile has been updated."
+   with source_page = 'leader'
+7. Success message: "Thank you, your data has been received."
+8. On next load (after Dataform run — up to 1 hour): form transitions to
+   Returning User state — groups and members appear pre-filled.
+   Pre-Dataform banner shown in admin portal during this window (see below).
 ```
 
-**Field display rules:**
-- All Contact-stage fields (name, address, contact number, birthday, Facebook) are shown pre-filled and editable — members may correct their own data.
-- Employment Type and conditional fields (Section 2) are always shown — these are the primary reason a member visits this page.
-- VG Leader name fields (Section 3) are shown pre-filled if previously set and editable — the member may update if their leader changes.
-- A member cannot view or edit any other person's record. The form is scoped strictly to `google_uid` of the signed-in user.
+**Section 1 — first submission behavior:** All personal fields (name, address, contact number, birthday, gender, civil status, Facebook, employment info, VG Leader name) are pre-filled from the existing Silver record. All fields are editable. Any corrections write to Bronze and are SCD2-reconciled by Dataform on the next run.
 
-**Write path:** Identical to the VG Leader form — all updates write to `victory_bronze.raw_form_submissions` with `source_page = 'profile'`. Dataform reconciles on the next scheduled run (SCD2 upsert on `victory_silver.persons` and `victory_silver.person_occupations`).
+**Section 2 — first submission behavior:** At least one Victory Group is required to submit. The form opens with one blank group card pre-rendered (type dropdown + empty member list). Leader must select group type and add at least one member name. Additional groups added via `[ + Add Another Group ]`.
+
+**Section 3 — first submission behavior:** Entirely optional on first submission. Leader may skip if they are not currently supervising any interns.
+
+**Edge case — person has no Silver record:** If `GET /api/leaders/me` finds no person record by `google_uid` and email-match also fails, the form renders the full blank new-person form (same Contact-stage fields as event registration Scenario 1: name, address, contact number, birthday, gender, civil status, Facebook, employment fields, VG question) prepended to Sections 2 and 3. Submission creates a new Contact-stage person in Silver via the standard write path. **This person will NOT have a `vg_leader` role — admin must promote them separately.**
 
 ---
 
@@ -137,6 +119,7 @@ Copy URL → hand to comms team        Zero developer required
 │  SECTION 1 — Personal Information       │
 │  First Name · Middle Name · Last Name   │
 │  Suffix · Birthday · Address            │
+│  Gender · Civil Status                  │
 │  Contact Number · Facebook Profile      │
 │  Employment Type → conditional fields   │
 │  VG Leader (their leader) First + Last  │
@@ -185,349 +168,14 @@ Copy URL → hand to comms team        Zero developer required
 
 **Section 1 — Employment conditional fields display:** When `employment_type = 'employed'` is selected, show `nature_of_work` + `company_name` fields only. When `employment_type = 'self_employed'`, show `nature_of_business` + `business_name` fields only. Both field pairs are mutually exclusive — the inapplicable pair is hidden and cleared on switch (Alpine.js `x-show` directive).
 
-### Event Registration Flow — Complete Decision Tree
+### Admin Review Queue — Phase 2 Additions
 
-> **Facebook field — stage-aware enforcement:** Facebook Profile is non-blocking for event registration by Contact-stage persons. The pre-check endpoint does not include `facebook_profile` in `missing_fields` and does not affect `profile_complete` for persons with `journey_stage = 'contact'`. For persons at `journey_stage = 'member'` or higher, Facebook is required and will appear in `missing_fields` if absent.
+> **Phase 2 tabs (Tabs 3–5)** activate when the VG Leader form ships. Full queue specification — including the Tab 1 interaction spec, duplicate resolution rules, and the complete queue layout — is in [UX_FLOWS_PHASE1.md — Admin Review Queue](UX_FLOWS_PHASE1.md#admin-review-queue).
 
-```plaintext
-Person opens /e/[slug]
-        │
-        ▼
-   Event page loads (hero image, name, date, venue)
-        │
-        ▼
-   Clicks "Register"
-        │
-        ▼
-   Google Sign-In (one-tap if already signed in)
-        │
-        ▼
-   Frontend calls GET /api/events/{slug}/pre-check
-        │
-        ▼
-   ┌────────────────────────────────────────────┐
-   │  Is person already registered for          │
-   │  THIS event?                               │
-   └──────────┬──────────────┬──────────────────┘
-              │              │
-           YES              NO
-              │              │
-              ▼              ▼
-   ┌──────────────┐  ┌──────────────────────────┐
-   │ SCREEN:      │  │  Does person exist in     │
-   │ "Already     │  │  victory_silver.persons?           │
-   │ Registered"  │  └─────┬──────────────┬──────┘
-   │              │        │              │
-   │ Show:        │     YES              NO
-   │ • Reg date   │        │              │
-   │ • Status     │        ▼              ▼
-   │ • Upcoming   │  ┌───────────┐  ┌───────────┐
-   │   events     │  │ Profile   │  │ SCREEN:   │
-   │              │  │ complete? │  │ Profile   │
-   └──────────────┘  └──┬────┬──┘  │ Form      │
-                        │    │     │ (Contact  │
-                     YES    NO     │  fields + │
-                        │    │     │  VG Q)    │
-                        ▼    ▼     └─────┬─────┘
-                  ┌────────┐ ┌────────┐  │
-                  │SCREEN: │ │SCREEN: │  │
-                  │Confirm │ │Complete│  │
-                  │Register│ │Profile │  │
-                  │as [Name│ │(pre-   │  │
-                  │]       │ │filled) │  │
-                  └───┬────┘ └───┬────┘  │
-                      │          │       │
-                      ▼          ▼       ▼
-               ┌──────────────────────────────────────────┐
-               │  POST /api/events/{slug}/self-register   │
-               └──────────────────┬───────────────────────┘
-                          │
-                          ▼
-               ┌─────────────────────────────┐
-               │  SUCCESS SCREEN             │
-               │                             │
-               │  ✅ "You are registered     │
-               │  for [Event Name]!"         │
-               │                             │
-               │  📅 Feb 15, 2025 · 2:00 PM │
-               │  📍 Victory Taguig          │
-               │                             │
-               │  No payment instructions.   │
-               │  No GCash/bank details.     │
-               │  Clean confirmation only.   │
-               └─────────────────────────────┘
-```
-
-### Event Registration — Error Handling
-
-#### Google Sign-In Failure or Cancellation
-
-| Condition | User Experience |
-| :--- | :--- |
-| User cancels Google Sign-In dialog | Sign-in modal closes. Page returns to event landing with **[ Register Now ]** button re-enabled. No error message. |
-| Network error during sign-in | Show inline error: *"Sign-in failed. Please check your connection and try again."* Re-enable **[ Register Now ]** button. |
-| Popup blocked by browser | Show inline message: *"Your browser blocked the sign-in popup. Please allow popups for this site and try again."* |
-
-No registration data is written on failure. The user may retry without page reload.
-
-#### Event Page — Not Found or Closed
-
-| Condition | User Experience |
-| :--- | :--- |
-| Event slug does not exist | Show page: *"This event page could not be found. The link may be incorrect or the event may no longer be available."* No Register button. |
-| Event `status = closed` | Show event details (hero image, name, date) with message: *"Registration for this event is now closed."* No Register button. |
-| Event `status = completed` | Show event details with message: *"This event has already taken place."* No Register button. |
-| Event `status = cancelled` | Show message: *"This event has been cancelled. Please check with your Victory Group leader for updates."* No Register button. |
-
-### Scenario 1 — Brand New Person
-
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In prompt → signs in
-3. GET /api/events/date-talk-feb-2025/pre-check → person_found: false
-4. Frontend shows PROFILE FORM with Contact stage fields:
-     ┌─────────────────────────────────────┐
-     │  Complete your profile to register  │
-     │                                     │
-     │  First Name:  [auto from Google]    │
-     │  Middle Name: [_______________]     │
-     │  Last Name:   [auto from Google]    │
-     │  Suffix:      [None ▾]             │
-     │  Address:     [_______________]     │
-     │  Contact #:   [_______________]     │
-     │  Birthday:    [_______________]     │
-     │  Facebook:    [_______________]     │
-     │                                     │
-     │  Are you part of a Victory Group?   │
-     │  ( ) Yes   ( ) No                   │
-     │                                     │
-     │          [ Submit & Register ]       │
-     └─────────────────────────────────────┘
-5. Person fills form → submits
-6. Backend — two-phase write (new-user registration exception):
-     Step 1 (immediate, synchronous):
-       a. Cloud Run writes full profile to victory_bronze.raw_form_submissions (standard write-path).
-       b. Cloud Run immediately creates a minimal Silver person record directly:
-          person_id (new UUID), google_uid, first_name, last_name,
-          review_status = 'pending', source = 'event_registration',
-          journey_stage = 'contact', is_current = TRUE, valid_from = NOW().
-          This is the only permitted direct Silver write from Cloud Run — required so that
-          the event registration FK (person_id) can be resolved without waiting for Dataform.
-       c. Cloud Run creates victory_silver.event_registrations using the new person_id.
-       d. SUCCESS SCREEN returned to user immediately.
-     Step 2 (async, next scheduled Dataform run):
-       Dataform stg_persons.sqlx processes the victory_bronze.raw_form_submissions record and
-       SCD2-upserts the full Silver person record (adding all remaining fields from the
-       form payload). The existing minimal record is updated in-place — no duplicate created.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
-```
-
-> **Write-path exception:** Cloud Run normally writes only to Bronze. The two-phase write above is the single permitted exception: a minimal Silver record is created immediately to satisfy the `event_registrations.person_id` FK and provide an instant confirmation. The Dataform pipeline then reconciles the full record on its next run. All new Bronze submissions must exist before the Silver minimal record is created — Bronze is always the authoritative source.
-
-### Scenario 2 — Returning Person, Complete Profile, NOT Registered
-
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. GET /api/events/date-talk-feb-2025/pre-check →
-     person_found: true, profile_complete: true, already_registered: false
-     upcoming_registrations: [Marriage Booster — Mar 1]
-4. Frontend shows CONFIRM SCREEN:
-     ┌─────────────────────────────────────┐
-     │  Register as Juan Dela Cruz?        │
-     │                                     │
-     │  Event: Date Talk — Feb 2025        │
-     │  📅 Feb 15, 2025 · 2:00 PM         │
-     │  📍 Victory Taguig                  │
-     │                                     │
-     │         [ Confirm Registration ]    │
-     │                                     │
-     │  ─────────────────────────────────  │
-     │  Your upcoming events:              │
-     │  • Marriage Booster — Mar 1, 2025   │
-     └─────────────────────────────────────┘
-5. Clicks Confirm → POST /api/events/.../self-register
-6. SUCCESS SCREEN (clean confirmation — no payment instructions)
-```
-
-### Scenario 3 — Returning Person, ALREADY Registered for This Event
-
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. GET /api/events/date-talk-feb-2025/pre-check →
-     person_found: true, already_registered: true
-     existing_registration: { registered_at: "2025-01-20", status: "registered" }
-     upcoming_registrations: [Date Talk — Feb 15, Marriage Booster — Mar 1]
-4. Frontend shows ALREADY REGISTERED SCREEN:
-     ┌─────────────────────────────────────┐
-     │  ✅ You're already registered!      │
-     │                                     │
-     │  Hi Juan! You registered for        │
-     │  Date Talk — Feb 2025 on            │
-     │  January 20, 2025.                  │
-     │                                     │
-     │  📅 Feb 15, 2025 · 2:00 PM         │
-     │  📍 Victory Taguig                  │
-     │                                     │
-     │  ─────────────────────────────────  │
-     │  Your upcoming events:              │
-     │  • Date Talk — Feb 15, 2025         │
-     │  • Marriage Booster — Mar 1, 2025   │
-     └─────────────────────────────────────┘
-5. No register button. No duplicate submission possible.
-```
-
-### Scenario 4 — Returning Person, Incomplete Profile
-
-> *This scenario assumes the returning person is at `journey_stage = 'member'` or higher — which is why `facebook_profile` appears in `missing_fields` as a required field.*
-
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. GET /api/events/date-talk-feb-2025/pre-check →
-     person_found: true, profile_complete: false
-     missing_fields: ["address", "facebook_profile"]
-     already_registered: false
-4. Frontend shows COMPLETE PROFILE SCREEN:
-     ┌─────────────────────────────────────┐
-     │  Complete your profile to register  │
-     │                                     │
-     │  First Name:  Juan       (filled)   │
-     │  Middle Name: Santos     (filled)   │
-     │  Last Name:   Dela Cruz  (filled)   │
-     │  Suffix:      None       (filled)   │
-     │  Address:     [_______________] ⚠️  │
-     │  Contact #:   09171234567 (filled)  │
-     │  Birthday:    1990-05-15  (filled)  │
-     │  Facebook:    [_______________] ⚠️  │
-     │                                     │
-     │  Are you part of a Victory Group?   │
-     │  (•) Yes   ( ) No         (filled)  │
-     │                                     │
-     │       [ Complete & Register ]        │
-     └─────────────────────────────────────┘
-5. Person fills missing fields → submits
-6. Backend:
-     a. Cloud Run writes updated profile fields to victory_bronze.raw_form_submissions.
-     b. The person already has a Silver record (person_id known from pre-check).
-        Cloud Run creates victory_silver.event_registrations immediately using the existing person_id —
-        no direct Silver write to persons is needed (person already exists). The event_registrations
-        insert is still a direct Silver write by Cloud Run, providing immediate confirmation.
-        The person_id FK is already resolved.
-     c. Dataform reconciles the profile update on the next scheduled run (SCD2 upsert adds missing fields).
-     d. SUCCESS SCREEN returned to user immediately — no re-registration step required.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
-```
-
-### Success Screen — All Scenarios
-The success screen is intentionally minimal. No payment instructions, no GCash numbers, no bank transfer details are shown on this screen.
-```plaintext
-┌─────────────────────────────────────┐
-│                                     │
-│            ✅                       │
-│                                     │
-│  You are registered for             │
-│  Date Talk — February 2025!         │
-│                                     │
-│  📅 February 15, 2025 · 2:00 PM    │
-│  📍 Victory Taguig                  │
-│                                     │
-│  See you there!                     │
-│                                     │
-└─────────────────────────────────────┘
-```
-
-Why no payment instructions on the success screen: Payment details (GCash numbers, bank accounts) are communicated through the church's existing channels — social media announcements, event descriptions, or in-person communication. The registration system focuses purely on confirming attendance intent. This keeps the success screen clean, reduces confusion, and avoids displaying sensitive financial information on a public-facing page.
-
-
-### Admin Review Queue
-
-> **Phase 1:** Tab 1 (Pending Records) and Tab 2 (Duplicates) are required for MVP — all public event registrations and admin-created records flow through here.
-> **Phase 2:** Tab 3 (Unresolved Interns), Tab 4 (Interns Without Active Relationship), and Tab 5 (Unlinked VG Members) activate when the VG Leader form ships in Phase 2.
-
-Every record created by a public form or admin direct entry starts as `review_status = 'pending'`. The admin portal surfaces these records in a dedicated view.
-
-The admin review queue is organized into tabs, each surfacing a distinct category of records requiring action.
-
-> **Queue routing rule — Pending + Duplicate:** Records with both `review_status = 'pending'` AND `duplicate_flag = TRUE` appear **in Tab 2 only (Duplicates)**. They do NOT appear in Tab 1. This prevents admin from inadvertently approving a duplicate record before the duplicate is resolved. Once the duplicate is resolved (one record kept, one rejected), the kept record returns to Tab 1 if its `review_status` is still `pending`.
-
-```plaintext
-┌──────────────────────────────────────────────────────────────────┐
-│  ADMIN REVIEW QUEUE                                              │
-│  [ Pending Records (2) ] [ Duplicates (1) ]                      │
-│  ── Phase 2 tabs ──────────────────────────────────────────    │
-│  [ Unresolved Interns (1) ] [ Interns Without Relationship (1) ] │
-│  [ Unlinked VG Members (3) ]                                     │
-│  ────────────────────────────────────────────────────────────    │
-│                                                                  │
-│  TAB 1 — PENDING RECORDS                                         │
-│  New submissions awaiting admin review                           │
-│                                                                  │
-│  [ Maria Clara ]   Source: Form   Duplicate: NO                  │
-│  [ Approve ] [ Reject ] [ Edit ]                                 │
-│                                                                  │
-│  ────────────────────────────────────────────────────────────    │
-│                                                                  │
-│  TAB 2 — DUPLICATES                                              │
-│  Records where duplicate_flag = TRUE. Admin selects which        │
-│  record to keep as canonical. The other is marked rejected.      │
-│  Full merge is deferred to Phase 5.                              │
-│                                                                  │
-│  [ Juan Dela Cruz ]  Source: Event  Matches: Person #0001        │
-│  ┌──────────────────────────┐  ┌──────────────────────────────┐  │
-│  │  THIS RECORD             │  │  EXISTING RECORD #0001       │  │
-│  │  Source: event_reg       │  │  Source: admin_created       │  │
-│  │  Created: Jan 20 2025    │  │  Created: Mar 10 2024        │  │
-│  │  google_uid: linked      │  │  google_uid: none            │  │
-│  └──────────────────────────┘  └──────────────────────────────┘  │
-│  [ Keep This Record ] [ Keep #0001 ]                             │
-│  Selecting "Keep" marks the other as review_status = 'rejected'  │
-│  and sets duplicate_of_person_id on the rejected record.         │
-│                                                                  │
-│  ────────────────────────────────────────────────────────────    │
-│                                                                  │
-│  TAB 3 — UNRESOLVED INTERNS (Phase 2)                           │
-│  intern_relationships records where intern_person_id = NULL.     │
-│  Name was typed by a leader but could not be auto-matched.       │
-│  Must be linked before the relationship can be approved.         │
-│                                                                  │
-│  [ "Anna Reyes" ]  Leader: Pedro Santos  Source: leader_form     │
-│  Search: [_______________] → [ Link to Person ]                  │
-│  (Search returns a list of candidates — admin selects the        │
-│   correct person; disambiguate by birthday or contact number     │
-│   if names conflict.)                                            │
-│  [ Create New Contact Record ]                                   │
-│                                                                  │
-│  ────────────────────────────────────────────────────────────    │
-│                                                                  │
-│  TAB 4 — INTERNS WITHOUT ACTIVE RELATIONSHIP (Phase 2)          │
-│  Persons with journey_stage = 'intern' but no approved,          │
-│  active intern_relationships record.                             │
-│                                                                  │
-│  [ Ben Cruz ]  Stage: intern  No active relationship found       │
-│  [ View Pending Relationships ] [ Create Relationship ]          │
-│                                                                  │
-│  ────────────────────────────────────────────────────────────    │
-│                                                                  │
-│  TAB 5 — UNLINKED VG MEMBERS (Phase 2)                          │
-│  victory_group_members records where person_id IS NULL           │
-│  and is_active = TRUE. Leader submitted a member name that       │
-│  has not yet been linked to a system person record.              │
-│                                                                  │
-│  [ "Anna Reyes" ]  Group: Group 1  Leader: Maria Clara           │
-│  Search: [_______________] → [ Link to Person ]                  │
-│  [ Create New Contact Record ]  [ Leave Unlinked ]               │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**Duplicate resolution rules (Phase 1):**
-- Admin reviews both records side by side and selects which to keep as the canonical record.
-- The kept record retains its `person_id`, `google_uid`, and all history.
-- The rejected record is set to `review_status = 'rejected'` and `duplicate_of_person_id = <canonical_person_id>`. It is excluded from all Gold view reporting.
-- The rejected record's event registrations and history are **not merged** in Phase 1 — they are excluded from counts. Full merge with history re-attribution is deferred to Phase 5 (see Implementation Phases in ARCHITECTURE.md).
-- Once a record is rejected as a duplicate, it is removed from the Duplicates tab and surfaced in a separate "Rejected Records" audit view accessible to admin only.
+**Phase 2 additions:**
+- **Tab 3 — Unresolved Interns:** `intern_relationships` records where `intern_person_id = NULL`. Name typed by a leader but could not be auto-matched. Admin links or creates a new Contact record.
+- **Tab 4 — Interns Without Active Relationship:** Persons with `journey_stage = 'intern'` but no approved, active `intern_relationships` record.
+- **Tab 5 — Unlinked VG Members:** `victory_group_members` records where `person_id IS NULL` and `is_active = TRUE`. Leader submitted a member name not yet linked to a system person record.
 
 ### Pastoral Event Self-Registration Flow (`pastoral_self` category) — Phase 3
 
@@ -592,8 +240,6 @@ Applies to Weddings, Child Dedications, and Business Dedications. These events h
 
 ### Admin Portal — Person Record View: Special States
 
-Three UI states on the admin person record view require explicit specification.
-
 #### Pre-Dataform Banner (VG Leader Record, Groups Not Yet Loaded)
 
 > **Phase 2.** This banner only appears after the VG Leader form ships. It bridges the gap between a leader's first form submission and the next Dataform pipeline run.
@@ -613,48 +259,7 @@ When a VG Leader submits their form for the first time, their Victory Groups are
 - **Location:** Inline banner at the top of the Groups section on the person record view.
 - **Action available:** Admin may still proceed to approve the person record in Step 2 — groups not being visible yet does not block this step.
 
-#### Data Inconsistency Warning (Role / Stage Mismatch)
-
-A person should have `journey_stage = 'leader'` if and only if they have an active `vg_leader` role in `victory_silver.person_roles`. If these are out of sync (e.g., due to a legacy data import or a failed promotion transaction), the admin portal surfaces a warning.
-
-```plaintext
-┌──────────────────────────────────────────────────────────────────┐
-│  ⚠️  Data Inconsistency Detected                                  │
-│  This person's role and journey stage do not match.              │
-│                                                                  │
-│  Role:          vg_leader (active)                               │
-│  Journey Stage: member                                           │
-│                                                                  │
-│  Use the Promote action to resolve this mismatch.               │
-│  [ Promote to VG Leader ]                                        │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-- **Trigger (Role ahead of Stage):** `person_roles` contains an active `vg_leader` row AND `persons.journey_stage ≠ 'leader'`.
-- **Trigger (Stage ahead of Role):** `persons.journey_stage = 'leader'` AND no active `vg_leader` row in `person_roles`.
-- **Location:** Inline warning banner at the top of the person record view.
-- **Action:** `[ Promote to VG Leader ]` button calls `POST /api/persons/{id}/promote-to-leader` (idempotent — re-running it corrects both fields atomically).
-
-#### Member Stage Soft-Warning (VG Leader Name Missing) — Phase 1
-
-When admin sets `journey_stage = member` on a person record, the portal immediately checks whether `vg_leader_first_name` and `vg_leader_last_name` are populated.
-
-```plaintext
-┌──────────────────────────────────────────────────────────────────┐
-│  ⚠️  VG Leader Name Missing                                       │
-│                                                                  │
-│  This member's VG Leader name has not been recorded.             │
-│  Please collect and enter it, or ask the member to update        │
-│  their profile at /profile.html.                                 │
-│                                                                  │
-│  [ Edit Record ]                              [ Dismiss ]        │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-- **Trigger:** Admin sets `journey_stage = 'member'` AND (`vg_leader_first_name` IS NULL OR `vg_leader_last_name` IS NULL).
-- **Location:** Inline soft-warning displayed immediately after the stage transition is saved. Does **not** block the transition — admin may proceed.
-- **Effect of leaving unresolved:** The record's `profile_completeness_pct` in admin views will remain low until the VG Leader name fields are populated, either by admin directly or by the member via `/profile.html`.
-- **Resolution paths:** (1) Admin edits the record directly via the admin portal. (2) Member visits `/profile.html`, which pre-fills Section 3 (VG Leader name) for them to complete and submit.
+> Phase 1 special states (Data Inconsistency Warning and Member Stage Soft-Warning) are in [UX_FLOWS_PHASE1.md — Admin Portal Special States](UX_FLOWS_PHASE1.md#admin-portal--person-record-view-special-states).
 
 ---
 
@@ -662,11 +267,9 @@ When admin sets `journey_stage = member` on a person record, the portal immediat
 
 > **Phase 2 (full flow). Phase 1 (button only).**
 >
-> The **"Promote to VG Leader" button** is available in Phase 1 on any person's admin record view — admin can directly promote without requiring a form submission. This is how Phase 1 handles early data setup (admin creates person records manually and promotes directly).
+> The **"Promote to VG Leader" button** and Phase 1 button scope are documented in [UX_FLOWS_PHASE1.md — VG Leader Promotion](UX_FLOWS_PHASE1.md#vg-leader-promotion--phase-1-scope).
 >
 > The **standard 5-step promotion workflow** (Step 1: person submits VG Leader form → Step 2: admin approves → Steps 3–4: promote → Step 5: close intern relationship) is Phase 2, because Step 1 requires the VG Leader form. The intern closure prompt below only appears when `intern_relationships` records exist (Phase 2).
->
-> The **Data Inconsistency Warning** (role/stage mismatch) is Phase 1 — it surfaces the promote button as a repair action regardless of whether the form was submitted.
 
 Immediately after admin clicks **[ Promote to VG Leader ]** and the atomic action completes, Cloud Run checks for any active `intern_relationships` records (`is_active = TRUE`) where `intern_person_id = <this person>`.
 
@@ -688,31 +291,13 @@ Immediately after admin clicks **[ Promote to VG Leader ]** and the atomic actio
 ```
 
 - **If not found:** No prompt. Promotion flow completes silently.
-- **Trigger:** `POST /api/persons/{id}/promote-to-leader` response includes `has_active_intern_relationship: true/false` flag. Frontend renders the prompt when `true`.
+- **Trigger:** `POST /api/persons/{id}/promote-to-leader` response includes:
+  - `has_active_intern_relationship: true/false` — renders the prompt when `true`
+  - `active_intern_relationship_id: "uuid | null"` — the relationship ID used as target for
+    `PATCH /api/intern-relationships/{id}` when admin clicks [ Close Relationship ]
 - **If dismissed:** A persistent warning banner appears on the person's record view: *"This person has an unclosed intern relationship with [Leader Name]. [ Close Relationship ]"* — re-surfaced on every admin view until resolved.
 
 ---
-
-### Event Attendance (Post-Event Admin Action)
-
-Attendance for all events (paid or free) is recorded by admin after the event concludes — not at the venue door. Admin marks who attended via the admin portal after the event.
-
-```plaintext
-1. Event concludes.
-2. Admin opens /events.html → selects the event → clicks [ View Registrations ].
-3. For each person who attended: Admin clicks [ Mark Attended ].
-   Backend calls POST /api/events/{id}/attend with person_id.
-   This writes attendance to Bronze → Dataform creates event_attendances.
-   event_registrations.status is updated to 'attended' in-place.
-4. For registrants who did not attend: Admin sets status = 'no_show'
-   via PATCH /api/event-registrations/{id}.
-5. *(Phase 2+)* Discipleship pipeline triggers enrollment completion for persons
-   with a matching equipping enrollment (see Discipleship Auto-Pipeline in API.md).
-   No-op in Phase 1 — equipping enrollments do not exist until Phase 2.
-```
-
-Payment status fields (`payment_status`, `payment_ref`, `amount_paid`, `payment_method`) are available on `event_registrations` for admin reference. They are not part of a documented Phase 1 process flow. Payment details are communicated through existing church channels (social media, announcements).
-
 
 ### Group & Member Lifecycle Management (Admin Portal)
 
@@ -732,86 +317,16 @@ Payment status fields (`payment_status`, `payment_ref`, `amount_paid`, `payment_
 
 ---
 
-### Admin Stage Transition Actions (Person Record View) — Phase 1
+### Admin Stage Transition Actions — Phase 2
 
-These are direct admin actions on a person's record view that drive stage progression. They are not surfaced via a queue — admin navigates to the person record and acts manually.
+> Phase 1 stage transitions (CONTACT→MEMBER two-call pattern, MEMBER→VG LEADER direct path) are in [UX_FLOWS_PHASE1.md — Admin Stage Transition Actions](UX_FLOWS_PHASE1.md#admin-stage-transition-actions-person-record-view--phase-1).
 
 ```plaintext
-CONTACT → MEMBER  (Phase 1)
-  Trigger: Leader verbally confirms One2One is complete.
-  Admin action:
-    1. Navigate to person record.
-    2. Check ✅ "One2One Completed" — sets one2one_completed = TRUE, one2one_date = today.
-    3. Update Journey Stage → "Member" — sets journey_stage = 'member'.
-       (Soft-warning appears if vg_leader_first_name / last_name is missing — see above.)
-
-MEMBER → VG LEADER  (Phase 1 direct path)
-  In Phase 1, admin promotes a Member directly to VG Leader — no intern stage required.
-  Admin action: Click [ Promote to VG Leader ] on the person record view.
-  See VG Leader Promotion section below for the full flow and phase breakdown.
-
 ── Phase 2 transitions (not available in Phase 1) ──────────────────────────
 MEMBER → VG INTERN → VG LEADER  (Phase 2 full lifecycle path)
   The intern stage and all intern_relationships management ship with the
   VG Leader form in Phase 2.
 ```
-
----
-
-### Admin Event Management (`/events.html`)
-
-Key admin actions on event records (all via `PATCH /api/events/{id}` unless noted):
-
-```plaintext
-Admin actions:
-  ┌──────────────────────────────────────────────────────────────────┐
-  │  EVENT: Date Talk — February 2025                                │
-  │  Status: registration_open  ·  Capacity: 200 (informational)    │
-  │                                                                  │
-  │  [ Open Registration ]    → status = registration_open          │
-  │  [ Close Registration ]   → status = closed                     │
-  │  [ Mark Completed ]       → status = completed                  │
-  │  [ Cancel Event ]         → status = cancelled                  │
-  │                                                                  │
-  │  Hero image:  [ Upload Image ]  (sets hero_image_url)           │
-  │  Capacity:    [ Edit ]          (informational only — no enforcement) │
-  │                                                                  │
-  │  [ View Registrations ]   → lists all event_registrations       │
-  │  [ Mark Attended (post-event) ] → POST /api/events/{id}/attend  │
-  └──────────────────────────────────────────────────────────────────┘
-```
-
-> **Event cancellation does not auto-cancel registrations.** When an event is set to
-> `cancelled`, existing `event_registrations` records are **not** modified —
-> `status` remains `registered`. Registrants are **not** notified by the system.
-> Admin must:
-> 1. Communicate the cancellation through existing church channels (WhatsApp, social media, email).
-> 2. For paid events: manually process refunds outside the system; optionally set `payment_status = 'refunded'` via `PATCH /api/event-registrations/{id}`.
-> 3. Optionally mark all registrations as `no_show` if the event record needs to be closed cleanly.
-
-- Creating a new event: `POST /api/events` (fields: event_type_id, event_name, start_datetime, end_datetime, venue_name, capacity, is_paid, price, page_slug — auto-generated if not provided).
-- `capacity` is displayed for admin planning reference. It does NOT block registration when reached (Phase 1).
-- All status transitions are manual admin actions — no auto-transitions.
-
-### Admin Headcount Submission (`/events.html` or `/admin.html`)
-
-Headcounts capture aggregate anonymous attendance for services and events where
-individual registration is not used (e.g., Sunday services).
-
-```plaintext
-Admin action:
-  1. Navigate to the relevant event or service record.
-  2. Click [ Submit Headcount ].
-  3. Enter attendee_count → Confirm.
-  Backend: POST /api/headcounts
-  Fields: date, event_type, attendee_count, event_id (optional FK, NULL for services).
-  Writes to: victory_bronze.raw_headcounts → Dataform → victory_silver.headcounts.
-```
-
-- Headcounts are aggregate only — no individual person records are created.
-- Multiple headcount submissions for the same event are allowed (e.g., multi-session events).
-
----
 
 ### Admin Class Roster Management (`/admin.html` — Equipping Classes)
 
@@ -844,4 +359,4 @@ Key admin flows for managing equipping class batches and enrollments:
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-24. Delivery phases established: Phase 1 MVP scope locked to `/e/[slug]`, `/profile`, `/admin`, `/events`.*
+*Owner: @architect. Last updated: 2026-02-25. Phase 1 flows split to UX_FLOWS_PHASE1.md (2026-02-25). This file covers Phase 2–4 flows and the full page/delivery overview.*

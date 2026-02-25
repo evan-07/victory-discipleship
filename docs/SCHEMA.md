@@ -99,8 +99,9 @@ The canonical record is the older `person_id` (lower `valid_from`). Middle name 
 **Pipeline behavior:** Sets `duplicate_flag = TRUE` and `duplicate_of_person_id = <canonical_id>`. The pipeline never auto-merges. Admin reviews in the pending queue and manually resolves.
 
 **`profile_completeness_pct` formula (`stg_persons.sqlx`):**
-- Contact stage required fields (6): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, mobile contact record (`person_contacts` WHERE `contact_type = 'mobile'` AND `is_current = TRUE`). `suffix` is excluded — the form always pre-populates it with 'None' so it is never NULL after submission. Facebook is excluded from the Contact-stage formula — it is encouraged but non-blocking at this stage.
-- Member+ stage adds 5 more: facebook contact record (`person_contacts` WHERE `contact_type = 'facebook'` AND `is_current = TRUE`), `employment_type`, **one** applicable conditional field (`nature_of_work` OR `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted), `vg_leader_first_name`, `vg_leader_last_name`. Total employment contribution: 2 fields (`employment_type` + 1 conditional field).
+- Contact stage required fields (9): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, `gender`, `civil_status`, mobile contact record (`person_contacts` WHERE `contact_type = 'mobile'` AND `is_current = TRUE`), `persons.email`. `suffix` is excluded — the form always pre-populates it with 'None' so it is never NULL after submission. Facebook is excluded from the Contact-stage formula — it is encouraged but non-blocking at this stage.
+- `persons.email` is auto-captured from Google Sign-In (Firebase Auth email) and is never shown as a form field. It is always present for self-registered persons. For admin-created records or family-registered persons (registered by a proxy), `email` may be NULL until account-claiming occurs — these records will show reduced `profile_completeness_pct` until resolved.
+- Member+ stage adds 6 more: facebook contact record (`person_contacts` WHERE `contact_type = 'facebook'` AND `is_current = TRUE`), `is_in_victory_group`, `vg_leader_first_name`, `vg_leader_last_name`, `employment_type`, **one** applicable conditional field (`nature_of_work` OR `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted). Total employment contribution: 2 fields (`employment_type` + 1 conditional field).
 - Formula: `(count of non-NULL required fields for this person's journey_stage) / (total required fields for that stage) × 100`.
 - `facebook_profile` counts as present when a `person_contacts` record exists with `contact_type = 'facebook'` and `is_current = TRUE`. Only counted as a required field for `journey_stage IN ('member', 'intern', 'leader')` — not counted for `journey_stage = 'contact'`.
 - Defaults to `0` for new users until the next Dataform run. Pre-check computes completeness dynamically via JOINs during this window.
@@ -429,4 +430,4 @@ Table Inventory Summary
 
 ---
 
-*Owner: @architect. Last updated: 2026-02-24. v4.6 amendments applied.*
+*Owner: @architect. Last updated: 2026-02-25. v4.6 amendments applied. profile_completeness_pct formula updated: contact stage expanded to 9 fields (added gender, civil_status, email); member stage expanded to 6 additional fields (added is_in_victory_group).*

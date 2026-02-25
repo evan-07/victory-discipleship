@@ -14,6 +14,7 @@ All detailed specifications live in `docs/`. This file is the entry point — re
 | [docs/JOURNEY_STAGES.md](docs/JOURNEY_STAGES.md) | Person lifecycle · 4 journey stages · required fields · stage entry processes · equipping pathway |
 | [docs/EVENTS.md](docs/EVENTS.md) | Event taxonomy · 4 categories · category values table |
 | [docs/UX_FLOWS.md](docs/UX_FLOWS.md) | Frontend pages · event registration decision tree · 4 scenarios · admin queue · payment flow |
+| [docs/UX_FLOWS_PHASE1.md](docs/UX_FLOWS_PHASE1.md) | Phase 1 MVP flows — event registration scenarios · member profile · admin portal Phase 1 actions |
 | [docs/API.md](docs/API.md) | All API routes · auth flow · pre-check logic · discipleship pipeline · write-path ownership matrix |
 | [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md) | Bronze→Silver→Gold medallion architecture · Dataform transforms · Pub/Sub trigger · data flow diagram |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | All Bronze, Silver, and Gold table schemas · dedup algorithm · SCD2 rules |
@@ -180,7 +181,7 @@ All writes first            Dataform hourly +              Looker Studio
 > `victory_silver.persons` write (minimal record, `review_status = 'pending'`) to
 > resolve the `event_registrations.person_id` FK before Dataform runs. Bronze is still
 > written first. Dataform reconciles the full record on the next scheduled run.
-> Full specification: [docs/UX_FLOWS.md — Scenario 1](docs/UX_FLOWS.md).
+> Full specification: [docs/UX_FLOWS_PHASE1.md — Scenario 1](docs/UX_FLOWS_PHASE1.md).
 
 **BigQuery datasets:** `victory_bronze` · `victory_silver` · `victory_gold`
 **Trigger:** Dataform native `workflow_config` (hourly, Asia/Manila) + Cloud Function for near-real-time attendance.
