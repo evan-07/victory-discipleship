@@ -109,36 +109,18 @@ Copy URL → hand to comms team        Zero developer required
 
 > **Account-Claiming (admin-created records):** Account-claiming (email-match fallback) is triggered on profile load and event registration pre-check. On either action, if no record matches by `google_uid`, the system automatically attempts an email-match fallback against `persons WHERE google_uid IS NULL`. If a match is found, the `google_uid` is claimed silently and the form pre-fills normally. If no email match is found, the user is presented with a blank profile form to complete their initial registration (self-service profile creation). See [API.md](API.md) for the account-claiming flow.
 
-```plaintext
-Account-Claiming Flow (Email-Match Fallback)
-
- Person signs in via Google (Profile or Event pre-check)
-        │
-        ▼
-   System checks Google UID
-   (WHERE google_uid = <jwt.uid> AND is_current = TRUE)
-        │
-   ┌────┴──────────────────────────┐
-   │                               │
- MATCH                          NO MATCH
-   │                               │
-   ▼                               ▼
-(Pre-fills normally)      System attempts Email Fallback
-                          (WHERE email = <jwt.email> 
-                           AND google_uid IS NULL)
-                                   │
-             ┌─────────────────────┼─────────────────────┐
-             │                     │                     │
-         ONE MATCH            MULTIPLE MATCHES      ZERO MATCHES
-             │                     │                     │
-             ▼                     ▼                     ▼
-     Account Claimed      (Logs data inconsistency,  (New User Flow)
-   UPDATE google_uid =    returns oldest record)     Ask user to fill
-   <jwt.uid> silently.    UPDATE google_uid =        empty form for 
-             │            <jwt.uid> silently.        "Contact" stage.
-             ▼                     │                     
-     (Proceed normally)            ▼                     
-                          (Proceed normally)
+```mermaid
+flowchart TD
+    A[Person signs in via Google<br>Profile or Event pre-check] --> B[System checks Google UID<br>WHERE google_uid = jwt.uid AND is_current = TRUE]
+    B --> C{Match Found?}
+    C -- YES --> D[Pre-fills normally]
+    C -- NO --> E[System attempts Email Fallback<br>WHERE email = jwt.email AND google_uid IS NULL]
+    E --> F{Matches Found?}
+    F -- ONE MATCH --> G[Account Claimed<br>UPDATE google_uid silently]
+    F -- MULTIPLE MATCHES --> H[Logs data inconsistency<br>Blocks silent claim<br>Prompts user to contact Admin]
+    F -- ZERO MATCHES --> I[New User Flow<br>Ask user to fill empty form for Contact stage]
+    G --> D
+    H --> J[Error: Please contact Admin]
 ```
 
 > **Stage-dependent Facebook enforcement:** If the user's `journey_stage = 'contact'`, the Facebook field is shown with an "encouraged" label and is not required. If `journey_stage = 'member'` or higher, Facebook is **required** — the form submission is blocked until it is filled.
@@ -147,18 +129,20 @@ Account-Claiming Flow (Email-Match Fallback)
 > - **Contact stage** (9 fields): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, `gender`, `civil_status`, mobile `person_contacts` record (`contact_type = 'mobile'`, `is_current = TRUE`), `persons.email`. `suffix` is excluded (form always pre-populates 'None'). Facebook is encouraged but non-blocking — not counted as required at this stage. `persons.email` is auto-captured from Google Sign-In and never shown as a form field (see field display rules below).
 > - **Member stage** — adds 4 fields to contact requirements: `facebook` (`person_contacts` WHERE `contact_type = 'facebook'`, `is_current = TRUE`), `is_in_victory_group`, `employment_type`, plus one applicable conditional field (`nature_of_work` or `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted).
 
-```plaintext
-1. Member opens /profile.html → Google Sign-In (one-tap if already signed in)
-2. System retrieves the member's profile.
-3. Cloud Run looks up record by google_uid → returns full profile.
-   If no match by google_uid, Cloud Run attempts email-match fallback (account-claiming).
-   If still no match → show "Profile not found" message, no form displayed.
-4. Form pre-fills all known fields:
-   Section 1 — Personal Info (Contact-stage fields incl. gender and civil status — all shown pre-filled and editable)
-   Section 2 — Employment Info (Employment Type → conditional fields)
-5. Member updates or completes fields → submits
-6. Profile update submitted to the system.
-7. Success message: "Thank you, your profile has been updated."
+```mermaid
+flowchart TD
+    A[Member opens /profile.html] --> B[Google Sign-In]
+    B --> C[System retrieves member profile]
+    C --> D{Match by<br>google_uid?}
+    D -- YES --> E[Form pre-fills<br>all known fields]
+    D -- NO --> F[Cloud Run attempts<br>email-match fallback]
+    F --> G{Match by<br>email?}
+    G -- YES --> E
+    G -- NO --> H[Show blank<br>profile form]
+    E --> I[Member updates/completes<br>fields & submits]
+    H --> I
+    I --> J[Profile update submitted]
+    J --> K[Success message:<br>Thank you!]
 ```
 
 **Field display rules:**
@@ -166,7 +150,7 @@ Account-Claiming Flow (Email-Match Fallback)
 - Facebook is shown pre-filled and editable. Shown with an "encouraged" label for contact-stage persons (non-blocking). Required and form-blocking for member-stage or higher.
 - Email is **not shown as a form field** — it is silently captured from the Google Sign-In session (`persons.email` = Firebase Auth email). This enables a parent or spouse to register on behalf of a family member without requiring the family member to have their own Google account.
 
-> **Proxy registration account-claiming limitation:** When a proxy registers a family member, `persons.email` is stored as the proxy's email. The actual registrant cannot claim their profile via the standard account-claiming flow until admin manually updates `persons.email` to the registrant's own email. Admin path: navigate to the person record → edit `persons.email` field → save. On the registrant's next sign-in, account-claiming will succeed.
+> **Proxy Registration (Register Someone Else):** Phase 1 includes a non-primary 'Register Someone Else' flow. This enables a parent or spouse to register a family member. When a proxy registers someone else, the proxy's `google_uid` must NOT be permanently bound to the family member's record. Instead, `persons.email` is stored as the proxy's email, but `google_uid` remains NULL for that new record. The actual registrant can claim their profile later via account-claiming once an admin manually updates `persons.email` to the actual registrant's email. Admins must be trained on this edge case to prevent operational friction when families register via proxy.
 
 - "Are you part of a Victory Group?" maps to `is_in_victory_group BOOL` on `victory_silver.persons`. Does not affect `journey_stage`. Captured to report on contact-stage persons not yet in a Victory Group. NULL = not yet answered.
 - Employment Type and conditional fields (Section 2) are always shown — these are the primary reason a member visits this page. For **contact-stage** persons: the section is shown but all fields are optional (non-blocking for form submission). For **member-stage or higher**: `employment_type` and the applicable conditional fields are required — the form is blocked until filled. For **employed**: `nature_of_work` and `company_name` are shown (both required). For **self-employed**: `nature_of_business` and `business_name` are shown (both required). The inapplicable pair is hidden entirely.
@@ -228,76 +212,23 @@ The suffix dropdown always defaults to "None". `gender` and `civil_status` dropd
 
 > **Event registration `profile_complete` scope — CONTACT-STAGE CRITERIA ONLY:** The pre-registration check evaluates `profile_complete` using **contact-stage criteria only** (9 fields: `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, `gender`, `civil_status`, mobile `person_contacts` record, `persons.email`), regardless of the person's `journey_stage`. Employment fields (`employment_type`, `nature_of_work`, `nature_of_business`) **never appear in `missing_fields` for event registration** — even for member-stage persons. Member-stage profile completeness (which includes these 4 additional fields) is enforced exclusively at `/profile.html`. This design prevents an unresolvable UX state: a member-stage person missing employment data can still complete registration (those fields are not shown on the event form), and is separately prompted to complete their full profile at `/profile.html`. See [API.md](API.md) for the full pre-check response schema.
 
-```plaintext
-Person opens /e/[slug]
-        │
-        ▼
-   Event page loads (hero image, name, date, venue)
-        │
-        ▼
-   Clicks "Register"
-        │
-        ▼
-   Google Sign-In (one-tap if already signed in)
-        │
-        ▼
-   System performs pre-registration check
-   (Also performs account-claiming: if no record matches by google_uid,
-    Cloud Run attempts email-match fallback against persons WHERE google_uid IS NULL.
-    If a match is found, google_uid is claimed silently before the check continues.)
-        │
-        ▼
-   ┌────────────────────────────────────────────┐
-   │  Is person already registered for          │
-   │  THIS event?                               │
-   └──────────┬──────────────┬──────────────────┘
-              │              │
-           YES              NO
-              │              │
-              ▼              ▼
-   ┌──────────────┐  ┌──────────────────────────┐
-   │ SCREEN:      │  │  Does person exist in     │
-   │ "Already     │  │  the system?              │
-   │ Registered"  │  └─────┬──────────────┬──────┘
-   │              │        │              │
-   │ Show:        │     YES              NO
-   │ • Reg date   │        │              │
-   │ • Status     │        ▼              ▼
-   │ • Upcoming   │  ┌───────────┐  ┌───────────┐
-   │   events     │  │ Profile   │  │ SCREEN:   │
-   │              │  │ complete? │  │ Profile   │
-   └──────────────┘  └──┬────┬──┘  │ Form      │
-                        │    │     │ (Contact  │
-                     YES    NO     │  fields + │
-                        │    │     │  VG Q)    │
-                        ▼    ▼     └─────┬─────┘
-                  ┌────────┐ ┌────────┐  │
-                  │SCREEN: │ │SCREEN: │  │
-                  │Confirm │ │Complete│  │
-                  │Register│ │Profile │  │
-                  │as [Name│ │(pre-   │  │
-                  │]       │ │filled) │  │
-                  └───┬────┘ └───┬────┘  │
-                      │          │       │
-                      ▼          ▼       ▼
-               ┌──────────────────────────────────────────┐
-               │         Registration submitted           │
-               └──────────────────┬───────────────────────┘
-                          │
-                          ▼
-               ┌─────────────────────────────┐
-               │  SUCCESS SCREEN             │
-               │                             │
-               │  ✅ "You are registered     │
-               │  for [Event Name]!"         │
-               │                             │
-               │  📅 Feb 15, 2025 · 2:00 PM │
-               │  📍 Victory Taguig          │
-               │                             │
-               │  No payment instructions.   │
-               │  No GCash/bank details.     │
-               │  Clean confirmation only.   │
-               └─────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Person opens /e/slug] --> B[Event page loads<br>hero image, name, date, venue]
+    B --> C[Clicks Register]
+    C --> D[Google Sign-In<br>one-tap if already signed in]
+    D --> E[System performs pre-registration check<br>Also performs account-claiming if needed]
+    E --> F{Is person already<br>registered for<br>THIS event?}
+    F -- YES --> G[SCREEN: Already Registered<br>Shows Reg date, Status,<br>Upcoming events]
+    F -- NO --> H{Does person<br>exist in system?}
+    H -- NO --> I[SCREEN: Profile Form<br>Contact fields + VG Query]
+    H -- YES --> J{Profile complete?}
+    J -- YES --> K[SCREEN: Confirm Register<br>as Name]
+    J -- NO --> L[SCREEN: Complete Profile<br>Pre-filled form]
+    I --> M[Registration submitted]
+    K --> M
+    L --> M
+    M --> N[SUCCESS SCREEN<br>Clean confirmation<br>No payment instructions]
 ```
 
 ### Event Registration — Error Handling
@@ -325,6 +256,7 @@ No registration data is written on failure. The user may retry without page relo
 
 | Condition | User Experience |
 | :--- | :--- |
+| During pre-check — matched record is rejected (`review_status = 'rejected'`) | Show inline error: *"Unable to process registration at this time. Please contact your VG leader or an administrator."* Re-enable **[ Register Now ]** button. No registration data written. |
 | During pre-check — server error (5xx) | Show inline error: *"Something went wrong. Please try again in a moment."* Re-enable **[ Register Now ]** button. No registration data written. |
 | During pre-check — network error / timeout | Show inline error: *"Unable to reach the server. Please check your connection and try again."* Re-enable **[ Register Now ]** button. |
 | During registration submit — server error (5xx) | Show inline error on the Confirm or Complete Profile screen: *"Something went wrong. Your registration was not submitted. Please try again."* Form data preserved — user does not need to re-enter. Do not navigate away from current screen. |
@@ -336,140 +268,81 @@ No registration data is written on pre-check or self-register failure. The user 
 
 ### Scenario 1 — Brand New Person
 
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In prompt → signs in
-3. System check: new user (person_found: false)
-4. Frontend shows PROFILE FORM with Contact stage fields:
-     ┌─────────────────────────────────────┐
-     │  Complete your profile to register  │
-     │                                     │
-     │  First Name:  [auto from Google]    │
-     │  Middle Name: [_______________]     │
-     │  Last Name:   [auto from Google]    │
-     │  Suffix:      [None ▾]             │
-     │  (Email captured from Google —      │
-     │   never shown as a form field)      │
-     │  Address:     [_______________]     │
-     │  Contact #:   [_______________]     │
-     │  Birthday:    [_______________]     │
-     │  Gender:      [Select gender ▾]     │
-     │  Civil Status:[Select status ▾]    │
-     │  Facebook:    [_______________]     │
-     │               (encouraged)          │
-     │                                     │
-     │  Are you part of a Victory Group?   │
-     │  ( ) Yes   ( ) No                   │
-     │                                     │
-     │          [ Submit & Register ]       │
-     └─────────────────────────────────────┘
-5. Person fills form → submits
-6. Registration confirmed — success screen shown immediately.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (/e/slug)
+    participant B as System (Pre-Check)
+    
+    U->>F: Opens event landing page
+    U->>F: Clicks Register & Signs in (Google)
+    F->>B: Request pre-check (google_uid)
+    B-->>F: person_found: false
+    F->>U: Show PROFILE FORM (Contact Stage fields)
+    U->>F: Fills form & Submits
+    F->>B: Submit Registration
+    B-->>F: Registration confirmed
+    F->>U: Show SUCCESS SCREEN (Clean config)
 ```
 
 ### Scenario 2 — Returning Person, Complete Profile, NOT Registered
 
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. System check returns:
-     person_found: true, profile_complete: true, already_registered: false
-     upcoming_registrations: [Marriage Booster — Mar 1]
-4. Frontend shows CONFIRM SCREEN:
-     ┌─────────────────────────────────────┐
-     │  Register as Juan Dela Cruz?        │
-     │                                     │
-     │  Event: Date Talk — Feb 2025        │
-     │  📅 Feb 15, 2025 · 2:00 PM         │
-     │  📍 Victory Taguig                  │
-     │                                     │
-     │         [ Confirm Registration ]    │
-     │                                     │
-     │  ─────────────────────────────────  │
-     │  Your upcoming events:              │
-     │  • Marriage Booster — Mar 1, 2025   │
-     └─────────────────────────────────────┘
-5. Clicks Confirm → registration submitted
-6. Registration confirmed — success screen shown.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (/e/slug)
+    participant B as System (Pre-Check)
+    
+    U->>F: Opens event landing page
+    U->>F: Clicks Register & Signs in (Google)
+    F->>B: Request pre-check (google_uid)
+    B-->>F: person_found: true<br>profile_complete: true<br>already_registered: false
+    F->>U: Show CONFIRM SCREEN (Confirm Registration as Name)
+    U->>F: Clicks Confirm
+    F->>B: Submit Registration
+    B-->>F: Registration confirmed
+    F->>U: Show SUCCESS SCREEN (Clean config)
 ```
 
 **Note on `upcoming_registrations` on the Confirm Screen:** This list excludes the current event being registered for (since registration has not yet been submitted). After successful registration, the current event appears in `upcoming_registrations` — as shown in Scenario 3's Already Registered screen.
 
 ### Scenario 3 — Returning Person, ALREADY Registered for This Event
 
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. System check returns:
-     person_found: true, already_registered: true
-     existing_registration: { registered_at: "2025-01-20", status: "registered" }
-     upcoming_registrations: [Date Talk — Feb 15, Marriage Booster — Mar 1]
-4. Frontend shows ALREADY REGISTERED SCREEN:
-     ┌─────────────────────────────────────┐
-     │  ✅ You're already registered!      │
-     │                                     │
-     │  Hi Juan! You registered for        │
-     │  Date Talk — Feb 2025 on            │
-     │  January 20, 2025.                  │
-     │                                     │
-     │  📅 Feb 15, 2025 · 2:00 PM         │
-     │  📍 Victory Taguig                  │
-     │                                     │
-     │  ─────────────────────────────────  │
-     │  Your upcoming events:              │
-     │  • Date Talk — Feb 15, 2025         │
-     │  • Marriage Booster — Mar 1, 2025   │
-     └─────────────────────────────────────┘
-5. No register button. No duplicate submission possible.
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (/e/slug)
+    participant B as System (Pre-Check)
+    
+    U->>F: Opens event landing page
+    U->>F: Clicks Register & Signs in (Google)
+    F->>B: Request pre-check (google_uid)
+    B-->>F: person_found: true<br>already_registered: true<br>(Returns upcoming_registrations)
+    F->>U: Show ALREADY REGISTERED SCREEN<br>(No register button. No duplicate submission possible)
 ```
 
 ### Scenario 4 — Returning Person, Incomplete Profile
 
 > *This scenario assumes the returning person is at `journey_stage = 'member'` or higher — which is why `facebook_profile` appears in `missing_fields` as a required field. Note: employment fields do **not** appear in `missing_fields` even for member-stage persons — pre-check uses contact-stage criteria only. See pre-check scope note above.*
 
-```plaintext
-1. Opens /e/date-talk-feb-2025
-2. Google Sign-In (one-tap)
-3. System check returns:
-     person_found: true, profile_complete: false
-     missing_fields: ["address", "facebook_profile"]
-     already_registered: false
-4. Frontend shows COMPLETE PROFILE SCREEN:
-     ┌─────────────────────────────────────┐
-     │  Complete your profile to register  │
-     │                                     │
-     │  First Name:  Juan       (filled)   │
-     │  Middle Name: Santos     (filled)   │
-     │  Last Name:   Dela Cruz  (filled)   │
-     │  Suffix:      None       (filled)   │
-     │  Address:     [_______________] ⚠️  │
-     │  Contact #:   09171234567 (filled)  │
-     │  Birthday:    1990-05-15  (filled)  │
-     │  Gender:      Male       (filled)   │
-     │  Civil Status:Single     (filled)   │
-     │  Facebook:    [_______________] ⚠️  │
-     │                                     │
-     │  Are you part of a Victory Group?   │
-     │  (•) Yes   ( ) No         (filled)  │
-     │                                     │
-     │       [ Complete & Register ]        │
-     └─────────────────────────────────────┘
-5. Person fills missing fields → submits
-6. Registration confirmed — success screen shown immediately.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
-8. CONDITIONAL POST-SUCCESS CTA (member-stage only):
-   If profile_completeness_pct < 100 AND journey_stage = 'member' (from pre-check response),
-   the success screen appends a secondary, non-blocking call to action:
-     ─────────────────────────────────────────
-     📋 Complete your member profile
-        Employment info and VG Leader details
-        are missing from your profile.
-        [ Complete Profile at profile.html ]
-     ─────────────────────────────────────────
-   Registration is already confirmed — this CTA is informational only.
-   The CTA links to /profile.html where employment and VG leader fields are required.
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (/e/slug)
+    participant B as System (Pre-Check)
+    
+    U->>F: Opens event landing page
+    U->>F: Clicks Register & Signs in (Google)
+    F->>B: Request pre-check (google_uid)
+    B-->>F: person_found: true<br>profile_complete: false<br>missing_fields: ["address", "facebook_profile"]
+    F->>U: Show COMPLETE PROFILE SCREEN<br>(Pre-filled with missing fields highlighted)
+    U->>F: Fills missing fields & Submits
+    F->>B: Submit Registration
+    B-->>F: Registration confirmed
+    F->>U: Show SUCCESS SCREEN
+    opt If profile_completeness_pct < 100 AND journey_stage = 'member'
+        F->>U: Append secondary CTA to complete profile at /profile.html
+    end
 ```
 
 **Note on employment fields in this screen:** The Complete Profile screen does not show the employment section, even for member-stage persons. Pre-check uses contact-stage criteria only. Employment and VG leader fields are enforced exclusively at `/profile.html`.
@@ -478,37 +351,21 @@ No registration data is written on pre-check or self-register failure. The user 
 
 > *Applies when `person_found: true`, `profile_complete: false`, and `journey_stage = 'contact'`. Facebook appears as "encouraged" (non-blocking) — it will NOT appear in `missing_fields` for contact-stage persons.*
 
-```plaintext
-1. Opens /e/[slug]
-2. Google Sign-In (one-tap)
-3. System check returns:
-     person_found: true, profile_complete: false
-     missing_fields: ["address", "gender"]   ← example; facebook_profile never listed for contact stage
-     already_registered: false
-4. Frontend shows COMPLETE PROFILE SCREEN:
-     ┌─────────────────────────────────────┐
-     │  Complete your profile to register  │
-     │                                     │
-     │  First Name:  Ana       (filled)    │
-     │  Middle Name: Cruz      (filled)    │
-     │  Last Name:   Reyes     (filled)    │
-     │  Suffix:      None      (filled)    │
-     │  Address:     [_______________] ⚠️  │
-     │  Contact #:   09171234567 (filled)  │
-     │  Birthday:    1998-03-22  (filled)  │
-     │  Gender:      [Select gender ▾] ⚠️  │
-     │  Civil Status:Single    (filled)    │
-     │  Facebook:    [_______________]     │
-     │               (encouraged)          │
-     │                                     │
-     │  Are you part of a Victory Group?   │
-     │  (•) Yes   ( ) No         (filled)  │
-     │                                     │
-     │       [ Complete & Register ]        │
-     └─────────────────────────────────────┘
-5. Person fills missing fields → submits
-6. Registration confirmed — success screen shown immediately.
-7. SUCCESS SCREEN (clean confirmation — no payment instructions)
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (/e/slug)
+    participant B as System (Pre-Check)
+    
+    U->>F: Opens event landing page
+    U->>F: Clicks Register & Signs in (Google)
+    F->>B: Request pre-check (google_uid)
+    B-->>F: person_found: true<br>profile_complete: false<br>missing_fields: ["address", "gender"]
+    F->>U: Show COMPLETE PROFILE SCREEN<br>(Facebook shown as 'encouraged')
+    U->>F: Fills missing fields & Submits
+    F->>B: Submit Registration
+    B-->>F: Registration confirmed
+    F->>U: Show SUCCESS SCREEN (Clean config)
 ```
 
 Key difference from Scenario 4: Facebook is shown as "encouraged" (non-blocking). Pre-check does not include `facebook_profile` in `missing_fields`. No employment section is shown — that is a member-stage requirement.
@@ -777,15 +634,28 @@ The `[ + Add New Person ]` button on `/admin.html` allows admin to seed a Contac
 
 Attendance for all events (paid or free) is recorded by admin after the event concludes — not at the venue door. Admin marks who attended via the admin portal after the event.
 
-```plaintext
-1. Event concludes.
-2. Admin opens /events.html → selects the event → clicks [ View Registrations & Mark Attended ].
-3. For each person who attended: Admin clicks [ Mark Attended ].
-   Note: QR scan check-in is Phase 2+. Phase 1 uses manual marking only.
-4. For registrants who did not attend: Admin sets status = 'no_show'.
-5. *(Phase 2+)* Discipleship pipeline triggers enrollment completion for persons
-   with a matching equipping enrollment (see Discipleship Auto-Pipeline in API.md).
-   No-op in Phase 1 — equipping enrollments do not exist until Phase 2.
+```mermaid
+stateDiagram-v2
+    state "Event Lifecycle" as Event {
+        [*] --> closed
+        closed --> registration_open : Admin Opens
+        registration_open --> closed : Admin Closes
+        registration_open --> completed : Event Concludes
+        closed --> completed : Event Concludes
+    }
+
+    state "Registration Lifecycle" as Reg {
+        [*] --> registered : User/Admin Registers
+        registered --> attended : [Mark Attended]
+        registered --> no_show : [Mark No-Show]
+        attended --> no_show : [Revert to No-Show]
+    }
+    
+    note right of Reg
+        Admin marks attendance
+        after the event concludes.
+        (QR scan is Phase 2)
+    end note
 ```
 
 Payment status is available on registrations for admin reference. Payment details are communicated through existing church channels (social media, announcements).
@@ -816,29 +686,25 @@ Admin can register a person for an event directly — without the person self-re
 
 These are direct admin actions on a person's record view that drive stage progression. They are not surfaced via a queue — admin navigates to the person record and acts manually.
 
-```plaintext
-CONTACT → MEMBER  (Phase 1)
-  Trigger: Leader verbally confirms One2One is complete.
-  Admin action:
-    1. Navigate to person record.
-    2. Check ✅ "One2One Completed" — sets one2one_completed = TRUE, one2one_date = today.
-    3. Update Journey Stage → "Member" — sets journey_stage = 'member'. This is a SEPARATE action from Step 2.
-       (Soft-warning appears if vg_leader_first_name / last_name is missing — see above.)
-
-  Note: Steps 2 and 3 are two separate admin actions.
-  A record with one2one_completed = TRUE and journey_stage = 'contact' is a valid
-  intermediate state — admin has confirmed the One2One but has not yet updated the
-  stage. No system error is raised in this state.
-
-MEMBER → VG LEADER  (Phase 1 direct path)
-  In Phase 1, admin promotes a Member directly to VG Leader — no intern stage required.
-  Admin action: Click [ Promote to VG Leader ] on the person record view.
-  See VG Leader Promotion section above for the Phase 1 button scope and API endpoint.
-
-── Phase 2 transitions (not available in Phase 1) ──────────────────────────
-MEMBER → VG INTERN → VG LEADER  (Phase 2 full lifecycle path)
-  The intern stage and all intern_relationships management ship with the
-  VG Leader form in Phase 2. See UX_FLOWS.md for the full Phase 2 transition spec.
+```mermaid
+stateDiagram-v2
+    [*] --> Contact
+    Contact --> Member : [1] Check "One2One Completed"\n[2] Update Journey Stage
+    note right of Contact
+        Admin confirms One2One.
+        Steps [1] and [2] are separate actions.
+    end note
+    
+    Member --> Leader : Click [Promote to VG Leader]
+    note right of Member
+        (Phase 1 Direct Path)
+        Atomic action: Sets stage to 'leader' 
+        AND assigns 'vg_leader' role.
+    end note
+    
+    %% Phase 2 dashed paths
+    Member --> VG_Intern : (Phase 2)
+    VG_Intern --> Leader : (Phase 2)
 ```
 
 ---
@@ -976,18 +842,18 @@ Headcounts capture aggregate anonymous attendance for services and events where
 individual registration is not used (e.g., Sunday services).
 
 **Entry points by headcount type:**
-- **Event-linked headcount** (`event_id` set, e.g., Date Talk): `[ Submit Headcount ]` button on the event management view in `/events.html`. `event_id` is auto-populated from the event record; `date` is auto-populated from `event.start_datetime`.
-- **Standalone Sunday service headcount** (`event_id = NULL`): Accessible via a `[ Submit Service Headcount ]` button on `/admin.html`. Admin enters `date` manually via a date picker and selects `event_type = 'sunday_service'`.
+- **Event-linked headcount** (`event_id` set, e.g., Date Talk): `[ Submit Headcount ]` button on the event management view in `/events.html`. `event_id` is auto-populated from the event record; `start_datetime` and `end_datetime` are auto-populated from the event dates but can be manually overridden.
+- **Standalone Sunday service headcount** (`event_id = NULL`): Accessible via a `[ Submit Service Headcount ]` button on `/admin.html`. Admin enters `start_datetime` and `end_datetime` manually via date/time pickers and selects `event_type = 'sunday_service'`.
 
 ```plaintext
 Admin action:
   1. Navigate to the relevant event or service record (see entry points above).
   2. Click [ Submit Headcount ] (event-linked) or [ Submit Service Headcount ] (Sunday service).
-  3. Enter attendee_count → Confirm.
-     Note on the `date` field: For event-linked headcounts (`event_id` is set),
-     `date` is auto-populated from `event.start_datetime` — admin does not enter it.
+  3. Enter start_datetime, end_datetime, and attendee_count → Confirm.
+     Note on the date fields: For event-linked headcounts (`event_id` is set),
+     `start_datetime` and `end_datetime` default to the event's dates but the admin modifies them if needed (e.g., for multi-day events).
      For standalone Sunday service headcounts (`event_id = NULL`), admin enters
-     the date manually via a date picker.
+     the dates manually via pickers.
 ```
 
 - Headcounts are aggregate only — no individual person records are created.
