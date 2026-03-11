@@ -1,16 +1,18 @@
-# Current Plan (CPA)
-**Phase:** Executing
-**Goal:** Create a scenario diagram for the Account-Claiming process in `docs/UX_FLOWS_PHASE1.md`.
-**Non-negotiables:** Do not edit any other document than `docs/UX_FLOWS_PHASE1.md`. Ensure formatting matches proper markdown style (`plaintext` block to match existing diagrams). Adhere to the Account-Claiming logic defined in `docs/API.md`.
-**Affected Paths:** `docs/UX_FLOWS_PHASE1.md`
-**Mandatory Agents:** @readme-updater (Documentation Impact) / Orchestrator will execute edit.
-**Documentation Impact:** `docs/UX_FLOWS_PHASE1.md` will receive a new Account-Claiming scenario diagram.
-**Architect Valid Plan (verbatim):** Diagram proposed and approved by user.
+**Phase:** Planning
+**Goal:** Modularize `docs/UX_FLOWS_PHASE1.md` into logical chunks (`_REGISTRATION.md`, `_ADMIN_EVENTS.md`, `_ADMIN_PERSONS.md`) and update standard documentation.
+**Non-negotiables:** Ensure documentation continuity. All files must maintain valid cross-links.
+**Affected Paths:** `docs/UX_FLOWS_PHASE1*.md`, `ARCHITECTURE.md`
+**Mandatory Agents:** @architect, @readme-updater
+**Documentation Impact:** `ARCHITECTURE.md` (Document Map), `docs/UX_FLOWS_PHASE1.md`
+**Architect Valid Plan:** 
+1. Create `docs/UX_FLOWS_PHASE1_REGISTRATION.md` extracting Slices 1.02-1.04 logic (Public routing).
+2. Create `docs/UX_FLOWS_PHASE1_ADMIN_EVENTS.md` extracting Slices 1.05-1.06 (Event management).
+3. Create `docs/UX_FLOWS_PHASE1_ADMIN_PERSONS.md` extracting Slices 1.07-1.08 (Review queue and persons).
+4. Prune `docs/UX_FLOWS_PHASE1.md` to serve as a high-level index.
+5. Update `ARCHITECTURE.md` Document Map with the new files.
 **Steps+Owners:**
-1. Generate CPA & CSA [owner: @orchestrator] - DONE
-2. Propose Scenario Diagram [owner: @orchestrator] - DONE
-3. Seek user approval [owner: @orchestrator] - DONE
-4. Implement changes to `docs/UX_FLOWS_PHASE1.md` once approved [owner: @orchestrator] - DONE
-**Verification plan:** 
-- Visual inspection of the markdown.
-- Verify `docs/UX_FLOWS_PHASE1.md` renders correctly.
+1. @architect: Request Plan Validation (Current)
+2. @architect: Perform the content extraction and file creation.
+3. @readme-updater: Update `ARCHITECTURE.md` to reflect new files.
+4. @architect: Run `check_links.py` for verification.
+**Verification plan:** Run `.agent/scripts/check_links.py` and manually verify rendering of the resulting index and sub-docs.

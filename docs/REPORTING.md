@@ -12,6 +12,10 @@ All Gold views are read-only SQL views on BigQuery. Row access policies are enfo
 >
 > **Pending vs. approved in Gold views:** `pending` records (new submissions awaiting admin review) are included in Gold views by default so that newly registered event attendees and form submitters appear in reporting immediately. Only `rejected` records are excluded.
 
+> **Binding rule — cancelled event filter:** Every Gold view that joins `victory_silver.event_registrations` **MUST** also join `victory_silver.events` and include the filter `WHERE events.status != 'cancelled'`. The Silver layer does NOT auto-cancel registration records when an event is cancelled — without this filter, registration counts, attendance rates, and discipleship pipeline totals will be inflated by registrations for cancelled events. This filter is enforced via the `assert_no_cancelled_event_registrations` assertion in each affected Gold SQLX file (see [DATA_PIPELINE.md](DATA_PIPELINE.md)).
+>
+> **Affected Gold views (must each verify the filter is present):** `vw_event_participation`, `vw_person_engagement`, `vw_person_event_history`, `vw_equipping_funnel`, `vw_equipping_completion`, `vw_admin_full`.
+
 | View Name | Audience | Description |
 | :--- | :--- | :--- |
 | `victory_gold.vw_member_demographics` | Executive + Admin | Total members, gender split, age bands, marital status, occupation breakdown (employed vs. self-employed), journey stage counts, monthly new member trend. |

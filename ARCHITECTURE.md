@@ -14,7 +14,10 @@ All detailed specifications live in `docs/`. This file is the entry point — re
 | [docs/JOURNEY_STAGES.md](docs/JOURNEY_STAGES.md) | Person lifecycle · 4 journey stages · required fields · stage entry processes · equipping pathway |
 | [docs/EVENTS.md](docs/EVENTS.md) | Event taxonomy · 4 categories · category values table |
 | [docs/UX_FLOWS.md](docs/UX_FLOWS.md) | Frontend pages · event registration decision tree · 4 scenarios · admin queue · payment flow |
-| [docs/UX_FLOWS_PHASE1.md](docs/UX_FLOWS_PHASE1.md) | Phase 1 MVP flows — event registration scenarios · member profile · admin portal Phase 1 actions |
+| [docs/UX_FLOWS_PHASE1.md](docs/UX_FLOWS_PHASE1.md) | Phase 1 MVP flows summary and index |
+| [docs/UX_FLOWS_PHASE1_REGISTRATION.md](docs/UX_FLOWS_PHASE1_REGISTRATION.md) | Phase 1 event registration scenarios (1.02–1.04) |
+| [docs/UX_FLOWS_PHASE1_ADMIN_EVENTS.md](docs/UX_FLOWS_PHASE1_ADMIN_EVENTS.md) | Phase 1 admin event management (1.05–1.06) |
+| [docs/UX_FLOWS_PHASE1_ADMIN_PERSONS.md](docs/UX_FLOWS_PHASE1_ADMIN_PERSONS.md) | Phase 1 review queue and person administration (1.07–1.08) |
 | [docs/API.md](docs/API.md) | All API routes · auth flow · pre-check logic · discipleship pipeline · write-path ownership matrix |
 | [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md) | Bronze→Silver→Gold medallion architecture · Dataform transforms · Pub/Sub trigger · data flow diagram |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | All Bronze, Silver, and Gold table schemas · dedup algorithm · SCD2 rules |

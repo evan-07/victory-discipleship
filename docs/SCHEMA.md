@@ -54,7 +54,7 @@ first_name                  STRING     NOT NULL
 middle_name                 STRING               -- Mother's maiden name (common in PH)
 last_name                   STRING     NOT NULL
 suffix                      STRING               -- Jr., Sr., III, etc. NULL permissible in schema (legacy/admin-created records). Forms always pre-populate with 'None' when not applicable — never NULL after a form submission.
-full_name                   STRING     NOT NULL  -- Computed: "first middle last suffix"
+full_name                   STRING     NOT NULL  -- Computed: "first middle last suffix". Computed by the application layer (Cloud Run) before every INSERT/SCD2 insert. Never left NULL. Formula: TRIM(CONCAT_WS(' ', first_name, middle_name, last_name, suffix_if_applicable)) where suffix is omitted if NULL or 'None'. See API.md two-phase write section for canonical formula.
 
 -- Contact (core — additional contacts via victory_silver.person_contacts)
 email                       STRING               -- Firebase Auth email. Retained here for auth-email matching when admin-created records claim their Google account on first sign-in (Decision Log 2026-02-24). Canonical contact store is victory_silver.person_contacts.
@@ -87,6 +87,16 @@ is_current                  BOOL       NOT NULL  DEFAULT TRUE
 ```
 **Deduplication Algorithm (`stg_persons.sqlx`):**
 
+Two independent rules run in priority order. Either rule is sufficient to flag a record as a duplicate.
+
+**Priority 0 — google_uid collision (highest precedence):**
+- Condition: Two `is_current = TRUE` person records share the same non-NULL `google_uid`.
+- Cause: Typically a two-phase write race condition — the same person registers for two events in rapid succession before Dataform reconciles the first minimal Silver record.
+- Action: Flag **both** records with `duplicate_flag = TRUE`. Both route to Tab 2 immediately.
+- Note: These records are **not** caught by Priority 1, because Priority 1 excludes pairs where `google_uid` values are the same ("same UID = same person, not a duplicate"). The google_uid collision rule is an independent, higher-priority signal.
+
+**Priority 1 — name + birthdate exact match:**
+
 Exact-match only — no fuzzy matching. A duplicate is flagged when ALL conditions are true:
 - `first_name` (case-insensitive, trimmed) matches
 - `last_name` (case-insensitive, trimmed) matches
@@ -99,6 +109,13 @@ The canonical record is the older `person_id` (lower `valid_from`). Middle name 
 **Pipeline behavior:** Sets `duplicate_flag = TRUE` and `duplicate_of_person_id = <canonical_id>`. The pipeline never auto-merges. Admin reviews in the pending queue and manually resolves.
 
 **`profile_completeness_pct` formula (`stg_persons.sqlx`):**
+
+> ⚠️ **Canonical Source of Truth:** This section defines the required field sets used by both:
+> 1. `stg_persons.sqlx` (Dataform) — computes `profile_completeness_pct` on each scheduled run.
+> 2. `GET /api/events/{slug}/pre-check` (Cloud Run) — computes completeness dynamically via JOINs during the Dataform window (up to 1 hour after a new person record is created via two-phase write).
+>
+> **Any change to the required field sets MUST be applied to both locations simultaneously.** Discrepancy between the two will cause admin views and registration pre-checks to disagree on profile completeness — leading to users being incorrectly blocked or allowed.
+
 - Contact stage required fields (9): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, `gender`, `civil_status`, mobile contact record (`person_contacts` WHERE `contact_type = 'mobile'` AND `is_current = TRUE`), `persons.email`. `suffix` is excluded — the form always pre-populates it with 'None' so it is never NULL after submission. Facebook is excluded from the Contact-stage formula — it is encouraged but non-blocking at this stage.
 - `persons.email` is auto-captured from Google Sign-In (Firebase Auth email) and is never shown as a form field. It is always present for self-registered persons. For admin-created records or family-registered persons (registered by a proxy), `email` may be NULL until account-claiming occurs — these records will show reduced `profile_completeness_pct` until resolved.
 - Member+ stage adds 6 more: facebook contact record (`person_contacts` WHERE `contact_type = 'facebook'` AND `is_current = TRUE`), `is_in_victory_group`, `vg_leader_first_name`, `vg_leader_last_name`, `employment_type`, **one** applicable conditional field (`nature_of_work` OR `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted). Total employment contribution: 2 fields (`employment_type` + 1 conditional field).
@@ -254,7 +271,13 @@ payment_method        STRING               -- gcash|bank|cash|waived
 payment_date          DATE
 primary_person_name   STRING               -- Pastoral events: person being celebrated
 registered_at         TIMESTAMP  NOT NULL
-registration_source   STRING               -- self|admin|bulk
+registration_source   STRING               -- self|admin|bulk|proxy
+                                           -- 'proxy': submitted via /e/[slug] by a person on behalf of a family
+                                           --   member. The proxy's google_uid is attached to the registration.
+                                           --   The new persons record has google_uid = NULL and
+                                           --   persons.email = proxy's email. The actual registrant can only
+                                           --   claim the record after an admin updates persons.email to the
+                                           --   actual registrant's Google-linked email.
 ```
 
 Duplicate registration prevention: For self-registrations, registration_id is computed as SHA256(event_id + ':' + person_id). This deterministic ID ensures that even if the API is called twice for the same person + event combination, only one registration record exists. The API also performs a pre-insert check and returns HTTP 409 if an active registration already exists.
