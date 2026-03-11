@@ -6,6 +6,8 @@
 
 ## Admin Review Queue
 
+> **Queue Badge (Navbar):** The `/admin.html` navigation displays a live badge count of actionable records: `[ Admin Portal (3) ]` where the count = Tab 1 (pending) + Tab 2 (duplicates) records. Sourced from `GET /api/admin/queue-counts` on page load. Badge updates after each Approve / Reject / Resolve action (optimistic). Badge is hidden (not shown as "0") when count = 0.
+
 > **Phase 1:** Tab 1 (Pending Records) and Tab 2 (Duplicates) are required for MVP — all public event registrations and admin-created records flow through here.
 > **Phase 2:** Tab 3 (Unresolved Interns), Tab 4 (Interns Without Active Relationship), and Tab 5 (Unlinked VG Members) activate when the VG Leader form ships in Phase 2.
 
@@ -26,8 +28,15 @@ The admin review queue is organized into tabs, each surfacing a distinct categor
 │                                                                  │
 │  TAB 1 — PENDING RECORDS                                         │
 │  New submissions awaiting admin review                           │
+│  Filter: [ All ▾ ]  (All / Proxy Registrations)                 │
 │                                                                  │
 │  [ Maria Clara ]   Source: Form   Duplicate: NO                  │
+│  [ Approve ] [ Reject ] [ Edit ]                                 │
+│                                                                  │
+│  [ Ana Santos ]    Source: Form   Duplicate: NO   [PROXY] ⚠️   │
+│  ↑ [PROXY] badge shown when registration_source = 'proxy'.      │
+│    Tooltip: "This person was registered by someone else.        │
+│    Update their email to enable account-claiming."              │
 │  [ Approve ] [ Reject ] [ Edit ]                                 │
 │                                                                  │
 │  ────────────────────────────────────────────────────────────    │
@@ -83,6 +92,18 @@ The admin review queue is organized into tabs, each surfacing a distinct categor
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+### Tab 1 — Filter and Proxy Badge
+
+- **Filter dropdown:** `[ All ▾ ]` with options: All / Proxy Registrations.
+  - "Proxy Registrations" — shows only records WHERE `registration_source = 'proxy'`.
+  - Purpose: Helps admin quickly identify records requiring email update before account-claiming can work.
+
+- **[PROXY] badge:** Shown inline on records where `registration_source = 'proxy'`.
+  - Tooltip on hover: *"This person was registered by someone else. Update their email to enable account-claiming."*
+  - Resolution: Admin navigates to the person record via `[ Edit ]`, updates `persons.email` to the actual registrant's Google-linked email. Once updated, account-claiming fires automatically on the registrant's first Google Sign-In.
+
+> **Account-claiming error (multiple email matches):** If a person's first sign-in triggers account-claiming and multiple `persons` records share the same email with `google_uid IS NULL`, the system returns a 409 error and shows: *"Unable to load your profile. Please contact your VG leader or an administrator."* No `google_uid` is written. An admin must investigate and resolve the duplicate email records manually before the person can sign in successfully.
 
 ### Tab 1 — Approve / Reject / Edit interaction spec
 

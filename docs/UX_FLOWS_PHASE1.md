@@ -105,6 +105,7 @@ flowchart TD
 > **Stage-dependent Facebook enforcement:** If the user's `journey_stage = 'contact'`, the Facebook field is shown with an "encouraged" label and is not required. If `journey_stage = 'member'` or higher, Facebook is **required** — the form submission is blocked until it is filled.
 
 > **Profile completeness criteria — canonical field sets for `profile_complete` pre-check flag and `profile_completeness_pct` Silver formula:**
+> *(See [SCHEMA.md](../docs/SCHEMA.md#profile_completeness_pct-formula-stg_personssqlx) for the full formula. Both the pre-check endpoint and the Dataform pipeline must derive from that definition. Any change to the required field sets must be applied to both locations simultaneously.)*
 > - **Contact stage** (9 fields): `first_name`, `middle_name`, `last_name`, `address`, `birthdate`, `gender`, `civil_status`, mobile `person_contacts` record (`contact_type = 'mobile'`, `is_current = TRUE`), `persons.email`. `suffix` is excluded (form always pre-populates 'None'). Facebook is encouraged but non-blocking — not counted as required at this stage. `persons.email` is auto-captured from Google Sign-In and never shown as a form field (see field display rules below).
 > - **Member stage** — adds 4 fields to contact requirements: `facebook` (`person_contacts` WHERE `contact_type = 'facebook'`, `is_current = TRUE`), `is_in_victory_group`, `employment_type`, plus one applicable conditional field (`nature_of_work` or `nature_of_business` — whichever matches `employment_type`; the inapplicable field is never counted).
 
@@ -169,7 +170,8 @@ The suffix dropdown always defaults to "None". `gender` and `civil_status` dropd
 | Condition | User Experience |
 | :--- | :--- |
 | `google_uid` match found | Form pre-fills normally. |
-| No `google_uid` match, email match found | `google_uid` claimed silently. Form pre-fills from the matched record. No user-visible action. |
+| No `google_uid` match, email match found (exactly one) | `google_uid` claimed silently. Form pre-fills from the matched record. No user-visible action. |
+| No `google_uid` match, **multiple** email matches found | Show message: *"Unable to load your profile. Please contact your VG leader or an administrator."* Sign-in button re-enabled. No account claim performed. No google_uid is written. |
 | No match at all | User is presented with a blank profile form to complete their initial registration (self-service profile creation). No error message is shown. |
 | Server or network error | Show message: *"Unable to load your profile. Please check your connection and try again."* Retry button shown. |
 

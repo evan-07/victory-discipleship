@@ -18,9 +18,11 @@ Copy URL → hand to comms team        Zero developer required
 
 ## Event Landing Page Layout (`/e/[slug]`)
 
+> **Hero image rendering rule:** If `events.hero_image_url` is not NULL, render the uploaded image at full width. If `hero_image_url` IS NULL, render the branded fallback placeholder at `/assets/images/event-hero-placeholder.png` (1200×630px, 16:9). The placeholder is the safety net for events opened before a hero image is uploaded — it is never shown in normal operation if admin follows the recommended workflow.
+
 ```plaintext
 ┌─────────────────────────────────────────┐
-│         [Canva Hero Image]              │
+│   [Canva Hero Image or Placeholder]     │
 │                                         │
 │  Event Name                             │
 │  Date & Time · Venue                    │
@@ -88,6 +90,7 @@ No registration data is written on failure. The user may retry without page relo
 | Condition | User Experience |
 | :--- | :--- |
 | During pre-check — matched record is rejected (`review_status = 'rejected'`) | Show inline error: *"Unable to process registration at this time. Please contact your VG leader or an administrator."* Re-enable **[ Register Now ]** button. No registration data written. |
+| During pre-check — account-claiming found multiple email matches | Show inline error: *"Unable to load your profile. Please contact your VG leader or an administrator."* Re-enable **[ Register Now ]** button. No registration data written. No `google_uid` is written. |
 | During pre-check — server error (5xx) | Show inline error: *"Something went wrong. Please try again in a moment."* Re-enable **[ Register Now ]** button. No registration data written. |
 | During pre-check — network error / timeout | Show inline error: *"Unable to reach the server. Please check your connection and try again."* Re-enable **[ Register Now ]** button. |
 | During registration submit — server error (5xx) | Show inline error on the Confirm or Complete Profile screen: *"Something went wrong. Your registration was not submitted. Please try again."* Form data preserved — user does not need to re-enter. Do not navigate away from current screen. |
@@ -104,7 +107,7 @@ sequenceDiagram
     participant U as User
     participant F as Frontend (/e/slug)
     participant B as System (Pre-Check)
-    
+
     U->>F: Opens event landing page
     U->>F: Clicks Register & Signs in (Google)
     F->>B: Request pre-check (google_uid)
@@ -115,6 +118,34 @@ sequenceDiagram
     B-->>F: Registration confirmed
     F->>U: Show SUCCESS SCREEN (Clean config)
 ```
+
+> **Backend note — `full_name` computation (two-phase write):** When the backend creates the minimal Silver `persons` record for a new user, `full_name` MUST be computed and included in the INSERT (`NOT NULL` constraint). Formula: `TRIM(CONCAT_WS(' ', first_name, middle_name, last_name, suffix))` where `suffix` is omitted if `NULL` or `'None'`. This same formula applies to `POST /api/persons` (admin create) and all SCD2 new-row inserts when any name field changes. See [API.md](API.md) for the canonical formula reference.
+
+## Scenario 1b — Brand New Person (Proxy Registration)
+
+> *A parent or spouse registers on behalf of a family member. The proxy's `google_uid` must NOT be permanently bound to the family member's record.*
+
+The profile form screen (Scenario 1) presents a secondary option:
+
+```plaintext
+  [ Registering for yourself? ]         ← default, selected
+  [ Registering for a family member? ]  ← secondary option
+```
+
+When **"Registering for a family member"** is selected:
+- Email field remains hidden (same as self-registration — email is never a visible form field).
+- The **family member's** name, address, contact, and other details are filled into the form.
+- On submit, a new `persons` record is created: `google_uid = NULL`, `persons.email` = proxy's JWT email. This is intentional — the family member does not yet have a Google account linked.
+- `registration_source = 'proxy'` on the `event_registrations` INSERT.
+- The success screen shows the **family member's name** (not the proxy's).
+
+**Admin resolution path (required to enable account-claiming for the family member):**
+1. Admin sees a **[PROXY]** badge on the Tab 1 pending record.
+2. Tooltip: *"This person was registered by someone else. Update their email to enable account-claiming."*
+3. Admin obtains the actual registrant's Google-linked email and updates `persons.email` via the person record edit view.
+4. On the family member's first Google Sign-In, account-claiming fires automatically and links their `google_uid`.
+
+> **Data safety:** The proxy's `google_uid` is never written to the family member's `persons` record. Only `persons.email` is temporarily set to the proxy's email as a placeholder for the admin to update.
 
 ## Scenario 2 — Returning Person, Complete Profile, NOT Registered
 

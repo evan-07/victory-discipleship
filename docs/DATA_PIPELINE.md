@@ -87,7 +87,7 @@ Dataform is Google's SQL workflow tool built into BigQuery. You write `.sqlx` fi
 
 | SQLX File | Layer | Source | Target | Trigger |
 | :--- | :--- | :--- | :--- | :--- |
-| `stg_persons.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.persons` (SCD2 upsert) | Scheduled (hourly, Dataform native) |
+| `stg_persons.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.persons` (SCD2 upsert) | Scheduled (hourly, Dataform native) — **MERGE key priority: (1) `google_uid` (non-NULL) — primary key; handles two-phase write reconciliation. (2) `person_id` — fallback for admin-created records where `google_uid IS NULL`. Two-phase write behavior: if a Bronze `source_page = 'event_registration'` record's `google_uid` matches an existing `is_current = TRUE` Silver row, Dataform SCD2 closes that row and inserts a fully-populated new row — carrying forward the original `person_id` (preserving FK integrity on `event_registrations`). A new `person_id` is never assigned during reconciliation.** Assertions: (a) `assert_single_active_per_google_uid` — detects google_uid collision (Priority 0 duplicate signal); (b) `assert_google_uid_uniqueness` — halts pipeline if two `is_current = TRUE` rows share the same non-NULL `google_uid` and sets `duplicate_flag = TRUE` on both. |
 | `stg_contacts.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.person_contacts` | Scheduled (hourly, Dataform native) |
 | `stg_occupations.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.person_occupations` | Scheduled (hourly, Dataform native) |
 | `stg_victory_groups.sqlx` | `2_silver` | `victory_bronze.raw_form_submissions` | `victory_silver.victory_groups` | Scheduled (hourly, Dataform native) |
@@ -132,6 +132,23 @@ Both files implement **reconcile (replace)** behavior. The latest leader form su
 This prevents stale active member and group records from accumulating when leaders update their rosters.
 
 **Dataform assertions:** Each `.sqlx` file includes assertions that verify data quality before writing to the next layer (e.g. `assert person_id IS NOT NULL`, `assert email matches regex pattern`). A failing assertion stops the pipeline and sends an alert — bad data never reaches Gold.
+
+**`stg_persons.sqlx` required assertions:**
+- `assert_single_active_per_google_uid`: Detects two `is_current = TRUE` rows with the same non-NULL `google_uid` (Priority 0 duplicate signal — sets `duplicate_flag = TRUE` on both affected records and routes them to Tab 2).
+- `assert_google_uid_uniqueness`: Halts the pipeline if the above condition is not resolved.
+
+**Gold view mandatory assertion (applies to all Gold SQLX files that join `event_registrations`):**
+```sql
+assert_no_cancelled_event_registrations as (
+  SELECT r.registration_id
+  FROM ${ref("event_registrations")} r
+  JOIN ${ref("events")} e ON r.event_id = e.event_id
+  WHERE e.status = 'cancelled'
+)
+-- Non-empty result means a Gold view is exposing registrations for cancelled events.
+-- Halts pipeline. All affected Gold views MUST filter WHERE events.status != 'cancelled'.
+```
+Affected Gold SQLX files that must include this assertion: `gold_events.sqlx`, `gold_engagement.sqlx`, `gold_event_history.sqlx`, `gold_funnel.sqlx`, `gold_equipping_completion.sqlx`, `gold_admin_full.sqlx`. See [REPORTING.md](REPORTING.md) for the binding filter rule.
 
 ### Gold View Dependency DAG
 

@@ -20,6 +20,10 @@ Admin actions:
   │  [ Cancel Event ]         → status = cancelled                  │
   │                                                                  │
   │  Hero image:  [ Upload Image ]  (sets hero_image_url)           │
+  │               Note: if no image is uploaded and the event is set │
+  │               to registration_open, the public page renders a    │
+  │               branded placeholder automatically. Best practice:  │
+  │               upload the hero image before opening registration. │
   │  Capacity:    [ Edit ]          (informational only — no enforcement) │
   │                                                                  │
   │  [ View Registrations & Mark Attended ] → opens Registration    │
@@ -36,15 +40,25 @@ Admin actions:
 │  Registrations — Date Talk: February 2025                                    │
 │  Total: 48 · 32 attended · 5 no-show · 11 registered                        │
 │                                                                              │
-│  Filter: [ All ▾ ]  (All / Registered / Attended / No-Show)                 │
+│  Filter: [ All ▾ ]  (All / Registered / Attended / No-Show /                │
+│                       Payment Pending*)                                      │
+│  * "Payment Pending" filter: only shown when event is_paid = TRUE.           │
+│    Returns registrations WHERE payment_status = 'pending'.                  │
+│    Hidden entirely for free events (is_paid = FALSE).                       │
 │  Search: [__________________________]                                        │
 │                                                                              │
 │  Name              Status        Registered At       Payment Status          │
 │  ─────────────────────────────────────────────────────────────────────────  │
-│  Juan Dela Cruz    attended      Jan 20, 2025         N/A                   │
-│  [ Mark No-Show ]                                                            │
-│                                                                              │
-│  Ana Reyes         registered    Jan 21, 2025         N/A                   │
+│  Juan Dela Cruz    attended      Jan 20, 2025        [ Paid ▾ ]             │
+│  [ Mark No-Show ]                                    ← inline toggle        │
+│                                                        (paid events only)   │
+│                                                        options: Pending /   │
+│                                                        Paid / Waived        │
+│                                                        → PATCH payment_     │
+│                                                          status on click    │
+│                                                        Free events: "N/A"  │
+│                                                        (read-only)          │
+│  Ana Reyes         registered    Jan 21, 2025        [ Pending ▾ ]          │
 │  [ Mark Attended ] [ Mark No-Show ]                                          │
 │                                                                              │
 │  ... (paginated, 25 per page)                                                │
@@ -53,6 +67,11 @@ Admin actions:
 │                          [ + Register Person ]                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Payment Status inline toggle behavior:**
+- **Paid events** (`is_paid = TRUE`): The Payment Status cell on each registration row is an inline dropdown. Admin clicks to toggle between `Pending`, `Paid`, and `Waived`. Calls `PATCH /api/event-registrations/{id}` with `{ "payment_status": "<value>" }`. Optimistic update — label changes immediately, reverts on API failure with a toast error.
+- **Free events** (`is_paid = FALSE`): Payment Status column shows `N/A` (read-only, no toggle).
+- Payment status is an informational tag only. It does not affect `persons.journey_stage`, reporting pipeline, or any other system behavior. `amount_paid`, `payment_ref`, and `payment_method` remain optional admin-entry fields.
 
 ## Event Attendance (Post-Event Admin Action)
 

@@ -50,7 +50,8 @@ Cloud Run hosts a containerized Python FastAPI application. It scales automatica
 | `POST /api/persons/resolve-duplicate` | POST | admin | Atomic duplicate resolution. Body: `{ "keep_person_id": "uuid", "reject_person_id": "uuid" }`. Performs in a single transaction: (1) sets rejected record `review_status = 'rejected'` and `duplicate_of_person_id = <keep_person_id>`; (2) sets kept record `duplicate_flag = FALSE`. Returns the kept person record. Used by the `[ Keep This Record ]` / `[ Keep #0001 ]` buttons in Tab 2 of the admin review queue. |
 | `PATCH /api/persons/{id}/occupations` | PATCH | admin | SCD2 close-and-insert update on a `person_occupations` record (e.g., correct employment type or company name). |
 | `PATCH /api/events/{id}` | PATCH | admin | Update event status (`registration_open` / `closed` / `completed` / `cancelled`), `hero_image_url`, `capacity`, or `end_datetime`. |
-| `PATCH /api/event-registrations/{id}` | PATCH | admin | Update payment status (`pending` → `paid` / `waived`), `payment_ref`, `payment_method`, `amount_paid`, and/or registration status (`no_show` / `attended`). |
+| `PATCH /api/event-registrations/{id}` | PATCH | admin | Update `payment_status` (`pending` / `paid` / `waived`) and/or registration `status` (`no_show` / `attended` / `cancelled`). `payment_status` is an informational tag only — does not affect `journey_stage` or reporting pipeline. `amount_paid`, `payment_ref`, `payment_method` remain optional. |
+| `GET /api/admin/queue-counts` | GET | admin | Returns count of actionable records for the admin queue navbar badge. Response: `{ "pending": <int>, "duplicates": <int> }` where `pending` = records with `review_status = 'pending' AND duplicate_flag = FALSE AND is_current = TRUE`; `duplicates` = records with `review_status = 'pending' AND duplicate_flag = TRUE AND is_current = TRUE`. Lightweight count-only query — no record data returned. |
 | `PATCH /api/victory-groups/{id}` | PATCH | admin | Deactivate a Victory Group (`is_active = FALSE`). Also sets all active `victory_group_members` for that group to `is_active = FALSE`. SCD2 close on `victory_groups`. |
 | `PATCH /api/vg-members/{id}` | PATCH | admin | Deactivate a VG member (sets `is_active = FALSE`, `removed_at = NOW()`). Distinct from `PATCH /api/vg-members/{id}/link`, which links a person_id only. |
 | `POST /api/equipping-classes` | POST | admin | Create a new equipping class batch (fields: `canonical_step`, `class_name`, `batch_code`, `facilitator_person_id`, `start_date`, `end_date`, `capacity`). |
@@ -131,8 +132,11 @@ When `GET /api/me` finds no match by `google_uid`, Cloud Run attempts an email-b
    Logs to data_change_log. Returns the claimed person record as the GET /api/me response.
 6. Zero matches → returns HTTP 404.
    Frontend shows: "Your profile was not found. Please contact admin."
-7. Multiple matches → Cloud Run returns the oldest record (lowest valid_from) and logs
-   a data inconsistency flag to data_change_log for admin review.
+7. Multiple matches → Cloud Run returns HTTP 409: { "error": "multiple_email_matches" }.
+   Logs a data inconsistency flag to data_change_log (change_type = 'inconsistency_detected').
+   No google_uid is written. No record is claimed.
+   Frontend shows: "Unable to load your profile. Please contact your VG leader or an administrator."
+   Applies to both GET /api/me and GET /api/events/{slug}/pre-check.
 8. Claiming is transparent — no confirmation screen is shown to the user.
 ```
 
@@ -396,7 +400,11 @@ For new users (Scenario 1 — `person_found: false`) and returning users with in
 
 **Backend logic when `profile` is present:**
 1. Write the full profile to `victory_bronze.raw_form_submissions` with `source_page = 'event_registration'`.
-2. **Scenario 1 (new user):** Create a minimal Silver `persons` record immediately — `person_id` (new UUID), `google_uid`, `first_name`, `last_name`, `review_status = 'pending'`, `source = 'event_registration'`, `journey_stage = 'contact'`, `is_current = TRUE`, `valid_from = NOW()`. This is the two-phase write exception. Then create `event_registrations` using the new `person_id`. Return `201` with success.
+2. **Scenario 1 (new user):** Create a minimal Silver `persons` record immediately — `person_id` (new UUID), `google_uid`, `first_name`, `last_name`, `full_name` (computed — see formula below), `email` (from JWT), `review_status = 'pending'`, `source = 'event_registration'`, `journey_stage = 'contact'`, `is_current = TRUE`, `valid_from = NOW()`. This is the two-phase write exception. Then create `event_registrations` using the new `person_id`. Return `201` with success.
+
+   > **`full_name` canonical formula (NOT NULL — required on every INSERT):** `TRIM(CONCAT_WS(' ', first_name, middle_name, last_name, suffix))` where `suffix` is omitted if it is `NULL` or the string `'None'`. This formula must be used by: (1) this two-phase write INSERT, (2) `POST /api/persons` (admin create), and (3) all SCD2 new-row inserts in `PATCH /api/persons/{id}` when any name field changes. Never derive `full_name` in Dataform — it is always computed by Cloud Run before INSERT.
+
+   > **Dataform MERGE key for two-phase write reconciliation:** `stg_persons.sqlx` uses `google_uid` as the primary MERGE key. When Dataform finds a Bronze `raw_form_submissions` record whose `google_uid` already matches an `is_current = TRUE` row in `victory_silver.persons`, it performs a SCD2 close-and-insert to populate all fields from Bronze — carrying forward the original `person_id` (preserving FK integrity for `event_registrations` already created). A new `person_id` is never assigned. See [DATA_PIPELINE.md](DATA_PIPELINE.md) for the full MERGE key specification.
 3. **Scenario 4 (incomplete profile):** The `person_id` is already known from the pre-check response. Create `event_registrations` immediately using the existing `person_id`. Dataform reconciles the profile updates (missing fields) on the next scheduled run. Return `201` with success.
 4. If `profile` is absent but `person_found: false` → return `422` (profile required for new users).
 
